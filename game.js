@@ -226,11 +226,12 @@ function getFuelCapacity() {
 }
 
 function getSafeCapacity() {
-  return STARTING_INVENTORY_CAPACITY + getUpgradeEffectTotal("inventoryCapacity");
+  return Math.max(STARTING_INVENTORY_CAPACITY, toNonNegativeInt(state.inventory.capacity));
 }
 
 function getMoveSpeed() {
-  return STARTING_PLAYER_SPEED + getUpgradeEffectTotal("moveSpeed");
+  const speed = toNonNegativeInt(state.player.speed);
+  return speed > 0 ? speed : STARTING_PLAYER_SPEED;
 }
 
 function getSafeOreCount(oreId) {
@@ -373,6 +374,15 @@ const state = {
   },
 };
 
+function syncUpgradeState() {
+  state.inventory.capacity =
+    STARTING_INVENTORY_CAPACITY + getUpgradeEffectTotal("inventoryCapacity");
+  state.player.speed = STARTING_PLAYER_SPEED + getUpgradeEffectTotal("moveSpeed");
+  setFuel(state.fuel);
+}
+
+syncUpgradeState();
+
 function resizeCanvas() {
   state.viewWidth = window.innerWidth;
   state.viewHeight = window.innerHeight;
@@ -496,6 +506,7 @@ function purchaseUpgrade(lineId) {
 
   state.cash = getSafeCash() - nextTier.cost;
   state.upgrades[lineId] = getPurchasedUpgradeTier(lineId) + 1;
+  syncUpgradeState();
   updateHud();
   return true;
 }
@@ -738,6 +749,7 @@ function digAdjacentTile() {
 }
 
 function updateHud() {
+  syncUpgradeState();
   const depth = getPlayerDepth();
   updateDeepestDepth(depth);
   initializeShopList();
