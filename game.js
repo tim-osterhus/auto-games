@@ -329,6 +329,7 @@ function movePlayer(delta) {
 }
 
 function digAdjacentTile() {
+  if (getSafeFuel() <= 0) return;
   const playerCol = Math.floor(state.player.x / TILE_SIZE);
   const playerRow = Math.floor(state.player.y / TILE_SIZE);
   const rawTargetCol = playerCol + state.lastMove.x;
@@ -349,6 +350,7 @@ function digAdjacentTile() {
 
   tile.type = TILE.AIR;
   tile.oreId = null;
+  setFuel(state.fuel - FUEL_DIG_COST);
 }
 
 function updateHud() {
