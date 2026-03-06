@@ -11,9 +11,7 @@ const hudFuel = document.getElementById("hud-fuel");
 const hudFuelRow = document.getElementById("hud-fuel-row");
 const hudSellRow = document.getElementById("hud-sell");
 const sellButton = document.getElementById("sell-button");
-const shopUpgradeName = document.getElementById("shop-upgrade-name");
-const shopUpgradeDetail = document.getElementById("shop-upgrade-detail");
-const buyUpgradeButton = document.getElementById("buy-upgrade");
+const hudShopList = document.getElementById("hud-shop-list");
 
 const TILE_SIZE = 32;
 const WORLD_COLS = 80;
@@ -45,6 +43,7 @@ const STRATA = [
   },
 ];
 const SURFACE_STRATUM = { id: "surface", name: "Surface", minRow: 0, maxRow: 0 };
+const shopLineElements = new Map();
 
 const TILE = {
   AIR: 0,
@@ -501,19 +500,132 @@ function purchaseUpgrade(lineId) {
   return true;
 }
 
-function getFeaturedUpgradeLine() {
-  return (
-    UPGRADE_LINES.find((line) => !isUpgradeMaxed(line.id) && isUpgradeUnlocked(line.id)) ||
-    UPGRADE_LINES.find((line) => !isUpgradeMaxed(line.id)) ||
-    UPGRADE_LINES[0] ||
-    null
-  );
+function createShopLine(line) {
+  if (!hudShopList) return;
+
+  const row = document.createElement("div");
+  row.className = "shop-line";
+  row.dataset.lineId = line.id;
+
+  const main = document.createElement("div");
+  main.className = "shop-line-main";
+
+  const header = document.createElement("div");
+  header.className = "shop-line-header";
+
+  const name = document.createElement("div");
+  name.className = "shop-line-name";
+  name.textContent = line.name;
+
+  const level = document.createElement("div");
+  level.className = "shop-level";
+
+  const meta = document.createElement("div");
+  meta.className = "shop-line-meta";
+
+  const effect = document.createElement("span");
+  effect.className = "shop-effect";
+
+  const cost = document.createElement("span");
+  cost.className = "shop-cost";
+
+  const status = document.createElement("div");
+  status.className = "shop-status";
+
+  const button = document.createElement("button");
+  button.className = "hud-button shop-buy-button";
+  button.type = "button";
+  button.addEventListener("click", () => {
+    purchaseUpgrade(line.id);
+  });
+
+  header.append(name, level);
+  meta.append(effect, cost);
+  main.append(header, meta, status);
+  row.append(main, button);
+  hudShopList.append(row);
+
+  shopLineElements.set(line.id, { row, level, effect, cost, status, button });
 }
 
-function buyUpgrade() {
-  const featuredLine = getFeaturedUpgradeLine();
-  if (!featuredLine) return;
-  purchaseUpgrade(featuredLine.id);
+function initializeShopList() {
+  if (!hudShopList || shopLineElements.size > 0) return;
+  UPGRADE_LINES.forEach((line) => {
+    createShopLine(line);
+  });
+}
+
+function getShopLineState(lineId, depth = getPlayerDepth()) {
+  const nextTier = getNextUpgradeTier(lineId);
+
+  if (isUpgradeMaxed(lineId)) {
+    return {
+      buttonDisabled: true,
+      buttonLabel: "Maxed",
+      costText: "Cost: --",
+      effectText: "Next: Complete",
+      rowClass: "is-maxed",
+      statusText: "Maxed",
+    };
+  }
+
+  if (!nextTier) {
+    return {
+      buttonDisabled: true,
+      buttonLabel: "N/A",
+      costText: "Cost: --",
+      effectText: "Next: Pending",
+      rowClass: "is-unaffordable",
+      statusText: "Unavailable",
+    };
+  }
+
+  const unlocked = isUpgradeUnlocked(lineId);
+  const affordable = canAffordUpgrade(lineId);
+  const onSurface = depth === 0;
+  let buttonLabel = "Buy";
+  let buttonDisabled = false;
+  let rowClass = affordable ? "is-affordable" : "is-unaffordable";
+  let statusText = affordable ? "Available" : "Need more cash";
+
+  if (!unlocked) {
+    buttonLabel = "Locked";
+    buttonDisabled = true;
+    rowClass = "is-locked";
+    statusText = `Unlock at ${formatUnlockLabel(getUpgradeUnlock(lineId))}`;
+  } else if (!onSurface) {
+    buttonLabel = "Surface only";
+    buttonDisabled = true;
+    statusText = affordable ? "Surface only" : "Return with more cash";
+  } else if (!affordable) {
+    buttonDisabled = true;
+  }
+
+  return {
+    buttonDisabled,
+    buttonLabel,
+    costText: `Cost: $${nextTier.cost}`,
+    effectText: `Next: ${nextTier.effectLabel}`,
+    rowClass,
+    statusText,
+  };
+}
+
+function updateShopLine(line, depth) {
+  const elements = shopLineElements.get(line.id);
+  if (!elements) return;
+
+  const purchased = getPurchasedUpgradeTier(line.id);
+  const lineState = getShopLineState(line.id, depth);
+
+  elements.row.classList.remove("is-locked", "is-affordable", "is-unaffordable", "is-maxed");
+  elements.row.classList.add(lineState.rowClass);
+  elements.level.textContent = `Level ${purchased}/${line.tiers.length}`;
+  elements.effect.textContent = lineState.effectText;
+  elements.cost.textContent = lineState.costText;
+  elements.status.textContent = lineState.statusText;
+  elements.button.disabled = lineState.buttonDisabled;
+  elements.button.textContent = lineState.buttonLabel;
 }
 
 function isSolidTile(col, row) {
@@ -628,6 +740,7 @@ function digAdjacentTile() {
 function updateHud() {
   const depth = getPlayerDepth();
   updateDeepestDepth(depth);
+  initializeShopList();
   const stratumName = getStratumForRow(depth).name;
   if (depth === 0) {
     setFuel(getFuelCapacity());
@@ -660,42 +773,9 @@ function updateHud() {
   if (sellButton) {
     sellButton.disabled = !canSell;
   }
-
-  const featuredUpgradeLine = getFeaturedUpgradeLine();
-  const featuredUpgradeId = featuredUpgradeLine?.id || null;
-  const nextTier = featuredUpgradeId ? getNextUpgradeTier(featuredUpgradeId) : null;
-  const unlock = featuredUpgradeId ? getUpgradeUnlock(featuredUpgradeId) : null;
-  if (shopUpgradeName) {
-    shopUpgradeName.textContent = featuredUpgradeLine ? featuredUpgradeLine.name : "No Upgrades";
-  }
-  if (shopUpgradeDetail) {
-    if (!featuredUpgradeLine) {
-      shopUpgradeDetail.textContent = "No upgrade lines configured";
-    } else if (!nextTier) {
-      shopUpgradeDetail.textContent = `${featuredUpgradeLine.tiers.length}/${featuredUpgradeLine.tiers.length} tiers purchased`;
-    } else {
-      const tierNumber = getPurchasedUpgradeTier(featuredUpgradeId) + 1;
-      const unlockCopy = isUpgradeUnlocked(featuredUpgradeId)
-        ? "Unlocked"
-        : `Unlock at ${formatUnlockLabel(unlock)}`;
-      shopUpgradeDetail.textContent = `Tier ${tierNumber}/${featuredUpgradeLine.tiers.length} • ${nextTier.effectLabel} • $${nextTier.cost} • ${unlockCopy}`;
-    }
-  }
-  if (buyUpgradeButton) {
-    if (!featuredUpgradeId) {
-      buyUpgradeButton.disabled = true;
-      buyUpgradeButton.textContent = "N/A";
-    } else if (isUpgradeMaxed(featuredUpgradeId)) {
-      buyUpgradeButton.disabled = true;
-      buyUpgradeButton.textContent = "Maxed";
-    } else if (!isUpgradeUnlocked(featuredUpgradeId)) {
-      buyUpgradeButton.disabled = true;
-      buyUpgradeButton.textContent = "Locked";
-    } else {
-      buyUpgradeButton.disabled = !canPurchaseUpgrade(featuredUpgradeId, depth);
-      buyUpgradeButton.textContent = depth === 0 ? "Buy" : "Surface only";
-    }
-  }
+  UPGRADE_LINES.forEach((line) => {
+    updateShopLine(line, depth);
+  });
 }
 
 function drawWorld(cameraX, cameraY) {
@@ -778,12 +858,6 @@ window.addEventListener("blur", () => {
 if (sellButton) {
   sellButton.addEventListener("click", () => {
     sellInventory();
-  });
-}
-
-if (buyUpgradeButton) {
-  buyUpgradeButton.addEventListener("click", () => {
-    buyUpgrade();
   });
 }
 
