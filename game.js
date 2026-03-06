@@ -20,12 +20,12 @@ const WORLD_WIDTH = WORLD_COLS * TILE_SIZE;
 const WORLD_HEIGHT = WORLD_ROWS * TILE_SIZE;
 const STARTER_SHAFT_WIDTH = 2;
 const STARTER_SHAFT_DEPTH = 8;
-const FUEL_MAX = 100;
+const BASE_FUEL_CAPACITY = 100;
 const STARTING_INVENTORY_CAPACITY = 12;
 const STARTING_PLAYER_SPEED = 240;
 const FUEL_MOVE_RATE = 6;
 const FUEL_DIG_COST = 8;
-const FUEL_LOW_THRESHOLD = 20;
+const FUEL_LOW_THRESHOLD_RATIO = 0.2;
 const FUEL_EMPTY_SPEED_MULT = 0.4;
 const STRATA = [
   { id: "shallows", name: "Shallows", minRow: 1, maxRow: Math.floor((WORLD_ROWS - 1) / 3) },
@@ -117,7 +117,7 @@ const UPGRADE_LINES = [
   },
   {
     id: "fuel-tanks",
-    name: "Fuel Tanks",
+    name: "Fuel Tank",
     unlock: { minDepth: 0 },
     tiers: [
       {
@@ -192,7 +192,7 @@ function getSafeCash() {
 }
 
 function clampFuel(value) {
-  return clamp(value, 0, getFuelCapacity());
+  return clamp(value, 0, getMaxFuel());
 }
 
 function getSafeFuel() {
@@ -221,8 +221,12 @@ function getUpgradeEffectTotal(effectKey) {
   }, 0);
 }
 
-function getFuelCapacity() {
-  return FUEL_MAX + getUpgradeEffectTotal("fuelCapacity");
+function getMaxFuel() {
+  return BASE_FUEL_CAPACITY + getUpgradeEffectTotal("fuelCapacity");
+}
+
+function isFuelLow(fuel = getSafeFuel()) {
+  return fuel <= Math.ceil(getMaxFuel() * FUEL_LOW_THRESHOLD_RATIO);
 }
 
 function getSafeCapacity() {
@@ -365,7 +369,7 @@ const state = {
   upgrades: Object.fromEntries(UPGRADE_LINES.map((line) => [line.id, 0])),
   deepestDepth: 0,
   cash: 0,
-  fuel: FUEL_MAX,
+  fuel: BASE_FUEL_CAPACITY,
   player: {
     x: (spawnCol + 0.5) * TILE_SIZE,
     y: (spawnRow + 0.5) * TILE_SIZE,
@@ -755,11 +759,11 @@ function updateHud() {
   initializeShopList();
   const stratumName = getStratumForRow(depth).name;
   if (depth === 0) {
-    setFuel(getFuelCapacity());
+    setFuel(getMaxFuel());
   }
   const cash = getSafeCash();
   const capacity = getSafeCapacity();
-  const fuelCapacity = getFuelCapacity();
+  const fuelCapacity = getMaxFuel();
   const fuel = getSafeFuel();
   if (hudStratum) {
     hudStratum.textContent = stratumName;
@@ -775,7 +779,7 @@ function updateHud() {
     hudFuel.textContent = `${fuel} / ${fuelCapacity}`;
   }
   if (hudFuelRow) {
-    hudFuelRow.classList.toggle("is-low", fuel <= FUEL_LOW_THRESHOLD);
+    hudFuelRow.classList.toggle("is-low", isFuelLow(fuel));
   }
 
   const canSell = depth === 0 && total > 0;
