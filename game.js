@@ -6,6 +6,7 @@ const ctx = canvas.getContext("2d", { alpha: false });
 const hudDepth = document.getElementById("hud-depth");
 const hudCash = document.getElementById("hud-cash");
 const hudInventory = document.getElementById("hud-inventory");
+const hudFuel = document.getElementById("hud-fuel");
 const hudSellRow = document.getElementById("hud-sell");
 const sellButton = document.getElementById("sell-button");
 const shopUpgradeName = document.getElementById("shop-upgrade-name");
@@ -19,6 +20,11 @@ const WORLD_WIDTH = WORLD_COLS * TILE_SIZE;
 const WORLD_HEIGHT = WORLD_ROWS * TILE_SIZE;
 const STARTER_SHAFT_WIDTH = 2;
 const STARTER_SHAFT_DEPTH = 8;
+const FUEL_MAX = 100;
+const FUEL_MOVE_RATE = 6;
+const FUEL_DIG_COST = 8;
+const FUEL_LOW_THRESHOLD = 20;
+const FUEL_EMPTY_SPEED_MULT = 0.4;
 
 const TILE = {
   AIR: 0,
@@ -62,6 +68,10 @@ function getPlayerDepth() {
 
 function getSafeCash() {
   return toNonNegativeInt(state.cash);
+}
+
+function getSafeFuel() {
+  return clamp(toNonNegativeInt(state.fuel), 0, FUEL_MAX);
 }
 
 function getSafeCapacity() {
@@ -153,6 +163,7 @@ const state = {
     [SURFACE_UPGRADE.id]: false,
   },
   cash: 0,
+  fuel: FUEL_MAX,
   player: {
     x: (spawnCol + 0.5) * TILE_SIZE,
     y: (spawnRow + 0.5) * TILE_SIZE,
@@ -325,6 +336,7 @@ function updateHud() {
   const depth = getPlayerDepth();
   const cash = getSafeCash();
   const capacity = getSafeCapacity();
+  const fuel = getSafeFuel();
   hudDepth.textContent = `${depth}m`;
   hudCash.textContent = `$${cash}`;
   const total = getInventoryTotal();
@@ -332,6 +344,9 @@ function updateHud() {
     (oreId) => `${ORE_TYPES[oreId].short}:${getSafeOreCount(oreId)}`
   ).join(" ");
   hudInventory.textContent = `${total} / ${capacity} | ${perOre}`;
+  if (hudFuel) {
+    hudFuel.textContent = `${fuel} / ${FUEL_MAX}`;
+  }
 
   const canSell = depth === 0 && total > 0;
   if (hudSellRow) {
