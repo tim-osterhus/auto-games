@@ -52,13 +52,45 @@ const TILE_COLORS = {
   surface: "#7fb069",
   solid: "#6a4b2a",
 };
+const STRATUM_TILE_COLORS = {
+  shallows: "#6a4b2a",
+  "mid-depths": "#5a3f28",
+  "deep-core": "#4a3424",
+};
 
 const ORE_TYPES = {
   copper: { id: "copper", label: "Copper", short: "Cu", color: "#c97943", value: 10 },
   iron: { id: "iron", label: "Iron", short: "Fe", color: "#c7ccd6", value: 20 },
+  gold: { id: "gold", label: "Gold", short: "Au", color: "#e1ba4e", value: 35 },
 };
 
-const ORE_ORDER = ["copper", "iron"];
+const ORE_ORDER = ["copper", "iron", "gold"];
+const STRATUM_ORE_TABLES = {
+  shallows: {
+    oreChance: 0.08,
+    weights: {
+      copper: 10,
+      iron: 3,
+      gold: 0,
+    },
+  },
+  "mid-depths": {
+    oreChance: 0.12,
+    weights: {
+      copper: 7,
+      iron: 6,
+      gold: 2,
+    },
+  },
+  "deep-core": {
+    oreChance: 0.18,
+    weights: {
+      copper: 4,
+      iron: 7,
+      gold: 5,
+    },
+  },
+};
 
 const SURFACE_UPGRADE = {
   id: "cargo-pods",
@@ -127,27 +159,63 @@ function getStratumTileMetadata(row) {
   };
 }
 
-function pickOreForDepth(row) {
-  const depthRatio = Math.min(1, Math.max(0, row / (WORLD_ROWS - 1)));
-  const oreChance = 0.08 + depthRatio * 0.07;
-  if (Math.random() >= oreChance) return null;
+function getOreTableForRow(row) {
+  const stratum = getStratumForRow(row);
+  if (!stratum) return null;
 
-  const ironShare = 0.2 + depthRatio * 0.6;
-  return Math.random() < ironShare ? "iron" : "copper";
+  return STRATUM_ORE_TABLES[stratum.id] || null;
+}
+
+function getSolidTileColor(tile, row) {
+  const stratumId = tile?.stratumId || getStratumForRow(row)?.id;
+  return STRATUM_TILE_COLORS[stratumId] || TILE_COLORS.solid;
+}
+
+function pickWeightedOre(weights) {
+  const weightedOreIds = ORE_ORDER.filter((oreId) => toNonNegativeInt(weights[oreId]) > 0);
+  const totalWeight = weightedOreIds.reduce(
+    (sum, oreId) => sum + toNonNegativeInt(weights[oreId]),
+    0
+  );
+  if (totalWeight <= 0) return null;
+
+  let roll = Math.random() * totalWeight;
+  for (const oreId of weightedOreIds) {
+    roll -= toNonNegativeInt(weights[oreId]);
+    if (roll < 0) {
+      return oreId;
+    }
+  }
+
+  return weightedOreIds[weightedOreIds.length - 1] || null;
+}
+
+function pickOreForRow(row) {
+  const oreTable = getOreTableForRow(row);
+  if (!oreTable || Math.random() >= oreTable.oreChance) return null;
+
+  return pickWeightedOre(oreTable.weights);
 }
 
 function seedOres(tiles) {
   const placed = new Set();
-  const candidates = [];
+  const candidatesByOre = Object.fromEntries(ORE_ORDER.map((oreId) => [oreId, []]));
 
   for (let row = 1; row < WORLD_ROWS; row += 1) {
     for (let col = 0; col < WORLD_COLS; col += 1) {
       const tile = tiles[row][col];
       if (tile.type !== TILE.SOLID) continue;
 
-      candidates.push({ row, col });
+      const oreTable = getOreTableForRow(row);
+      if (oreTable) {
+        for (const oreId of ORE_ORDER) {
+          if (toNonNegativeInt(oreTable.weights[oreId]) > 0) {
+            candidatesByOre[oreId].push({ row, col });
+          }
+        }
+      }
 
-      const oreId = pickOreForDepth(row);
+      const oreId = pickOreForRow(row);
 
       if (oreId) {
         tile.oreId = oreId;
@@ -157,7 +225,9 @@ function seedOres(tiles) {
   }
 
   for (const oreId of ORE_ORDER) {
+    const candidates = candidatesByOre[oreId];
     if (placed.has(oreId) || candidates.length === 0) continue;
+
     const spot = candidates[Math.floor(Math.random() * candidates.length)];
     tiles[spot.row][spot.col].oreId = oreId;
     placed.add(oreId);
@@ -446,7 +516,7 @@ function drawWorld(cameraX, cameraY) {
       } else if (tile.type === TILE.SURFACE) {
         ctx.fillStyle = TILE_COLORS.surface;
       } else {
-        ctx.fillStyle = TILE_COLORS.solid;
+        ctx.fillStyle = getSolidTileColor(tile, row);
       }
 
       const screenX = col * TILE_SIZE - cameraX;
