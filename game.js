@@ -26,6 +26,21 @@ const FUEL_MOVE_RATE = 6;
 const FUEL_DIG_COST = 8;
 const FUEL_LOW_THRESHOLD = 20;
 const FUEL_EMPTY_SPEED_MULT = 0.4;
+const STRATA = [
+  { id: "shallows", name: "Shallows", minRow: 1, maxRow: Math.floor((WORLD_ROWS - 1) / 3) },
+  {
+    id: "mid-depths",
+    name: "Mid Depths",
+    minRow: Math.floor((WORLD_ROWS - 1) / 3) + 1,
+    maxRow: Math.floor(((WORLD_ROWS - 1) * 2) / 3),
+  },
+  {
+    id: "deep-core",
+    name: "Deep Core",
+    minRow: Math.floor(((WORLD_ROWS - 1) * 2) / 3) + 1,
+    maxRow: WORLD_ROWS - 1,
+  },
+];
 
 const TILE = {
   AIR: 0,
@@ -55,6 +70,13 @@ const SURFACE_UPGRADE = {
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function getStratumForRow(row) {
+  const safeRow = Number.isFinite(row) ? Math.floor(row) : -1;
+  if (safeRow < 1 || safeRow >= WORLD_ROWS) return null;
+
+  return STRATA.find((stratum) => safeRow >= stratum.minRow && safeRow <= stratum.maxRow) || null;
 }
 
 function toNonNegativeInt(value) {
@@ -91,8 +113,18 @@ function getSafeOreCount(oreId) {
   return toNonNegativeInt(state.inventory.counts[oreId]);
 }
 
-function createTile(type, oreId = null) {
-  return { type, oreId };
+function createTile(type, oreId = null, metadata = {}) {
+  return { type, oreId, ...metadata };
+}
+
+function getStratumTileMetadata(row) {
+  const stratum = getStratumForRow(row);
+  if (!stratum) return {};
+
+  return {
+    stratumId: stratum.id,
+    stratumName: stratum.name,
+  };
 }
 
 function pickOreForDepth(row) {
@@ -135,7 +167,9 @@ function seedOres(tiles) {
 function generateWorld() {
   const tiles = Array.from({ length: WORLD_ROWS }, (_, row) =>
     Array.from({ length: WORLD_COLS }, () =>
-      createTile(row === 0 ? TILE.SURFACE : TILE.SOLID)
+      row === 0
+        ? createTile(TILE.SURFACE)
+        : createTile(TILE.SOLID, null, getStratumTileMetadata(row))
     )
   );
 
