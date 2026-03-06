@@ -128,6 +128,11 @@ body {
 
 .shop-line.is-locked {
   border-color: rgba(255, 209, 102, 0.2);
+  background: rgba(255, 209, 102, 0.06);
+}
+
+.shop-line.is-locked .shop-status {
+  color: #ffd98a;
 }
 
 .shop-line.is-affordable {
@@ -141,6 +146,11 @@ body {
 
 .shop-line.is-unaffordable {
   border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.shop-line.is-unaffordable .shop-status {
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .shop-line.is-maxed {
@@ -154,6 +164,27 @@ body {
 
 .shop-buy-button {
   min-width: 88px;
+  text-align: center;
+}
+
+.shop-line.is-affordable .shop-buy-button {
+  border-color: rgba(84, 214, 146, 0.6);
+  background: rgba(84, 214, 146, 0.22);
+}
+
+.shop-line.is-locked .shop-buy-button:disabled {
+  border-color: rgba(255, 209, 102, 0.28);
+  background: rgba(255, 209, 102, 0.12);
+}
+
+.shop-line.is-unaffordable .shop-buy-button:disabled {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.shop-line.is-maxed .shop-buy-button:disabled {
+  border-color: rgba(93, 227, 255, 0.3);
+  background: rgba(93, 227, 255, 0.16);
 }
 
 .hud-label {
@@ -185,7 +216,7 @@ body {
   letter-spacing: 0.03em;
   padding: 4px 10px;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.2s ease, border 0.2s ease;
+  transition: transform 0.1s ease;
 }
 
 .hud-button:hover:not(:disabled) {

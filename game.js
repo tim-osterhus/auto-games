@@ -489,26 +489,82 @@ function isUpgradeMaxed(lineId) {
   return getPurchasedUpgradeTier(lineId) >= line.tiers.length;
 }
 
-function canAffordUpgrade(lineId) {
+function getUpgradePurchaseState(lineId, depth = getPlayerDepth()) {
+  const line = getUpgradeLine(lineId);
+  if (!line) {
+    return {
+      available: false,
+      cashShortfall: 0,
+      depth,
+      line: null,
+      nextTier: null,
+      onSurface: depth === 0,
+      reason: "missing",
+      unlocked: false,
+    };
+  }
+
+  if (isUpgradeMaxed(lineId)) {
+    return {
+      available: false,
+      cashShortfall: 0,
+      depth,
+      line,
+      nextTier: null,
+      onSurface: depth === 0,
+      reason: "maxed",
+      unlocked: isUpgradeUnlocked(lineId),
+    };
+  }
+
   const nextTier = getNextUpgradeTier(lineId);
-  return Boolean(nextTier) && getSafeCash() >= nextTier.cost;
+  if (!nextTier) {
+    return {
+      available: false,
+      cashShortfall: 0,
+      depth,
+      line,
+      nextTier: null,
+      onSurface: depth === 0,
+      reason: "missing-tier",
+      unlocked: isUpgradeUnlocked(lineId),
+    };
+  }
+
+  const unlocked = isUpgradeUnlocked(lineId);
+  const onSurface = depth === 0;
+  const cashShortfall = Math.max(0, nextTier.cost - getSafeCash());
+  let reason = "available";
+
+  if (!unlocked) {
+    reason = "locked";
+  } else if (!onSurface) {
+    reason = "surface-only";
+  } else if (cashShortfall > 0) {
+    reason = "cash";
+  }
+
+  return {
+    available: reason === "available",
+    cashShortfall,
+    depth,
+    line,
+    nextTier,
+    onSurface,
+    reason,
+    unlocked,
+  };
 }
 
 function canPurchaseUpgrade(lineId, depth = getPlayerDepth()) {
-  if (depth !== 0) return false;
-  if (!getUpgradeLine(lineId)) return false;
-  if (isUpgradeMaxed(lineId)) return false;
-  if (!isUpgradeUnlocked(lineId)) return false;
-  return canAffordUpgrade(lineId);
+  return getUpgradePurchaseState(lineId, depth).available;
 }
 
 function purchaseUpgrade(lineId) {
-  if (!canPurchaseUpgrade(lineId)) return false;
+  const purchaseState = getUpgradePurchaseState(lineId);
+  if (!purchaseState.available || !purchaseState.nextTier) return false;
 
-  const nextTier = getNextUpgradeTier(lineId);
-  if (!nextTier) return false;
-
-  state.cash = getSafeCash() - nextTier.cost;
+  state.cash = getSafeCash() - purchaseState.nextTier.cost;
   state.upgrades[lineId] = getPurchasedUpgradeTier(lineId) + 1;
   syncUpgradeState();
   updateHud();
@@ -571,9 +627,8 @@ function initializeShopList() {
 }
 
 function getShopLineState(lineId, depth = getPlayerDepth()) {
-  const nextTier = getNextUpgradeTier(lineId);
-
-  if (isUpgradeMaxed(lineId)) {
+  const purchaseState = getUpgradePurchaseState(lineId, depth);
+  if (purchaseState.reason === "maxed") {
     return {
       buttonDisabled: true,
       buttonLabel: "Maxed",
@@ -584,7 +639,7 @@ function getShopLineState(lineId, depth = getPlayerDepth()) {
     };
   }
 
-  if (!nextTier) {
+  if (!purchaseState.nextTier) {
     return {
       buttonDisabled: true,
       buttonLabel: "N/A",
@@ -595,32 +650,29 @@ function getShopLineState(lineId, depth = getPlayerDepth()) {
     };
   }
 
-  const unlocked = isUpgradeUnlocked(lineId);
-  const affordable = canAffordUpgrade(lineId);
-  const onSurface = depth === 0;
+  const shortfallText = purchaseState.cashShortfall > 0 ? `$${purchaseState.cashShortfall} more` : "";
   let buttonLabel = "Buy";
-  let buttonDisabled = false;
-  let rowClass = affordable ? "is-affordable" : "is-unaffordable";
-  let statusText = affordable ? "Available" : "Need more cash";
+  let buttonDisabled = !purchaseState.available;
+  let rowClass = purchaseState.available ? "is-affordable" : "is-unaffordable";
+  let statusText = purchaseState.available ? "Available" : `Need ${shortfallText}`;
 
-  if (!unlocked) {
+  if (purchaseState.reason === "locked") {
     buttonLabel = "Locked";
-    buttonDisabled = true;
     rowClass = "is-locked";
     statusText = `Unlock at ${formatUnlockLabel(getUpgradeUnlock(lineId))}`;
-  } else if (!onSurface) {
+  } else if (purchaseState.reason === "surface-only") {
     buttonLabel = "Surface only";
-    buttonDisabled = true;
-    statusText = affordable ? "Surface only" : "Return with more cash";
-  } else if (!affordable) {
-    buttonDisabled = true;
+    statusText =
+      purchaseState.cashShortfall > 0 ? `Return with ${shortfallText}` : "Return to surface";
+  } else if (purchaseState.reason === "cash") {
+    buttonLabel = shortfallText;
   }
 
   return {
     buttonDisabled,
     buttonLabel,
-    costText: `Cost: $${nextTier.cost}`,
-    effectText: `Next: ${nextTier.effectLabel}`,
+    costText: `Cost: $${purchaseState.nextTier.cost}`,
+    effectText: `Next: ${purchaseState.nextTier.effectLabel}`,
     rowClass,
     statusText,
   };
