@@ -135,18 +135,18 @@ const UPGRADE_LINES = [
     ],
   },
   {
-    id: "drill-motor",
-    name: "Drill Motor",
+    id: "thrusters",
+    name: "Thrusters",
     unlock: { minDepth: STRATA[1].minRow },
     tiers: [
       {
-        id: "drill-motor-1",
+        id: "thrusters-1",
         cost: 160,
         effectLabel: "+20 speed",
         effects: { moveSpeed: 20 },
       },
       {
-        id: "drill-motor-2",
+        id: "thrusters-2",
         cost: 280,
         effectLabel: "+35 speed",
         effects: { moveSpeed: 35 },
