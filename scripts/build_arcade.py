@@ -10,88 +10,327 @@ from pathlib import Path
 
 STYLE_CSS = """
 :root {
-  --bg: #f4efe4;
-  --paper: rgba(255, 250, 242, 0.92);
-  --ink: #1b140f;
-  --muted: #5c4a3d;
-  --line: rgba(93, 63, 40, 0.16);
-  --accent: #9f4a1c;
-  --accent-deep: #7d2f0c;
-  --accent-soft: rgba(159, 74, 28, 0.12);
-  --shadow: 0 18px 45px rgba(55, 28, 12, 0.12);
+  --bg: #0a0a0b;
+  --surface: rgba(18, 18, 20, 0.9);
+  --surface-strong: rgba(22, 22, 25, 0.96);
+  --surface-soft: rgba(255, 255, 255, 0.03);
+  --ink: #e8e6ed;
+  --muted: #9a97a3;
+  --dim: #6f6b77;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --accent: #dc2626;
+  --accent-soft: #ef4444;
+  --accent-dim: rgba(220, 38, 38, 0.12);
+  --accent-glow: rgba(220, 38, 38, 0.18);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "DM Sans", sans-serif;
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
   background:
-    radial-gradient(circle at top left, rgba(200, 114, 55, 0.2), transparent 30rem),
-    linear-gradient(180deg, #f8f2e8 0%, var(--bg) 100%);
+    radial-gradient(circle at top center, var(--accent-glow), transparent 30rem),
+    radial-gradient(circle at 18% 0%, rgba(239, 68, 68, 0.12), transparent 24rem),
+    linear-gradient(180deg, #111114 0%, var(--bg) 28%, #09090b 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 84% 14%, rgba(255, 255, 255, 0.04), transparent 18rem),
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
+  pointer-events: none;
 }
 
 a {
   color: inherit;
 }
 
+code {
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88em;
+}
+
 .shell {
-  width: min(1080px, calc(100% - 2rem));
+  position: relative;
+  z-index: 1;
+  width: min(1120px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 2rem 0 4rem;
+  padding: 24px 0 72px;
+}
+
+.topbar {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 10, 11, 0.82);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  background: linear-gradient(180deg, var(--accent-dim), rgba(220, 38, 38, 0.04));
+  color: var(--accent-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.brand-name {
+  font-family: "Clash Display", sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.brand-tag {
+  color: var(--dim);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nav-link,
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0.78rem 1rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.nav-link {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.nav-link:hover,
+.nav-link:focus-visible,
+.cta:hover,
+.cta:focus-visible,
+.crumb:hover,
+.crumb:focus-visible {
+  border-color: var(--line-strong);
+  color: var(--ink);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+  background: var(--surface-soft);
 }
 
 .hero,
 .panel,
-.game-card {
-  background: var(--paper);
+.game-card,
+.stub {
+  background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(18px);
 }
 
 .hero {
-  padding: 2rem;
-  border-radius: 1.75rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  gap: 24px;
+  align-items: stretch;
+  padding: 30px;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.hero-copy,
+.hero-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: auto -4rem -5rem auto;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(220, 38, 38, 0.18), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-badge,
+.panel-label,
+.eyebrow,
+.pill {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .eyebrow {
-  margin: 0 0 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+  margin: 1rem 0 0.7rem;
   font-size: 0.76rem;
-  color: var(--accent-deep);
+  color: var(--accent-soft);
 }
 
 h1,
 h2 {
   margin: 0;
+  font-family: "Clash Display", sans-serif;
   line-height: 1.05;
 }
 
 h1 {
-  font-size: clamp(2.7rem, 6vw, 5rem);
+  font-size: clamp(2.9rem, 6vw, 5rem);
   max-width: 12ch;
+  letter-spacing: -0.03em;
 }
 
 .lede {
   margin: 1rem 0 0;
-  max-width: 46rem;
+  max-width: 48rem;
   font-size: 1.06rem;
   line-height: 1.65;
   color: var(--muted);
 }
 
-.notice {
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 1.5rem;
+}
+
+.notice {
+  margin-top: 0.8rem;
   padding: 1rem 1.1rem;
   border-radius: 1rem;
-  background: var(--accent-soft);
-  border: 1px solid rgba(159, 74, 28, 0.16);
+  background: linear-gradient(180deg, var(--accent-dim), rgba(220, 38, 38, 0.04));
+  border: 1px solid rgba(220, 38, 38, 0.16);
+}
+
+.hero-panel {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.panel-label {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.stat-card {
+  display: grid;
+  gap: 4px;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stat-value {
+  font-family: "Clash Display", sans-serif;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.stat-note {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .grid {
@@ -106,7 +345,17 @@ h1 {
   flex-direction: column;
   gap: 0.9rem;
   padding: 1.35rem;
-  border-radius: 1.35rem;
+  border-radius: 20px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .pill {
@@ -114,10 +363,8 @@ h1 {
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
   font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent-deep);
-  background: var(--accent-soft);
+  color: var(--accent-soft);
+  background: var(--accent-dim);
 }
 
 .body-copy {
@@ -127,20 +374,29 @@ h1 {
 }
 
 .cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  padding: 0.78rem 1rem;
-  border-radius: 999px;
   background: var(--accent);
-  color: #fff8f2;
-  text-decoration: none;
-  font-weight: 600;
+  border: 1px solid transparent;
+  color: #fff;
+  box-shadow: 0 14px 36px rgba(220, 38, 38, 0.18);
 }
 
-.cta:hover {
-  background: var(--accent-deep);
+.cta:hover,
+.cta:focus-visible {
+  box-shadow: 0 20px 48px rgba(220, 38, 38, 0.26);
+}
+
+.cta.ghost,
+.crumb {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.cta.ghost:hover,
+.cta.ghost:focus-visible {
+  background: var(--surface-soft);
+  box-shadow: none;
 }
 
 .meta {
@@ -151,7 +407,7 @@ h1 {
 }
 
 .panel {
-  border-radius: 1.25rem;
+  border-radius: 20px;
   padding: 1.15rem;
 }
 
@@ -164,37 +420,61 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-bottom: 1rem;
-  color: var(--muted);
+  width: fit-content;
+  margin-bottom: 1.2rem;
+  padding: 0.72rem 0.95rem;
+  border-radius: 999px;
   text-decoration: none;
 }
 
 .stub {
   margin-top: 1.5rem;
   padding: 1.35rem;
-  border-radius: 1.25rem;
-  border: 1px dashed rgba(125, 47, 12, 0.35);
-  background: rgba(255, 250, 242, 0.72);
+  border-radius: 20px;
+  border: 1px dashed rgba(220, 38, 38, 0.28);
 }
 
 @media (max-width: 640px) {
   .shell {
-    width: min(100% - 1.1rem, 100%);
-    padding-top: 1rem;
+    width: min(100vw - 20px, 1120px);
+    padding-top: 18px;
+  }
+
+  .topbar {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 24px;
+  }
+
+  .nav-links {
+    justify-content: flex-start;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 24px;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
   }
 
   .hero,
   .game-card,
   .panel,
   .stub {
-    border-radius: 1.1rem;
-  }
-
-  .hero {
-    padding: 1.35rem;
+    border-radius: 18px;
   }
 }
 """.strip() + "\n"
+
+
+HEADER_LINKS = [
+    ("Journal", "https://lite.millrace.ai"),
+    ("Source", "https://github.com/tim-osterhus/turnloop"),
+    ("Project", "https://github.com/tim-osterhus/auto-games"),
+]
 
 
 def load_manifest(manifest_path: Path) -> dict:
@@ -222,6 +502,29 @@ def esc(value: str) -> str:
     return html.escape(value, quote=True)
 
 
+def render_topbar(home_href: str, extra_links: list[tuple[str, str]] | None = None) -> str:
+    links = list(extra_links or []) + HEADER_LINKS
+    link_items = []
+    for label, href in links:
+        attrs = "" if href.startswith(".") or href.startswith("/") else ' target="_blank" rel="noreferrer"'
+        link_items.append(f'        <a class="nav-link" href="{esc(href)}"{attrs}>{esc(label)}</a>')
+    link_markup = "\n".join(link_items)
+    return f"""
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="{esc(home_href)}">
+        <span class="brand-kicker">MR</span>
+        <span class="brand-copy">
+          <span class="brand-name">Millrace Arcade</span>
+          <span class="brand-tag">game.millrace.ai</span>
+        </span>
+      </a>
+      <div class="nav-links" aria-label="Project links">
+{link_markup}
+      </div>
+    </nav>
+""".rstrip()
+
+
 def render_index(site: dict, games: list[dict]) -> str:
     cards = []
     for game in games:
@@ -239,6 +542,10 @@ def render_index(site: dict, games: list[dict]) -> str:
     title = esc(site.get("title", "Games"))
     tagline = esc(site.get("tagline", ""))
     announcement = esc(site.get("announcement", ""))
+    primary_game = games[0]
+    stub_count = sum(1 for game in games if str(game.get("launch_state", "")).lower() == "stub")
+    live_count = len(games) - stub_count
+    topbar = render_topbar("./")
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -247,17 +554,44 @@ def render_index(site: dict, games: list[dict]) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{title}</title>
     <meta name="description" content="{tagline}">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/site.css">
   </head>
   <body>
     <main class="shell">
+      {topbar}
       <section class="hero">
-        <p class="eyebrow">Millrace Arcade</p>
-        <h1>{title}</h1>
-        <p class="lede">{tagline}</p>
-        <div class="notice">
-          <strong>Current baseline.</strong> {announcement}
+        <div class="hero-copy">
+          <p class="hero-badge"><span class="dot"></span> Day 0 baseline</p>
+          <p class="eyebrow">Millrace Arcade</p>
+          <h1>{title}</h1>
+          <p class="lede">{tagline}</p>
+          <div class="hero-actions">
+            <a class="cta" href="{esc(primary_game['slug'])}/">{esc(primary_game.get("cta_label", "Open"))}</a>
+            <a class="cta ghost" href="https://lite.millrace.ai">Read journal</a>
+          </div>
         </div>
+        <aside class="hero-panel">
+          <p class="panel-label">Launch posture</p>
+          <div class="notice">
+            <strong>Current baseline.</strong> {announcement}
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-value">{len(games)}</span>
+              <span class="stat-note">public slots</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{stub_count}</span>
+              <span class="stat-note">stub slots</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{live_count}</span>
+              <span class="stat-note">live builds</span>
+            </div>
+          </div>
+        </aside>
       </section>
       <section class="grid">
 {chr(10).join(cards)}
@@ -285,6 +619,7 @@ def render_game_page(site: dict, game: dict) -> str:
     description = esc(game.get("description", ""))
     launch_state = esc(game.get("launch_state", "stub"))
     site_title = esc(site.get("title", "Games"))
+    topbar = render_topbar("../", [("Arcade", "../")])
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -293,15 +628,27 @@ def render_game_page(site: dict, game: dict) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{title} | {site_title}</title>
     <meta name="description" content="{summary}">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/site.css">
   </head>
   <body>
     <main class="shell">
+      {topbar}
       <section class="hero">
-        <a class="crumb" href="../">&larr; Back to arcade</a>
-        <p class="eyebrow">Game Slot</p>
-        <h1>{title}</h1>
-        <p class="lede">{summary}</p>
+        <div class="hero-copy">
+          <a class="crumb" href="../">&larr; Back to arcade</a>
+          <p class="hero-badge"><span class="dot"></span> {status} / {launch_state}</p>
+          <p class="eyebrow">Game Slot</p>
+          <h1>{title}</h1>
+          <p class="lede">{summary}</p>
+        </div>
+        <aside class="hero-panel">
+          <p class="panel-label">Launch posture</p>
+          <div class="notice">
+            <strong>{status}</strong> slot in <code>{launch_state}</code> state.
+          </div>
+        </aside>
       </section>
       <section class="meta">
         <div class="panel">
