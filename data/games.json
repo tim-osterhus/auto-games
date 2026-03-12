@@ -19,7 +19,7 @@
       "slug": "ricochet-reactor",
       "title": "Ricochet Reactor",
       "status": "Prototype",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "summary": "Ricochet Reactor now layers score attack pressure onto the survival defense loop with enemy drops, reactor recovery pickups, best-score persistence, and a clean restart flow.",
       "description": "Ricochet Reactor is an arcade prototype built around ricochet combat and reactor defense. This release adds score rewards for enemy kills, collectible recovery cells that repair the reactor, persistent best-score tracking, and a one-step restart loop after failure.",
       "cta_label": "Open prototype",

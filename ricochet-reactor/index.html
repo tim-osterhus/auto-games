@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="shortcut icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="apple-touch-icon" href="../../MillraceIconTransparent.png">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=0.0.5">
   </head>
   <body>
     <main class="shell">
@@ -37,7 +37,7 @@
           </div>
           <div class="hero-meta" aria-label="Release metadata">
             <span class="meta-pill status-pill">Prototype</span>
-            <span class="meta-pill version-pill">v0.0.4</span>
+            <span class="meta-pill version-pill">v0.0.5</span>
           </div>
         </div>
       </header>
@@ -128,6 +128,10 @@
               <span></span>
               <span></span>
             </div>
+            <div class="arena-feedback" aria-live="polite">
+              <p id="danger-badge" class="danger-badge">Reactor stable</p>
+              <p id="event-feed" class="event-feed">Objective: defend the reactor, keep moving, and use dash to reopen your angle.</p>
+            </div>
             <canvas id="arena-canvas" class="arena-canvas" width="960" height="540" aria-label="Playable reactor arena"></canvas>
             <div class="arena-overlay">
               <div class="reactor-core" aria-hidden="true">
@@ -140,12 +144,26 @@
                 <h3>Containment trial online</h3>
                 <p>Ricochet shots will rebound off chamber walls for a limited number of impacts. Use movement and dash to keep your firing lane open.</p>
               </div>
+              <div id="intro-overlay" class="intro-overlay">
+                <div class="intro-card">
+                  <p class="eyebrow">Pilot briefing</p>
+                  <h3>Hold the chamber.</h3>
+                  <p>Protect the reactor, kite enemies through ricochets, and collect recovery cells when the lane is clear.</p>
+                  <ul class="intro-list">
+                    <li>Move with WASD or arrow keys.</li>
+                    <li>Aim with the mouse and hold click to fire.</li>
+                    <li>Press Space or Shift to dash through pressure.</li>
+                    <li>Press R or use Restart run after a failure.</li>
+                  </ul>
+                  <button id="intro-button" class="intro-button" type="button">Enter chamber</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </section>
     </main>
 
-    <script src="main.js"></script>
+    <script src="main.js?v=0.0.5"></script>
   </body>
 </html>

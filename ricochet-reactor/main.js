@@ -14,6 +14,10 @@ const requiredElements = {
   arenaValue: document.querySelector("#arena-value"),
   pickupValue: document.querySelector("#pickup-value"),
   restartButton: document.querySelector("#restart-button"),
+  dangerBadge: document.querySelector("#danger-badge"),
+  eventFeed: document.querySelector("#event-feed"),
+  introOverlay: document.querySelector("#intro-overlay"),
+  introButton: document.querySelector("#intro-button"),
 };
 
 const ARENA_WIDTH = 960;
@@ -39,6 +43,7 @@ const ENEMY_PROJECTILE_LIFETIME = 4.2;
 const PLAYER_CONTACT_INVULNERABILITY = 0.5;
 const WAVE_BREAK = 3.5;
 const BEST_SCORE_STORAGE_KEY = "millrace.ricochet-reactor.best-score";
+const INTRO_DISMISSED_STORAGE_KEY = "millrace.ricochet-reactor.intro-dismissed";
 
 const ENEMY_SCORE_VALUES = {
   chaser: 100,
@@ -117,6 +122,13 @@ function formatScore(value) {
   return String(Math.max(0, Math.floor(value))).padStart(4, "0");
 }
 
+function withAlpha(color, alpha) {
+  if (!color.startsWith("rgba(")) {
+    return color;
+  }
+  return color.replace(/[\d.]+\)$/, `${alpha})`);
+}
+
 function loadBestScore() {
   try {
     const raw = window.localStorage.getItem(BEST_SCORE_STORAGE_KEY);
@@ -186,9 +198,16 @@ function createGame(elements) {
     spawnQueue: [],
     score: 0,
     bestScore: loadBestScore(),
+    introDismissed: false,
     pickups: [],
     pickupFlash: 0,
     pickupStatus: "No cells recovered yet",
+    uiMessage: {
+      text: "Objective: defend the reactor, keep moving, and use dash to reopen your angle.",
+      tone: "neutral",
+      timer: 0,
+    },
+    effects: [],
     reactor: {
       x: reactorX,
       y: reactorY,
@@ -218,6 +237,11 @@ function createGame(elements) {
   };
 
   persistBestScore(state.bestScore);
+  try {
+    state.introDismissed = window.localStorage.getItem(INTRO_DISMISSED_STORAGE_KEY) === "1";
+  } catch (error) {
+    state.introDismissed = false;
+  }
 
   function resizeCanvas() {
     const rect = elements.arenaShell.getBoundingClientRect();
@@ -303,9 +327,69 @@ function createGame(elements) {
     persistBestScore(state.bestScore);
   }
 
+  function setUiMessage(text, tone = "neutral", duration = 1.2) {
+    state.uiMessage.text = text;
+    state.uiMessage.tone = tone;
+    state.uiMessage.timer = duration;
+  }
+
+  function addEffect(effect) {
+    state.effects.push(effect);
+  }
+
+  function createBurst(x, y, color, radius, life, lineWidth = 3) {
+    addEffect({
+      type: "ring",
+      x,
+      y,
+      color,
+      radius,
+      maxRadius: radius,
+      life,
+      maxLife: life,
+      lineWidth,
+    });
+  }
+
+  function createSparkFan(x, y, color, count, speed, life) {
+    for (let index = 0; index < count; index += 1) {
+      const angle = randomRange(0, Math.PI * 2);
+      const velocity = randomRange(speed * 0.45, speed);
+      addEffect({
+        type: "spark",
+        x,
+        y,
+        color,
+        vx: Math.cos(angle) * velocity,
+        vy: Math.sin(angle) * velocity,
+        radius: randomRange(1.6, 3.6),
+        life,
+        maxLife: life,
+      });
+    }
+  }
+
+  function dismissIntro() {
+    if (state.introDismissed) {
+      return;
+    }
+
+    state.introDismissed = true;
+    elements.introOverlay.hidden = true;
+    elements.arenaCanvas.style.pointerEvents = "auto";
+    try {
+      window.localStorage.setItem(INTRO_DISMISSED_STORAGE_KEY, "1");
+    } catch (error) {
+      // Ignore storage failures and keep the overlay dismissed for this page view.
+    }
+  }
+
   function handleEnemyDefeat(enemy) {
     state.score += ENEMY_SCORE_VALUES[enemy.type] ?? 50;
     syncBestScore();
+    createBurst(enemy.x, enemy.y, "rgba(255, 244, 214, 0.95)", enemy.radius + 10, 0.24, 4);
+    createSparkFan(enemy.x, enemy.y, enemy.color, 10, 150, 0.34);
+    setUiMessage(`${ENEMY_ARCHETYPES[enemy.type].label} down. Keep the lane clear.`, "kill", 1.2);
 
     if (Math.random() <= (PICKUP_DROP_CHANCE[enemy.type] ?? 0)) {
       spawnPickup(enemy.x, enemy.y, PICKUP_REACTOR_REPAIR);
@@ -327,6 +411,7 @@ function createGame(elements) {
     state.pickups = [];
     state.pickupFlash = 0;
     state.pickupStatus = "No cells recovered yet";
+    state.effects = [];
     state.shots = [];
     state.enemies = [];
     state.enemyProjectiles = [];
@@ -340,6 +425,7 @@ function createGame(elements) {
     state.player.contactInvulnerability = 0;
     state.reactor.integrity = REACTOR_MAX_INTEGRITY;
     state.reactor.hitFlash = 0;
+    setUiMessage("Objective: defend the reactor, keep moving, and use dash to reopen your angle.", "neutral", 0);
     updateAim();
   }
 
@@ -362,6 +448,9 @@ function createGame(elements) {
     state.player.health = Math.max(0, state.player.health - amount);
     state.player.hitFlash = 0.28;
     state.player.contactInvulnerability = PLAYER_CONTACT_INVULNERABILITY;
+    createBurst(state.player.x, state.player.y, "rgba(255, 109, 144, 0.92)", state.player.radius + 10, 0.24, 3);
+    createSparkFan(state.player.x, state.player.y, "#ff6d90", 7, 130, 0.26);
+    setUiMessage(`Pilot hit. Health ${Math.max(0, Math.ceil(state.player.health))}%.`, "damage", 1.05);
     if (state.player.health <= 0) {
       setGameOver("Pilot down");
     }
@@ -374,6 +463,9 @@ function createGame(elements) {
 
     state.reactor.integrity = Math.max(0, state.reactor.integrity - amount);
     state.reactor.hitFlash = 0.35;
+    createBurst(state.reactor.x, state.reactor.y, "rgba(255, 90, 54, 0.95)", state.reactor.radius + 24, 0.32, 4);
+    createSparkFan(state.reactor.x, state.reactor.y, "#ff8c69", 11, 160, 0.34);
+    setUiMessage(`Reactor impact. Integrity ${Math.max(0, Math.ceil(state.reactor.integrity))}%.`, "reactor", 1.2);
     if (state.reactor.integrity <= 0) {
       setGameOver("Containment lost");
     }
@@ -400,6 +492,14 @@ function createGame(elements) {
       damage: 1,
     });
     state.lastShotAt = now;
+    createBurst(
+      state.player.x + directionX * (state.player.radius + 8),
+      state.player.y + directionY * (state.player.radius + 8),
+      "rgba(255, 155, 100, 0.92)",
+      12,
+      0.16,
+      2,
+    );
   }
 
   function tryDash() {
@@ -432,6 +532,9 @@ function createGame(elements) {
     state.player.dashVectorY = direction.y;
     state.player.dashTime = DASH_DURATION;
     state.player.dashCooldown = DASH_COOLDOWN;
+    createBurst(state.player.x, state.player.y, "rgba(93, 226, 255, 0.92)", 18, 0.22, 3);
+    createSparkFan(state.player.x, state.player.y, "#5de2ff", 8, 200, 0.28);
+    setUiMessage("Dash engaged. Reposition and reopen the ricochet lane.", "dash", 1);
   }
 
   function bindEvents() {
@@ -479,6 +582,7 @@ function createGame(elements) {
       }
 
       state.pointer = { ...getPointerPosition(event), inside: true };
+      dismissIntro();
       if (state.gameOver) {
         restartGame();
         return;
@@ -490,6 +594,10 @@ function createGame(elements) {
 
     elements.restartButton.addEventListener("click", () => {
       restartGame();
+    });
+
+    elements.introButton.addEventListener("click", () => {
+      dismissIntro();
     });
 
     window.addEventListener("mouseup", () => {
@@ -581,6 +689,8 @@ function createGame(elements) {
       }
       if (bounced) {
         shot.bouncesLeft -= 1;
+        createSparkFan(shot.x, shot.y, "#ffd39b", 5, 90, 0.18);
+        createBurst(shot.x, shot.y, "rgba(255, 211, 155, 0.9)", 10, 0.14, 2);
       }
     }
 
@@ -735,6 +845,31 @@ function createGame(elements) {
     state.enemyProjectiles = survivors;
   }
 
+  function updateEffects(dt) {
+    const survivors = [];
+
+    for (const effect of state.effects) {
+      effect.life -= dt;
+      if (effect.life <= 0) {
+        continue;
+      }
+
+      if (effect.type === "ring") {
+        effect.radius += dt * effect.maxRadius * 4.4;
+      } else if (effect.type === "spark") {
+        effect.x += effect.vx * dt;
+        effect.y += effect.vy * dt;
+        effect.vx *= 0.94;
+        effect.vy *= 0.94;
+      }
+
+      survivors.push(effect);
+    }
+
+    state.effects = survivors;
+    state.uiMessage.timer = Math.max(0, state.uiMessage.timer - dt);
+  }
+
   function handleShotImpacts() {
     const remainingShots = [];
 
@@ -744,6 +879,11 @@ function createGame(elements) {
       for (const enemy of state.enemies) {
         if (distanceBetween(shot, enemy) <= shot.radius + enemy.radius) {
           enemy.health -= shot.damage;
+          createBurst(shot.x, shot.y, "rgba(255, 211, 155, 0.95)", Math.max(8, enemy.radius * 0.7), 0.18, 2);
+          createSparkFan(shot.x, shot.y, "#ffd39b", enemy.health <= 0 ? 8 : 5, enemy.health <= 0 ? 145 : 95, enemy.health <= 0 ? 0.28 : 0.18);
+          if (enemy.health > 0) {
+            setUiMessage(`${ENEMY_ARCHETYPES[enemy.type].label} tagged. Keep pressure on the bounce lane.`, "hit", 0.7);
+          }
           hitEnemy = true;
           break;
         }
@@ -773,6 +913,16 @@ function createGame(elements) {
     return `Wave-${String(state.wave + 1).padStart(2, "0")} in ${Math.max(1, Math.ceil(state.nextWaveTimer))}s`;
   }
 
+  function getIntegrityState() {
+    if (state.reactor.integrity <= 35) {
+      return "critical";
+    }
+    if (state.reactor.integrity <= 70) {
+      return "warning";
+    }
+    return "stable";
+  }
+
   function updateHud() {
     const readiness = state.player.dashCooldown <= 0 ? "Ready" : `${Math.ceil(state.player.dashCooldown * 10) / 10}s`;
     const liveThreats = state.enemies.length + state.enemyProjectiles.length;
@@ -780,6 +930,11 @@ function createGame(elements) {
     const pickupLabel = state.pickups.length > 0
       ? `${state.pickups.length} cell${state.pickups.length === 1 ? "" : "s"} active / +${PICKUP_REACTOR_REPAIR} integrity`
       : state.pickupStatus;
+    const integrityState = getIntegrityState();
+    const eventText = state.uiMessage.timer > 0
+      ? state.uiMessage.text
+      : "Objective: defend the reactor, keep moving, and use dash to reopen your angle.";
+    const eventTone = state.uiMessage.timer > 0 ? state.uiMessage.tone : "neutral";
 
     elements.bootState.textContent = state.gameOver ? "Run failed" : state.wave === 0 ? "Booting" : `Wave ${state.wave}`;
     elements.statusMessage.textContent = state.gameOver
@@ -810,6 +965,14 @@ function createGame(elements) {
       : `Turrets ${turretCount} | Queue ${state.spawnQueue.length} | Next break ${state.enemies.length === 0 ? Math.max(0, Math.ceil(state.nextWaveTimer)) : 0}s`;
     elements.pickupValue.textContent = pickupLabel;
     elements.restartButton.hidden = !state.gameOver;
+    elements.eventFeed.textContent = eventText;
+    elements.eventFeed.dataset.tone = eventTone;
+    elements.dangerBadge.textContent = integrityState === "critical"
+      ? "Reactor critical"
+      : integrityState === "warning"
+        ? "Reactor unstable"
+        : "Reactor stable";
+    elements.arenaShell.dataset.integrityState = integrityState;
   }
 
   function drawArena() {
@@ -848,7 +1011,23 @@ function createGame(elements) {
     ctx.arc(reactorX, reactorY, 24, 0, Math.PI * 2);
     ctx.fill();
 
+    if (state.reactor.integrity <= 35) {
+      ctx.strokeStyle = `rgba(255, 77, 95, ${0.4 + Math.sin(state.pulse * 1.8) * 0.18})`;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(reactorX, reactorY, 64, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     for (const shot of state.shots) {
+      const shotGlow = ctx.createRadialGradient(shot.x, shot.y, 0, shot.x, shot.y, shot.radius + 10);
+      shotGlow.addColorStop(0, "rgba(255, 190, 140, 0.9)");
+      shotGlow.addColorStop(1, "rgba(255, 155, 100, 0)");
+      ctx.fillStyle = shotGlow;
+      ctx.beginPath();
+      ctx.arc(shot.x, shot.y, shot.radius + 8, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.fillStyle = "#ff9b64";
       ctx.beginPath();
       ctx.arc(shot.x, shot.y, shot.radius, 0, Math.PI * 2);
@@ -904,6 +1083,22 @@ function createGame(elements) {
       ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 10, barWidth * healthRatio, 4);
     }
 
+    for (const effect of state.effects) {
+      const alpha = clamp(effect.life / effect.maxLife, 0, 1);
+      if (effect.type === "ring") {
+        ctx.strokeStyle = withAlpha(effect.color, Number((alpha * 0.95).toFixed(3)));
+        ctx.lineWidth = effect.lineWidth;
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (effect.type === "spark") {
+        ctx.fillStyle = withAlpha(effect.color, Number(alpha.toFixed(3)));
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     const aimLength = 30;
     const aimX = state.player.x + Math.cos(state.player.aim) * aimLength;
     const aimY = state.player.y + Math.sin(state.player.aim) * aimLength;
@@ -956,6 +1151,7 @@ function createGame(elements) {
     updateEnemies(dt);
     updateEnemyProjectiles(dt);
     updatePickups(dt);
+    updateEffects(dt);
 
     updateHud();
     drawArena();
@@ -965,6 +1161,12 @@ function createGame(elements) {
   resizeCanvas();
   bindEvents();
   restartGame();
+  if (state.introDismissed) {
+    elements.introOverlay.hidden = true;
+    elements.arenaCanvas.style.pointerEvents = "auto";
+  } else {
+    elements.arenaCanvas.style.pointerEvents = "none";
+  }
   state.nextWaveTimer = 2;
   updateHud();
   drawArena();
