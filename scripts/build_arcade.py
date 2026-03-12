@@ -491,6 +491,7 @@ HEADER_LINKS = [
 
 ICON_FILENAME = "MillraceIconTransparent.png"
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_manifest(manifest_path: Path) -> dict:
@@ -513,6 +514,9 @@ def load_manifest(manifest_path: Path) -> dict:
         version = game.get("version")
         if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
             raise ValueError(f"Game '{slug}' requires a semantic version string like '0.0.1'.")
+        source_dir = game.get("source_dir")
+        if source_dir is not None and (not isinstance(source_dir, str) or not source_dir.strip()):
+            raise ValueError(f"Game '{slug}' requires 'source_dir' to be a non-empty string when provided.")
 
     return payload
 
@@ -711,6 +715,26 @@ def render_game_page(site: dict, game: dict) -> str:
 """
 
 
+def resolve_source_dir(source_dir: str) -> Path:
+    return (REPO_ROOT / source_dir).resolve()
+
+
+def authored_files(source_root: Path) -> list[Path]:
+    return [path for path in sorted(source_root.rglob("*")) if path.is_file()]
+
+
+def publish_authored_game(source_root: Path, game_dir: Path) -> list[Path]:
+    source_root = source_root.resolve()
+    game_dir = game_dir.resolve()
+    if source_root == game_dir:
+        return authored_files(game_dir)
+
+    if game_dir.exists():
+        shutil.rmtree(game_dir)
+    shutil.copytree(source_root, game_dir)
+    return authored_files(game_dir)
+
+
 def build_arcade(manifest_path: Path, output_root: Path) -> list[Path]:
     payload = load_manifest(manifest_path)
     site = payload.get("site", {})
@@ -736,7 +760,7 @@ def build_arcade(manifest_path: Path, output_root: Path) -> list[Path]:
     assets_dir.mkdir(parents=True, exist_ok=True)
     (assets_dir / "site.css").write_text(STYLE_CSS, encoding="utf-8")
 
-    icon_source = Path(__file__).resolve().parents[1] / ICON_FILENAME
+    icon_source = REPO_ROOT / ICON_FILENAME
     if not icon_source.exists():
         raise FileNotFoundError(f"Expected arcade icon at {icon_source}")
 
@@ -752,10 +776,18 @@ def build_arcade(manifest_path: Path, output_root: Path) -> list[Path]:
 
     for game in games:
         game_dir = output_root / game["slug"]
-        game_dir.mkdir(parents=True, exist_ok=True)
-        page_path = game_dir / "index.html"
-        page_path.write_text(render_game_page(site, game), encoding="utf-8")
-        written.append(page_path)
+        source_dir = game.get("source_dir")
+        if source_dir is None:
+            game_dir.mkdir(parents=True, exist_ok=True)
+            page_path = game_dir / "index.html"
+            page_path.write_text(render_game_page(site, game), encoding="utf-8")
+            written.append(page_path)
+            continue
+
+        source_root = resolve_source_dir(source_dir)
+        if not source_root.is_dir():
+            raise FileNotFoundError(f"Game '{game['slug']}' source_dir does not exist: {source_dir}")
+        written.extend(publish_authored_game(source_root, game_dir))
 
     return written
 
@@ -777,9 +809,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[1]
-    manifest_path = (repo_root / args.manifest).resolve()
-    output_root = (repo_root / args.output_root).resolve()
+    manifest_path = (REPO_ROOT / args.manifest).resolve()
+    output_root = (REPO_ROOT / args.output_root).resolve()
     written = build_arcade(manifest_path, output_root)
     for path in written:
         print(path.relative_to(output_root))
