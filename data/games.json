@@ -19,9 +19,9 @@
       "slug": "ricochet-reactor",
       "title": "Ricochet Reactor",
       "status": "Prototype",
-      "version": "0.0.1",
-      "summary": "A reactor-defense shell has entered the arcade with the Millrace frame, HUD scaffolding, and arena stage set for the first playable loop.",
-      "description": "Ricochet Reactor is a new arcade prototype built around a future ricochet-combat loop. This release ships the branded shell, telemetry placeholders, and arena container so the first playable systems can land cleanly in follow-up tasks.",
+      "version": "0.0.2",
+      "summary": "Ricochet Reactor now ships a first playable chamber with live movement, ricochet shots, dash cooldown management, and reactor HUD telemetry.",
+      "description": "Ricochet Reactor is an arcade prototype built around a ricochet-combat loop. This version turns the public shell into a playable chamber with bounded movement, mouse aiming, wall-bouncing shots, a dash burst, and live placeholder HUD readouts for the future defense run.",
       "cta_label": "Open prototype",
       "source_dir": "games/ricochet-reactor"
     }
