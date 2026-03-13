@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="shortcut icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="apple-touch-icon" href="../../MillraceIconTransparent.png">
-    <link rel="stylesheet" href="styles.css?v=0.0.4">
+    <link rel="stylesheet" href="styles.css?v=0.0.4-feedback">
   </head>
   <body>
     <main class="shell">
@@ -126,6 +126,11 @@
             </div>
             <div id="game-viewport" class="game-viewport game-viewport-live" aria-label="Overcrank gameplay viewport">
               <canvas id="game-canvas" class="game-canvas" width="360" height="640"></canvas>
+              <div class="feedback-layer" aria-live="polite" aria-atomic="true">
+                <div id="feedback-flash" class="feedback-flash is-hidden"></div>
+                <div id="hazard-banner" class="hazard-banner is-hidden"></div>
+                <div id="feedback-callout" class="feedback-callout is-hidden"></div>
+              </div>
               <div id="game-overlay" class="game-overlay">
                 <div class="viewport-frame">
                   <p id="overlay-eyebrow" class="eyebrow">Start run</p>
@@ -139,6 +144,6 @@
       </section>
     </main>
 
-    <script src="main.js?v=0.0.4"></script>
+    <script src="main.js?v=0.0.4-feedback"></script>
   </body>
 </html>

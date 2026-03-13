@@ -12,6 +12,9 @@ const shell = {
   viewportShell: document.querySelector("#viewport-shell"),
   gameViewport: document.querySelector("#game-viewport"),
   gameCanvas: document.querySelector("#game-canvas"),
+  feedbackFlash: document.querySelector("#feedback-flash"),
+  hazardBanner: document.querySelector("#hazard-banner"),
+  feedbackCallout: document.querySelector("#feedback-callout"),
   gameOverlay: document.querySelector("#game-overlay"),
   overlayEyebrow: document.querySelector("#overlay-eyebrow"),
   overlayTitle: document.querySelector("#overlay-title"),
@@ -60,6 +63,15 @@ const config = {
 };
 
 const BEST_SCORE_STORAGE_KEY = "millrace.overcrank.best-score";
+const FEEDBACK_COPY = {
+  launch: { title: "Launch", copy: "Clean ignition. Keep your upward line live." },
+  landing: { title: "Hard landing", copy: "Absorb the hit and jump again before the chain drops." },
+  combo: { title: "Chain up", copy: "Multiplier climbing. Keep the rig moving upward." },
+  failureHeat: { title: "Heat breach", copy: "The heat line reached the runner. Restart from a cold floor." },
+  failureSteam: { title: "Steam contact", copy: "Vent plume contact ended the run. Watch the warning flash." },
+  collapse: { title: "Platform collapse", copy: "Crumble deck giving way. Clear it now." },
+  steam: { title: "Steam warning", copy: "Vent flash detected. Shift lanes before ignition." },
+};
 
 const canvas = shell.gameCanvas;
 const context = canvas.getContext("2d");
@@ -122,8 +134,110 @@ const state = {
   platforms: [],
   vents: [],
   pickups: [],
+  failReason: null,
+  feedback: {
+    flashTone: "",
+    flashTimer: 0,
+    calloutTone: "",
+    calloutTimer: 0,
+    calloutTitle: "",
+    calloutCopy: "",
+    hazardTone: "",
+    hazardTimer: 0,
+    hazardTitle: "",
+    hazardCopy: "",
+    comboMilestone: 0,
+    warnedVentIds: new Set(),
+    warnedCollapseIds: new Set(),
+  },
   player: createPlayer(),
 };
+
+function showFlash(tone, duration = 0.18) {
+  state.feedback.flashTone = tone;
+  state.feedback.flashTimer = Math.max(state.feedback.flashTimer, duration);
+}
+
+function showCallout(tone, title, copy, duration = 0.7) {
+  state.feedback.calloutTone = tone;
+  state.feedback.calloutTitle = title;
+  state.feedback.calloutCopy = copy;
+  state.feedback.calloutTimer = duration;
+  showFlash(tone, Math.min(duration, 0.26));
+}
+
+function showPresetCallout(key, duration) {
+  const preset = FEEDBACK_COPY[key];
+  if (!preset) {
+    return;
+  }
+  showCallout(
+    key === "failureHeat" || key === "failureSteam" ? "failure" : key,
+    preset.title,
+    preset.copy,
+    duration
+  );
+}
+
+function showHazardBanner(tone, title, copy, duration = 0.9) {
+  state.feedback.hazardTone = tone;
+  state.feedback.hazardTitle = title;
+  state.feedback.hazardCopy = copy;
+  state.feedback.hazardTimer = Math.max(state.feedback.hazardTimer, duration);
+  showFlash(tone, 0.2);
+}
+
+function updateFeedbackLayer() {
+  if (state.feedback.flashTimer > 0 && state.feedback.flashTone) {
+    shell.feedbackFlash.dataset.tone = state.feedback.flashTone;
+    shell.feedbackFlash.classList.remove("is-hidden");
+  } else {
+    shell.feedbackFlash.classList.add("is-hidden");
+    delete shell.feedbackFlash.dataset.tone;
+  }
+
+  if (state.feedback.hazardTimer > 0 && state.feedback.hazardTitle) {
+    shell.hazardBanner.dataset.tone = state.feedback.hazardTone;
+    shell.hazardBanner.innerHTML = `<p class="feedback-title">${state.feedback.hazardTitle}</p><p class="feedback-copy">${state.feedback.hazardCopy}</p>`;
+    shell.hazardBanner.classList.remove("is-hidden");
+  } else {
+    shell.hazardBanner.classList.add("is-hidden");
+    shell.hazardBanner.textContent = "";
+    delete shell.hazardBanner.dataset.tone;
+  }
+
+  if (state.feedback.calloutTimer > 0 && state.feedback.calloutTitle) {
+    shell.feedbackCallout.dataset.tone = state.feedback.calloutTone;
+    shell.feedbackCallout.innerHTML = `<p class="feedback-title">${state.feedback.calloutTitle}</p><p class="feedback-copy">${state.feedback.calloutCopy}</p>`;
+    shell.feedbackCallout.classList.remove("is-hidden");
+  } else {
+    shell.feedbackCallout.classList.add("is-hidden");
+    shell.feedbackCallout.textContent = "";
+    delete shell.feedbackCallout.dataset.tone;
+  }
+}
+
+function stepFeedback(dt) {
+  state.feedback.flashTimer = Math.max(0, state.feedback.flashTimer - dt);
+  state.feedback.calloutTimer = Math.max(0, state.feedback.calloutTimer - dt);
+  state.feedback.hazardTimer = Math.max(0, state.feedback.hazardTimer - dt);
+
+  if (state.feedback.flashTimer === 0) {
+    state.feedback.flashTone = "";
+  }
+  if (state.feedback.calloutTimer === 0) {
+    state.feedback.calloutTone = "";
+    state.feedback.calloutTitle = "";
+    state.feedback.calloutCopy = "";
+  }
+  if (state.feedback.hazardTimer === 0) {
+    state.feedback.hazardTone = "";
+    state.feedback.hazardTitle = "";
+    state.feedback.hazardCopy = "";
+  }
+
+  updateFeedbackLayer();
+}
 
 function setOverlay(eyebrow, title, copy) {
   shell.overlayEyebrow.textContent = eyebrow;
@@ -148,10 +262,19 @@ function updateOverlay() {
     return;
   }
 
+  if (state.failReason === "steam") {
+    setOverlay(
+      "Run failed",
+      "Steam contact",
+      "A live vent plume caught the runner. Press any movement key or jump key to restart, watch the warning flash, and clear the next lane earlier."
+    );
+    return;
+  }
+
   setOverlay(
     "Run failed",
     "Heat breach",
-    "The shaft flashed over. Press any movement key or jump key to restart with a clean score run, fresh hazards, fresh lifts, and fresh coolant pickups."
+    "The heat line reached the runner. Press any movement key or jump key to restart with a clean score run and stay ahead of the rising floor."
   );
 }
 
@@ -201,11 +324,14 @@ function updateHud() {
           : "Chain broken. Restart and keep the climb continuous.";
   shell.failureReadout.textContent =
     state.mode === "gameover"
-      ? "Failure logged: steam contact or heat-line contact."
+      ? state.failReason === "steam"
+        ? "Failure logged: steam plume contact."
+        : "Failure logged: heat-line contact."
       : coolantSeconds > 0
         ? "Coolant is live, but steam and heat still end the run."
         : "Steam contact or heat-line contact ends the run.";
   shell.gameViewport.dataset.mode = state.mode;
+  shell.gameViewport.dataset.failure = state.mode === "gameover" ? state.failReason ?? "heat" : "none";
 }
 
 function nextId() {
@@ -365,10 +491,25 @@ function resetRun(mode = "intro") {
   state.platforms = [];
   state.vents = [];
   state.pickups = [];
+  state.failReason = null;
+  state.feedback.flashTone = "";
+  state.feedback.flashTimer = 0;
+  state.feedback.calloutTone = "";
+  state.feedback.calloutTimer = 0;
+  state.feedback.calloutTitle = "";
+  state.feedback.calloutCopy = "";
+  state.feedback.hazardTone = "";
+  state.feedback.hazardTimer = 0;
+  state.feedback.hazardTitle = "";
+  state.feedback.hazardCopy = "";
+  state.feedback.comboMilestone = 0;
+  state.feedback.warnedVentIds = new Set();
+  state.feedback.warnedCollapseIds = new Set();
   state.player = createPlayer();
   ensureContent(config.height + config.generateAhead);
   updateOverlay();
   updateHud();
+  updateFeedbackLayer();
   draw();
 }
 
@@ -378,14 +519,25 @@ function startRun() {
   shell.viewportShell.dataset.boot = "running";
 }
 
-function failRun() {
+function failRun(reason = "heat") {
   state.mode = "gameover";
+  state.failReason = reason;
   state.player.vx = 0;
   state.player.vy = 0;
+  state.feedback.hazardTone = "";
+  state.feedback.hazardTimer = 0;
+  state.feedback.hazardTitle = "";
+  state.feedback.hazardCopy = "";
   syncBestScore();
   shell.bootState.textContent = "Overheat";
+  if (reason === "steam") {
+    showPresetCallout("failureSteam", 1.8);
+  } else {
+    showPresetCallout("failureHeat", 1.8);
+  }
   updateOverlay();
   updateHud();
+  updateFeedbackLayer();
   draw();
 }
 
@@ -416,18 +568,21 @@ function handleAction() {
     state.player.vy = config.jumpVelocity;
     state.player.onGround = false;
     state.player.platformId = null;
+    showPresetCallout("launch");
     return;
   }
 
   if (state.player.onWall === "left") {
     state.player.vx = config.wallJumpX;
     state.player.vy = config.wallJumpY;
+    showPresetCallout("launch");
     return;
   }
 
   if (state.player.onWall === "right") {
     state.player.vx = -config.wallJumpX;
     state.player.vy = config.wallJumpY;
+    showPresetCallout("launch");
   }
 }
 
@@ -491,6 +646,7 @@ function resolvePlatformLanding(prevY) {
     }
 
     if (prevY >= topY && player.y <= topY) {
+      const landingSpeed = Math.abs(player.vy);
       player.y = topY;
       player.vy = 0;
       player.onGround = true;
@@ -498,6 +654,9 @@ function resolvePlatformLanding(prevY) {
 
       if (platform.type === "crumble" && platform.crumbleTimer > 0) {
         platform.crumbleTimer -= 1 / 60;
+      }
+      if (landingSpeed >= 360) {
+        showPresetCallout("landing", 0.85);
       }
 
       return;
@@ -507,8 +666,20 @@ function resolvePlatformLanding(prevY) {
 
 function updatePlatforms(dt) {
   for (const platform of state.platforms) {
+    if (
+      platform.type === "crumble" &&
+      platform.active !== false &&
+      state.player.platformId === platform.id &&
+      platform.crumbleTimer <= 0.2 &&
+      !state.feedback.warnedCollapseIds.has(platform.id)
+    ) {
+      state.feedback.warnedCollapseIds.add(platform.id);
+      showHazardBanner("collapse", FEEDBACK_COPY.collapse.title, FEEDBACK_COPY.collapse.copy, 0.95);
+    }
+
     if (platform.type === "crumble" && platform.active !== false && platform.crumbleTimer <= 0) {
       platform.active = false;
+      showHazardBanner("collapse", FEEDBACK_COPY.collapse.title, FEEDBACK_COPY.collapse.copy, 0.7);
       if (state.player.platformId === platform.id) {
         state.player.platformId = null;
         state.player.onGround = false;
@@ -528,6 +699,16 @@ function updateHazardsAndPickups(dt) {
   const playerTop = state.player.y + config.playerHeight;
 
   for (const vent of state.vents) {
+    const ventNearPlayer = Math.abs(vent.y - state.player.y) < 150;
+    if (ventNearPlayer && isVentTelegraphing(vent) && !state.feedback.warnedVentIds.has(vent.id)) {
+      state.feedback.warnedVentIds.add(vent.id);
+      showHazardBanner("warning", FEEDBACK_COPY.steam.title, FEEDBACK_COPY.steam.copy, config.ventTelegraph);
+    }
+
+    if (!isVentTelegraphing(vent)) {
+      state.feedback.warnedVentIds.delete(vent.id);
+    }
+
     if (!isVentActive(vent)) {
       continue;
     }
@@ -536,7 +717,7 @@ function updateHazardsAndPickups(dt) {
     const overlapX = playerRight > vent.x && playerLeft < vent.x + vent.width;
     const overlapY = playerTop > vent.y && playerBottom < plumeTop;
     if (overlapX && overlapY) {
-      failRun();
+      failRun("steam");
       return;
     }
   }
@@ -571,6 +752,10 @@ function updateScore(dt, previousHighestY) {
     while (state.chainProgress >= config.comboStep) {
       state.chainProgress -= config.comboStep;
       state.chainCount += 1;
+      if (state.chainCount > state.feedback.comboMilestone) {
+        state.feedback.comboMilestone = state.chainCount;
+        showPresetCallout("combo", 0.95);
+      }
     }
 
     const multiplier = 1 + Math.max(0, state.chainCount - 1) * config.comboBonusStep;
@@ -670,7 +855,7 @@ function update(dt) {
   state.heatY += (config.heatBaseSpeed + (state.cameraY / 220) * config.heatRamp) * dt * heatSpeedMultiplier;
 
   if (player.y <= state.heatY + 10) {
-    failRun();
+    failRun("heat");
   }
 }
 
@@ -831,6 +1016,10 @@ function draw() {
 }
 
 function tick(timestamp) {
+  if (state.feedback.flashTimer > 0 || state.feedback.calloutTimer > 0 || state.feedback.hazardTimer > 0) {
+    stepFeedback(state.lastTime ? Math.min(0.033, (timestamp - state.lastTime) / 1000) : 0.016);
+  }
+
   if (state.mode === "running") {
     if (!state.lastTime) {
       state.lastTime = timestamp;
@@ -851,6 +1040,7 @@ function bootShell() {
   shell.viewportShell.dataset.boot = "ready";
   resizeCanvas();
   resetRun("intro");
+  updateFeedbackLayer();
   window.requestAnimationFrame(tick);
 }
 
