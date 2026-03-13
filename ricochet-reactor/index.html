@@ -98,6 +98,20 @@
             </div>
           </div>
 
+          <section class="upgrades-panel" aria-label="Active upgrades">
+            <div class="upgrades-heading">
+              <div>
+                <p class="eyebrow">Loadout</p>
+                <h3>Active upgrades</h3>
+              </div>
+              <span class="meta-pill upgrades-tier">Tier 0</span>
+            </div>
+            <ul id="upgrades-list" class="upgrades-list">
+              <li class="upgrade-chip">No upgrades installed</li>
+              <li class="upgrade-chip">Wave rewards pending</li>
+            </ul>
+          </section>
+
           <div class="briefing-panel">
             <p class="eyebrow">Control notes</p>
             <ul class="briefing-list">
@@ -156,6 +170,33 @@
                     <li>Press R or use Restart run after a failure.</li>
                   </ul>
                   <button id="intro-button" class="intro-button" type="button">Enter chamber</button>
+                </div>
+              </div>
+              <div id="upgrade-overlay" class="upgrade-overlay" hidden>
+                <div class="upgrade-card-shell">
+                  <div class="upgrade-overlay-copy">
+                    <p class="eyebrow">Wave reward</p>
+                    <h3>Choose the next chamber mod.</h3>
+                    <p class="upgrade-wave-label">Upcoming wave: <strong id="upgrade-wave-value">Wave 02</strong></p>
+                    <p class="upgrade-selection-prompt">Select one upgrade to prep the next run segment.</p>
+                  </div>
+                  <div class="upgrade-card-grid" role="list" aria-label="Upgrade choices">
+                    <article class="upgrade-card" role="listitem">
+                      <p class="upgrade-card-kicker">Slot 1</p>
+                      <h4>Ricochet Array</h4>
+                      <p>Placeholder for a rebound-focused reward.</p>
+                    </article>
+                    <article class="upgrade-card" role="listitem">
+                      <p class="upgrade-card-kicker">Slot 2</p>
+                      <h4>Stability Weave</h4>
+                      <p>Placeholder for a reactor defense reward.</p>
+                    </article>
+                    <article class="upgrade-card" role="listitem">
+                      <p class="upgrade-card-kicker">Slot 3</p>
+                      <h4>Dash Relay</h4>
+                      <p>Placeholder for a mobility reward.</p>
+                    </article>
+                  </div>
                 </div>
               </div>
             </div>
