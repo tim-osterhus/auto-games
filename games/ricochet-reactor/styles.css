@@ -465,6 +465,44 @@ h2 {
   pointer-events: none;
 }
 
+.countdown-banner {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 2;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  min-width: 10rem;
+  padding: 1rem 1.4rem;
+  border: 1px solid rgba(93, 226, 255, 0.24);
+  border-radius: 24px;
+  background: rgba(7, 12, 18, 0.84);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.countdown-banner[hidden] {
+  display: none;
+}
+
+.countdown-label {
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.countdown-banner strong {
+  font-family: "Clash Display", sans-serif;
+  font-size: clamp(3rem, 8vw, 4.8rem);
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+}
+
 .danger-badge,
 .event-feed {
   margin: 0;
@@ -774,6 +812,13 @@ h2 {
   font-weight: 700;
   cursor: pointer;
   pointer-events: auto;
+}
+
+.intro-button:hover,
+.intro-button:focus-visible {
+  outline: none;
+  border-color: rgba(93, 226, 255, 0.46);
+  transform: translateY(-1px);
 }
 
 .shell-ready .boot-pill {

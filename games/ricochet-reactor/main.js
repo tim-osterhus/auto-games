@@ -16,6 +16,8 @@ const requiredElements = {
   restartButton: document.querySelector("#restart-button"),
   dangerBadge: document.querySelector("#danger-badge"),
   eventFeed: document.querySelector("#event-feed"),
+  countdownBanner: document.querySelector("#countdown-banner"),
+  countdownValue: document.querySelector("#countdown-value"),
   introOverlay: document.querySelector("#intro-overlay"),
   introButton: document.querySelector("#intro-button"),
   upgradesList: document.querySelector("#upgrades-list"),
@@ -47,8 +49,8 @@ const ENEMY_PROJECTILE_RADIUS = 6;
 const ENEMY_PROJECTILE_LIFETIME = 4.2;
 const PLAYER_CONTACT_INVULNERABILITY = 0.5;
 const BEST_SCORE_STORAGE_KEY = "millrace.ricochet-reactor.best-score";
-const INTRO_DISMISSED_STORAGE_KEY = "millrace.ricochet-reactor.intro-dismissed";
 const UPGRADE_RESUME_DELAY = 1.4;
+const LAUNCH_COUNTDOWN = 3;
 
 const BASE_PLAYER_STATS = {
   speed: PLAYER_SPEED,
@@ -262,8 +264,8 @@ function createGame(elements) {
     spawnQueue: [],
     score: 0,
     bestScore: loadBestScore(),
-    introDismissed: false,
-    phase: "combat",
+    phase: "prerun",
+    countdown: 0,
     pickups: [],
     pickupFlash: 0,
     pickupStatus: "No cells recovered yet",
@@ -311,12 +313,6 @@ function createGame(elements) {
   };
 
   persistBestScore(state.bestScore);
-  try {
-    state.introDismissed = window.localStorage.getItem(INTRO_DISMISSED_STORAGE_KEY) === "1";
-  } catch (error) {
-    state.introDismissed = false;
-  }
-
   function resizeCanvas() {
     const rect = elements.arenaShell.getBoundingClientRect();
     elements.arenaCanvas.width = Math.max(640, Math.round(rect.width));
@@ -439,6 +435,26 @@ function createGame(elements) {
   function hideUpgradeOverlay() {
     elements.upgradeOverlay.hidden = true;
     elements.upgradeOverlay.classList.remove("upgrade-visible");
+  }
+
+  function showIntroOverlay() {
+    elements.introOverlay.hidden = false;
+    elements.arenaCanvas.style.pointerEvents = "none";
+  }
+
+  function hideIntroOverlay() {
+    elements.introOverlay.hidden = true;
+    elements.arenaCanvas.style.pointerEvents = "auto";
+  }
+
+  function updateCountdownBanner() {
+    const visible = state.phase === "countdown";
+    elements.countdownBanner.hidden = !visible;
+    if (!visible) {
+      return;
+    }
+
+    elements.countdownValue.textContent = String(Math.max(1, Math.ceil(state.countdown)));
   }
 
   function renderUpgradeOverlay(messageOverride = "") {
@@ -641,19 +657,26 @@ function createGame(elements) {
     }
   }
 
-  function dismissIntro() {
-    if (state.introDismissed) {
+  function startCountdown() {
+    if (state.gameOver || state.phase !== "prerun") {
       return;
     }
 
-    state.introDismissed = true;
-    elements.introOverlay.hidden = true;
-    elements.arenaCanvas.style.pointerEvents = "auto";
-    try {
-      window.localStorage.setItem(INTRO_DISMISSED_STORAGE_KEY, "1");
-    } catch (error) {
-      // Ignore storage failures and keep the overlay dismissed for this page view.
-    }
+    state.phase = "countdown";
+    state.countdown = LAUNCH_COUNTDOWN;
+    state.firing = false;
+    hideIntroOverlay();
+    updateCountdownBanner();
+    setUiMessage(`Launch countdown started. Reposition before breach in ${LAUNCH_COUNTDOWN}.`, "neutral", 999);
+  }
+
+  function beginCombatRun() {
+    state.phase = "combat";
+    state.countdown = 0;
+    state.nextWaveTimer = 0;
+    queueWave();
+    updateCountdownBanner();
+    setUiMessage("Containment trial live. First breach entering the chamber.", "neutral", 1.4);
   }
 
   function handleEnemyDefeat(enemy) {
@@ -688,7 +711,8 @@ function createGame(elements) {
     state.enemies = [];
     state.enemyProjectiles = [];
     state.lastShotAt = 0;
-    state.phase = "combat";
+    state.phase = "prerun";
+    state.countdown = 0;
     state.player.x = reactorX;
     state.player.y = reactorY + 120;
     state.player.health = PLAYER_MAX_HEALTH;
@@ -704,9 +728,11 @@ function createGame(elements) {
     state.upgrades.resumeTimer = 0;
     state.upgrades.selectedId = "";
     hideUpgradeOverlay();
+    showIntroOverlay();
+    updateCountdownBanner();
     recalculateUpgradeStats();
     renderUpgradeHud();
-    setUiMessage("Objective: defend the reactor, keep moving, and use dash to reopen your angle.", "neutral", 0);
+    setUiMessage("Briefing ready. Press Enter or Start run to launch the chamber countdown.", "neutral", 0);
     updateAim();
   }
 
@@ -784,7 +810,8 @@ function createGame(elements) {
   }
 
   function tryDash() {
-    if (state.gameOver || state.phase !== "combat" || state.player.dashCooldown > 0 || state.player.dashTime > 0) {
+    const canDash = state.phase === "combat" || state.phase === "countdown" || state.phase === "prerun";
+    if (state.gameOver || !canDash || state.player.dashCooldown > 0 || state.player.dashTime > 0) {
       return;
     }
 
@@ -831,7 +858,12 @@ function createGame(elements) {
         tryDash();
       }
 
-      if (event.code === "KeyR" && state.gameOver) {
+      if (event.code === "Enter") {
+        event.preventDefault();
+        startCountdown();
+      }
+
+      if (event.code === "KeyR") {
         restartGame();
       }
     });
@@ -863,7 +895,6 @@ function createGame(elements) {
       }
 
       state.pointer = { ...getPointerPosition(event), inside: true };
-      dismissIntro();
       if (state.gameOver) {
         restartGame();
         return;
@@ -882,7 +913,7 @@ function createGame(elements) {
     });
 
     elements.introButton.addEventListener("click", () => {
-      dismissIntro();
+      startCountdown();
     });
 
     elements.upgradeCards.forEach((card) => {
@@ -899,7 +930,16 @@ function createGame(elements) {
   }
 
   function updateWaveState(dt) {
-    if (state.gameOver || state.phase === "upgrade") {
+    if (state.gameOver || state.phase === "prerun" || state.phase === "upgrade") {
+      return;
+    }
+
+    if (state.phase === "countdown") {
+      state.countdown = Math.max(0, state.countdown - dt);
+      updateCountdownBanner();
+      if (state.countdown <= 0) {
+        beginCombatRun();
+      }
       return;
     }
 
@@ -949,6 +989,10 @@ function createGame(elements) {
     return !state.gameOver && state.phase === "combat";
   }
 
+  function canMovePlayer() {
+    return !state.gameOver && state.phase !== "upgrade" && state.phase !== "upgrade-resume";
+  }
+
   function updatePlayer(dt) {
     let moveX = 0;
     let moveY = 0;
@@ -966,7 +1010,7 @@ function createGame(elements) {
       moveX += 1;
     }
 
-    if (canSimulateCombat()) {
+    if (canMovePlayer()) {
       if (state.player.dashTime > 0) {
         const dashStep = (DASH_DISTANCE / DASH_DURATION) * dt;
         state.player.x += state.player.dashVectorX * dashStep;
@@ -1221,6 +1265,12 @@ function createGame(elements) {
     if (state.gameOver) {
       return "Run failed";
     }
+    if (state.phase === "prerun") {
+      return "Standby";
+    }
+    if (state.phase === "countdown") {
+      return `Launch-${Math.max(1, Math.ceil(state.countdown))}`;
+    }
     if (state.spawnQueue.length > 0) {
       return `Wave-${String(state.wave).padStart(2, "0")} / breach`;
     }
@@ -1253,12 +1303,28 @@ function createGame(elements) {
     const integrityState = getIntegrityState();
     const eventText = state.uiMessage.timer > 0
       ? state.uiMessage.text
-      : "Objective: defend the reactor, keep moving, and use dash to reopen your angle.";
+      : state.phase === "prerun"
+        ? "Briefing active. Move into position, then launch the run when ready."
+      : state.phase === "countdown"
+        ? `Launch countdown live. ${Math.max(1, Math.ceil(state.countdown))} seconds until breach.`
+        : "Objective: defend the reactor, keep moving, and use dash to reopen your angle.";
     const eventTone = state.uiMessage.timer > 0 ? state.uiMessage.tone : "neutral";
 
-    elements.bootState.textContent = state.gameOver ? "Run failed" : state.wave === 0 ? "Booting" : `Wave ${state.wave}`;
+    elements.bootState.textContent = state.gameOver
+      ? "Run failed"
+      : state.phase === "prerun"
+        ? "Standby"
+        : state.phase === "countdown"
+          ? "Launch"
+          : state.wave === 0
+            ? "Booting"
+            : `Wave ${state.wave}`;
     elements.statusMessage.textContent = state.gameOver
-      ? `${state.endReason}. Press R or click the arena to restart.`
+      ? `${state.endReason}. Press R, click the arena, or use Restart run to reset.`
+      : state.phase === "prerun"
+        ? "Briefing locked in. Press Enter or Start run when you're ready to launch."
+      : state.phase === "countdown"
+        ? `Launch in ${Math.max(1, Math.ceil(state.countdown))}. Reposition now; combat is still paused.`
       : state.phase === "upgrade" || state.phase === "upgrade-resume"
         ? getUpgradeStatusText()
       : state.pickupFlash > 0
@@ -1277,6 +1343,10 @@ function createGame(elements) {
     elements.laneValue.textContent = `${state.shots.length} live ${state.shots.length === 1 ? "round" : "rounds"} / ${liveThreats} hostile traces`;
     elements.directiveValue.textContent = state.gameOver
       ? "Lock the restart control and reset for another score run"
+      : state.phase === "prerun"
+        ? "Review the briefing, line up your opening angle, and start when ready"
+      : state.phase === "countdown"
+        ? "Use the launch window to move or dash into position before breach begins"
       : state.phase === "upgrade" || state.phase === "upgrade-resume"
         ? "Combat paused. Lock in one chamber mod before the next breach."
       : state.pickups.length > 0
@@ -1286,13 +1356,18 @@ function createGame(elements) {
         : "Use the lull to reload your angle around the reactor";
     elements.arenaValue.textContent = state.gameOver
       ? `${state.endReason} | Score ${state.score} | Best ${state.bestScore}`
+      : state.phase === "prerun"
+        ? "Pre-run hold | Combat offline | Waiting for launch"
+      : state.phase === "countdown"
+        ? `Launch countdown | ${Math.max(1, Math.ceil(state.countdown))}s to breach | Chamber clear`
       : state.phase === "upgrade" || state.phase === "upgrade-resume"
         ? `Upgrade bay active | Upcoming wave ${state.wave + 1} | Rewards 3`
       : `Turrets ${turretCount} | Queue ${state.spawnQueue.length} | Next break ${state.enemies.length === 0 ? Math.max(0, Math.ceil(state.nextWaveTimer)) : 0}s`;
     elements.pickupValue.textContent = pickupLabel;
-    elements.restartButton.hidden = !state.gameOver;
+    elements.restartButton.hidden = false;
     elements.eventFeed.textContent = eventText;
     elements.eventFeed.dataset.tone = eventTone;
+    updateCountdownBanner();
     elements.dangerBadge.textContent = integrityState === "critical"
       ? "Reactor critical"
       : integrityState === "warning"
@@ -1457,6 +1532,20 @@ function createGame(elements) {
       ctx.font = "500 18px 'DM Sans', sans-serif";
       ctx.fillStyle = "#c8d1e4";
       ctx.fillText(`Score ${state.score} | Best ${state.bestScore} | Press R, click, or use Restart run.`, reactorX, reactorY + 26);
+    } else if (state.phase === "prerun") {
+      ctx.fillStyle = "rgba(4, 7, 11, 0.58)";
+      ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#eff3ff";
+      ctx.font = "700 34px 'Clash Display', sans-serif";
+      ctx.fillText("Chamber on standby", reactorX, reactorY - 4);
+      ctx.font = "500 18px 'DM Sans', sans-serif";
+      ctx.fillStyle = "#c8d1e4";
+      ctx.fillText("Move freely, line up your first angle, then press Enter or Start run.", reactorX, reactorY + 28);
+    } else if (state.phase === "countdown") {
+      ctx.fillStyle = "rgba(4, 7, 11, 0.24)";
+      ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
     }
 
     ctx.restore();
@@ -1490,13 +1579,6 @@ function createGame(elements) {
   bindEvents();
   restartGame();
   mountDebugControls();
-  if (state.introDismissed) {
-    elements.introOverlay.hidden = true;
-    elements.arenaCanvas.style.pointerEvents = "auto";
-  } else {
-    elements.arenaCanvas.style.pointerEvents = "none";
-  }
-  state.nextWaveTimer = 2;
   updateHud();
   drawArena();
   window.requestAnimationFrame(tick);

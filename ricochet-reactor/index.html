@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="shortcut icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="apple-touch-icon" href="../../MillraceIconTransparent.png">
-    <link rel="stylesheet" href="styles.css?v=0.0.6">
+    <link rel="stylesheet" href="styles.css?v=0.0.7">
   </head>
   <body>
     <main class="shell">
@@ -37,7 +37,7 @@
           </div>
           <div class="hero-meta" aria-label="Release metadata">
             <span class="meta-pill status-pill">Prototype</span>
-            <span class="meta-pill version-pill">v0.0.6</span>
+            <span class="meta-pill version-pill">v0.0.7</span>
           </div>
         </div>
       </header>
@@ -146,6 +146,10 @@
               <p id="danger-badge" class="danger-badge">Reactor stable</p>
               <p id="event-feed" class="event-feed">Objective: defend the reactor, keep moving, and use dash to reopen your angle.</p>
             </div>
+            <div id="countdown-banner" class="countdown-banner" hidden aria-live="polite">
+              <p class="countdown-label">Launch in</p>
+              <strong id="countdown-value">3</strong>
+            </div>
             <canvas id="arena-canvas" class="arena-canvas" width="960" height="540" aria-label="Playable reactor arena"></canvas>
             <div class="arena-overlay">
               <div class="reactor-core" aria-hidden="true">
@@ -162,14 +166,15 @@
                 <div class="intro-card">
                   <p class="eyebrow">Pilot briefing</p>
                   <h3>Hold the chamber.</h3>
-                  <p>Protect the reactor, kite enemies through ricochets, and collect recovery cells when the lane is clear.</p>
+                  <p>Combat stays offline until you launch the run. Use the countdown window to take position before the first breach reaches the core.</p>
                   <ul class="intro-list">
+                    <li>Objective: defend the reactor and survive the escalating breach waves.</li>
                     <li>Move with WASD or arrow keys.</li>
                     <li>Aim with the mouse and hold click to fire.</li>
                     <li>Press Space or Shift to dash through pressure.</li>
-                    <li>Press R or use Restart run after a failure.</li>
+                    <li>Press Enter to start the run, then use R or Restart run to reset back here.</li>
                   </ul>
-                  <button id="intro-button" class="intro-button" type="button">Enter chamber</button>
+                  <button id="intro-button" class="intro-button" type="button">Start run</button>
                 </div>
               </div>
               <div id="upgrade-overlay" class="upgrade-overlay" hidden>
@@ -205,6 +210,6 @@
       </section>
     </main>
 
-    <script src="main.js?v=0.0.6"></script>
+    <script src="main.js?v=0.0.7"></script>
   </body>
 </html>

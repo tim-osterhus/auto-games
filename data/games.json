@@ -19,9 +19,9 @@
       "slug": "ricochet-reactor",
       "title": "Ricochet Reactor",
       "status": "Prototype",
-      "version": "0.0.6",
-      "summary": "Ricochet Reactor now pauses between waves for live upgrade picks, letting each run stack faster movement, tighter dash timing, ricochet boosts, and stronger recovery choices.",
-      "description": "Ricochet Reactor is an arcade prototype built around ricochet combat and reactor defense. This release adds a between-wave upgrade draft with tiered stat stacking, a paused selection state, active-upgrade HUD tracking, and a clean reset back to baseline on restart.",
+      "version": "0.0.7",
+      "summary": "Ricochet Reactor now opens in a true pre-run briefing state, waits for an explicit launch input, and counts down before the first breach enters the chamber.",
+      "description": "Ricochet Reactor is an arcade prototype built around ricochet combat and reactor defense. This release adds a safe pre-run hold on load and restart, an explicit start action, a visible launch countdown with free repositioning, and a full reset of live threats and run upgrades before each new attempt.",
       "cta_label": "Open prototype",
       "source_dir": "games/ricochet-reactor"
     }
