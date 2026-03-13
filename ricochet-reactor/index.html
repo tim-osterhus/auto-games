@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="shortcut icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="apple-touch-icon" href="../../MillraceIconTransparent.png">
-    <link rel="stylesheet" href="styles.css?v=0.0.7">
+    <link rel="stylesheet" href="styles.css?v=0.0.9">
   </head>
   <body>
     <main class="shell">
@@ -37,7 +37,7 @@
           </div>
           <div class="hero-meta" aria-label="Release metadata">
             <span class="meta-pill status-pill">Prototype</span>
-            <span class="meta-pill version-pill">v0.0.7</span>
+            <span class="meta-pill version-pill">v0.0.9</span>
           </div>
         </div>
       </header>
@@ -87,6 +87,14 @@
             <div class="readout-row">
               <span>Primary directive</span>
               <strong id="directive-value">Calibrate the chamber and keep moving</strong>
+            </div>
+            <div class="readout-row">
+              <span>Phase status</span>
+              <strong id="phase-value" class="readout-emphasis">Stand by for launch</strong>
+            </div>
+            <div class="readout-row">
+              <span>Incoming threats</span>
+              <strong id="threat-value" class="readout-emphasis">Awaiting breach data</strong>
             </div>
             <div class="readout-row">
               <span>Arena status</span>
@@ -147,7 +155,7 @@
               <p id="event-feed" class="event-feed">Objective: defend the reactor, keep moving, and use dash to reopen your angle.</p>
             </div>
             <div id="countdown-banner" class="countdown-banner" hidden aria-live="polite">
-              <p class="countdown-label">Launch in</p>
+              <p id="countdown-label" class="countdown-label">Launch in</p>
               <strong id="countdown-value">3</strong>
             </div>
             <canvas id="arena-canvas" class="arena-canvas" width="960" height="540" aria-label="Playable reactor arena"></canvas>
@@ -210,6 +218,6 @@
       </section>
     </main>
 
-    <script src="main.js?v=0.0.7"></script>
+    <script src="main.js?v=0.0.9"></script>
   </body>
 </html>

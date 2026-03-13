@@ -11,12 +11,15 @@ const requiredElements = {
   bestScoreValue: document.querySelector("#best-score-value"),
   laneValue: document.querySelector("#lane-value"),
   directiveValue: document.querySelector("#directive-value"),
+  phaseValue: document.querySelector("#phase-value"),
+  threatValue: document.querySelector("#threat-value"),
   arenaValue: document.querySelector("#arena-value"),
   pickupValue: document.querySelector("#pickup-value"),
   restartButton: document.querySelector("#restart-button"),
   dangerBadge: document.querySelector("#danger-badge"),
   eventFeed: document.querySelector("#event-feed"),
   countdownBanner: document.querySelector("#countdown-banner"),
+  countdownLabel: document.querySelector("#countdown-label"),
   countdownValue: document.querySelector("#countdown-value"),
   introOverlay: document.querySelector("#intro-overlay"),
   introButton: document.querySelector("#intro-button"),
@@ -51,6 +54,7 @@ const PLAYER_CONTACT_INVULNERABILITY = 0.5;
 const BEST_SCORE_STORAGE_KEY = "millrace.ricochet-reactor.best-score";
 const UPGRADE_RESUME_DELAY = 1.4;
 const LAUNCH_COUNTDOWN = 3;
+const TELEGRAPH_LIMIT = 4;
 
 const BASE_PLAYER_STATS = {
   speed: PLAYER_SPEED,
@@ -171,6 +175,10 @@ function randomRange(min, max) {
   return min + Math.random() * (max - min);
 }
 
+function capitalize(value) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function distanceBetween(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -262,6 +270,7 @@ function createGame(elements) {
     nextWaveTimer: 2,
     spawnTimer: 0,
     spawnQueue: [],
+    previewQueue: [],
     score: 0,
     bestScore: loadBestScore(),
     phase: "prerun",
@@ -339,24 +348,28 @@ function createGame(elements) {
     const side = Math.floor(Math.random() * 4);
     const margin = 30;
     if (side === 0) {
-      return { x: randomRange(margin, ARENA_WIDTH - margin), y: -20 };
+      return { x: randomRange(margin, ARENA_WIDTH - margin), y: -20, side: "top" };
     }
     if (side === 1) {
-      return { x: ARENA_WIDTH + 20, y: randomRange(margin, ARENA_HEIGHT - margin) };
+      return { x: ARENA_WIDTH + 20, y: randomRange(margin, ARENA_HEIGHT - margin), side: "right" };
     }
     if (side === 2) {
-      return { x: randomRange(margin, ARENA_WIDTH - margin), y: ARENA_HEIGHT + 20 };
+      return { x: randomRange(margin, ARENA_WIDTH - margin), y: ARENA_HEIGHT + 20, side: "bottom" };
     }
-    return { x: -20, y: randomRange(margin, ARENA_HEIGHT - margin) };
+    return { x: -20, y: randomRange(margin, ARENA_HEIGHT - margin), side: "left" };
   }
 
-  function queueWave() {
-    state.wave += 1;
-    const isOpeningWave = state.wave === 1;
-    const isSecondWave = state.wave === 2;
-    const chasers = isOpeningWave ? 3 : 2 + state.wave * 2;
-    const turrets = state.wave >= 3 ? 1 + Math.floor(state.wave / 2) : 0;
-    const splitters = isOpeningWave ? 0 : isSecondWave ? 1 : Math.max(1, Math.floor((state.wave + 1) / 2));
+  function getSpawnInterval(waveNumber) {
+    const densityFactor = Math.min(0.1, waveNumber * 0.03);
+    return Math.max(0.22, 0.72 - densityFactor);
+  }
+
+  function buildWaveQueue(waveNumber) {
+    const isOpeningWave = waveNumber === 1;
+    const isSecondWave = waveNumber === 2;
+    const chasers = isOpeningWave ? 3 : 2 + waveNumber * 2;
+    const turrets = waveNumber >= 3 ? 1 + Math.floor(waveNumber / 2) : 0;
+    const splitters = isOpeningWave ? 0 : isSecondWave ? 1 : Math.max(1, Math.floor((waveNumber + 1) / 2));
     const queue = [];
 
     for (let index = 0; index < chasers; index += 1) {
@@ -369,14 +382,35 @@ function createGame(elements) {
       queue.push("splitter");
     }
 
-    state.spawnQueue = queue.sort(() => Math.random() - 0.5);
+    return queue.sort(() => Math.random() - 0.5).map((type, index) => {
+      const spawn = getSpawnPoint();
+      return {
+        id: `${type}-spawn-${waveNumber}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+        type,
+        x: spawn.x,
+        y: spawn.y,
+        side: spawn.side,
+      };
+    });
+  }
+
+  function prepareUpcomingWave() {
+    if (state.previewQueue.length === 0) {
+      state.previewQueue = buildWaveQueue(state.wave + 1);
+    }
+  }
+
+  function queueWave() {
+    prepareUpcomingWave();
+    state.wave += 1;
+    state.spawnQueue = state.previewQueue;
+    state.previewQueue = [];
     state.spawnTimer = 0.4;
     state.nextWaveTimer = 0;
   }
 
-  function spawnEnemy(type) {
-    const spawn = getSpawnPoint();
-    state.enemies.push(createEnemy(type, spawn.x, spawn.y));
+  function spawnEnemy(queuedSpawn) {
+    state.enemies.push(createEnemy(queuedSpawn.type, queuedSpawn.x, queuedSpawn.y));
   }
 
   function spawnPickup(x, y, amount) {
@@ -450,12 +484,20 @@ function createGame(elements) {
   }
 
   function updateCountdownBanner() {
-    const visible = state.phase === "countdown";
+    const visible = state.phase === "countdown" || state.phase === "upgrade-resume";
     elements.countdownBanner.hidden = !visible;
+    elements.countdownBanner.dataset.mode = state.phase === "upgrade-resume" ? "resume" : "launch";
     if (!visible) {
       return;
     }
 
+    if (state.phase === "upgrade-resume") {
+      elements.countdownLabel.textContent = "Resuming in";
+      elements.countdownValue.textContent = String(Math.max(1, Math.ceil(state.upgrades.resumeTimer)));
+      return;
+    }
+
+    elements.countdownLabel.textContent = "Launch in";
     elements.countdownValue.textContent = String(Math.max(1, Math.ceil(state.countdown)));
   }
 
@@ -542,6 +584,7 @@ function createGame(elements) {
       },
       forceUpgradePhase() {
         if (state.wave === 0) {
+          prepareUpcomingWave();
           queueWave();
         }
         state.spawnQueue = [];
@@ -561,6 +604,11 @@ function createGame(elements) {
         updateHud();
         drawArena();
       },
+      beginCountdown() {
+        startCountdown();
+        updateHud();
+        drawArena();
+      },
     };
   }
 
@@ -571,6 +619,7 @@ function createGame(elements) {
     state.upgrades.resumeTimer = 0;
     state.upgrades.selectedId = "";
     state.upgrades.offered = getUpgradeChoices();
+    prepareUpcomingWave();
     renderUpgradeOverlay();
     setUiMessage(`Wave ${state.wave} clear. Choose a chamber mod for wave ${state.wave + 1}.`, "neutral", 999);
   }
@@ -666,6 +715,7 @@ function createGame(elements) {
 
     state.phase = "countdown";
     state.countdown = LAUNCH_COUNTDOWN;
+    prepareUpcomingWave();
     state.firing = false;
     hideIntroOverlay();
     updateCountdownBanner();
@@ -704,6 +754,7 @@ function createGame(elements) {
     state.nextWaveTimer = 2;
     state.spawnTimer = 0;
     state.spawnQueue = [];
+    state.previewQueue = [];
     state.score = 0;
     state.pickups = [];
     state.pickupFlash = 0;
@@ -957,8 +1008,7 @@ function createGame(elements) {
       state.spawnTimer -= dt;
       if (state.spawnTimer <= 0) {
         spawnEnemy(state.spawnQueue.shift());
-        const densityFactor = Math.min(0.1, state.wave * 0.03);
-        state.spawnTimer = Math.max(0.22, 0.72 - densityFactor);
+        state.spawnTimer = getSpawnInterval(state.wave);
       }
       return;
     }
@@ -985,6 +1035,170 @@ function createGame(elements) {
       return `Upgrade installed. Wave ${state.wave + 1} resumes in ${Math.max(1, Math.ceil(state.upgrades.resumeTimer))}s.`;
     }
     return "";
+  }
+
+  function summarizeThreatMix(queue) {
+    if (!queue || queue.length === 0) {
+      return "No queued breaches";
+    }
+
+    const counts = new Map();
+    for (const entry of queue) {
+      counts.set(entry.type, (counts.get(entry.type) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .map(([type, count]) => `${count} ${ENEMY_ARCHETYPES[type].label}${count === 1 ? "" : "s"}`)
+      .join(" • ");
+  }
+
+  function getThreatMixText() {
+    if (state.phase === "countdown") {
+      return state.previewQueue.length > 0
+        ? `Wave ${state.wave + 1} queued: ${summarizeThreatMix(state.previewQueue)}`
+        : "Syncing first breach route";
+    }
+
+    if (state.phase === "upgrade" || state.phase === "upgrade-resume") {
+      return state.previewQueue.length > 0
+        ? `Wave ${state.wave + 1} queued: ${summarizeThreatMix(state.previewQueue)}`
+        : "Awaiting next breach mix";
+    }
+
+    if (state.spawnQueue.length > 0) {
+      return `Queue live: ${summarizeThreatMix(state.spawnQueue)}`;
+    }
+
+    if (state.enemies.length > 0) {
+      return `${state.enemies.length} hostile unit${state.enemies.length === 1 ? "" : "s"} active`;
+    }
+
+    return state.gameOver ? "No active breach" : "Awaiting breach data";
+  }
+
+  function getPhaseStatusText() {
+    if (state.gameOver) {
+      return "Failure state locked";
+    }
+    if (state.phase === "prerun") {
+      return "Pre-run briefing";
+    }
+    if (state.phase === "countdown") {
+      return `Launch countdown ${Math.max(1, Math.ceil(state.countdown))}s`;
+    }
+    if (state.phase === "upgrade") {
+      return "Upgrade selection";
+    }
+    if (state.phase === "upgrade-resume") {
+      return `Resume countdown ${Math.max(1, Math.ceil(state.upgrades.resumeTimer))}s`;
+    }
+    if (state.spawnQueue.length > 0) {
+      return "Queued breach ingress";
+    }
+    return "Combat live";
+  }
+
+  function getTelegraphAnchors(queuedSpawn) {
+    if (queuedSpawn.side === "top") {
+      return {
+        anchorX: clamp(queuedSpawn.x, 54, ARENA_WIDTH - 54),
+        anchorY: 28,
+        labelX: clamp(queuedSpawn.x, 80, ARENA_WIDTH - 80),
+        labelY: 52,
+        dirX: 0,
+        dirY: 1,
+      };
+    }
+    if (queuedSpawn.side === "right") {
+      return {
+        anchorX: ARENA_WIDTH - 28,
+        anchorY: clamp(queuedSpawn.y, 54, ARENA_HEIGHT - 54),
+        labelX: ARENA_WIDTH - 108,
+        labelY: clamp(queuedSpawn.y, 34, ARENA_HEIGHT - 34),
+        dirX: -1,
+        dirY: 0,
+      };
+    }
+    if (queuedSpawn.side === "bottom") {
+      return {
+        anchorX: clamp(queuedSpawn.x, 54, ARENA_WIDTH - 54),
+        anchorY: ARENA_HEIGHT - 28,
+        labelX: clamp(queuedSpawn.x, 80, ARENA_WIDTH - 80),
+        labelY: ARENA_HEIGHT - 40,
+        dirX: 0,
+        dirY: -1,
+      };
+    }
+    return {
+      anchorX: 28,
+      anchorY: clamp(queuedSpawn.y, 54, ARENA_HEIGHT - 54),
+      labelX: 108,
+      labelY: clamp(queuedSpawn.y, 34, ARENA_HEIGHT - 34),
+      dirX: 1,
+      dirY: 0,
+    };
+  }
+
+  function drawTelegraphTriangle(ctx, x, y, dirX, dirY, size) {
+    const tipX = x + dirX * size;
+    const tipY = y + dirY * size;
+    const sideX = -dirY;
+    const sideY = dirX;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(x - dirX * size * 0.85 + sideX * size * 0.75, y - dirY * size * 0.85 + sideY * size * 0.75);
+    ctx.lineTo(x - dirX * size * 0.85 - sideX * size * 0.75, y - dirY * size * 0.85 - sideY * size * 0.75);
+    ctx.closePath();
+  }
+
+  function drawQueuedSpawnTelegraphs(ctx) {
+    const telegraphs = state.phase === "countdown"
+      ? state.previewQueue.slice(0, TELEGRAPH_LIMIT)
+      : state.spawnQueue.slice(0, TELEGRAPH_LIMIT);
+
+    if (telegraphs.length === 0) {
+      return;
+    }
+
+    const phaseTimer = state.phase === "countdown" ? state.countdown : state.spawnTimer;
+    const interval = getSpawnInterval(Math.max(1, state.wave || 1));
+
+    telegraphs.forEach((queuedSpawn, index) => {
+      const threat = ENEMY_ARCHETYPES[queuedSpawn.type];
+      const { anchorX, anchorY, labelX, labelY, dirX, dirY } = getTelegraphAnchors(queuedSpawn);
+      const eta = index === 0 ? phaseTimer : phaseTimer + interval * index;
+      const urgency = clamp(1 - eta / Math.max(interval * TELEGRAPH_LIMIT, 2.8), 0.18, 1);
+      const pulse = 0.55 + (Math.sin(state.pulse * 3.4 + index * 0.7) + 1) * 0.18;
+      const alpha = clamp(urgency * pulse, 0.22, 0.9);
+
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + alpha * 0.22})`;
+      ctx.fillStyle = `rgba(7, 12, 18, ${0.68 + alpha * 0.16})`;
+      ctx.beginPath();
+      ctx.roundRect(labelX - 58, labelY - 14, 116, 28, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = threat.color;
+      ctx.lineWidth = index === 0 ? 3 : 2;
+      ctx.setLineDash([12, 10]);
+      ctx.beginPath();
+      ctx.moveTo(anchorX, anchorY);
+      ctx.lineTo(anchorX + dirX * 88, anchorY + dirY * 88);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = threat.color;
+      drawTelegraphTriangle(ctx, anchorX, anchorY, dirX, dirY, 12 + urgency * 4);
+      ctx.fill();
+
+      ctx.fillStyle = "#eff3ff";
+      ctx.font = "700 11px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${capitalize(queuedSpawn.side)} ${threat.label}`, labelX, labelY + 0.5);
+      ctx.restore();
+    });
   }
 
   function canSimulateCombat() {
@@ -1316,9 +1530,15 @@ function createGame(elements) {
       ? "Run failed"
       : state.phase === "prerun"
         ? "Standby"
-        : state.phase === "countdown"
+      : state.phase === "countdown"
           ? "Launch"
-          : state.wave === 0
+      : state.phase === "upgrade"
+        ? "Upgrade"
+      : state.phase === "upgrade-resume"
+        ? "Resume"
+      : state.spawnQueue.length > 0
+        ? "Ingress"
+      : state.wave === 0
             ? "Booting"
             : `Wave ${state.wave}`;
     elements.statusMessage.textContent = state.gameOver
@@ -1356,6 +1576,8 @@ function createGame(elements) {
       : liveThreats > 0
         ? "Protect the core, kite the chasers, and break splitters before impact"
         : "Use the lull to reload your angle around the reactor";
+    elements.phaseValue.textContent = getPhaseStatusText();
+    elements.threatValue.textContent = getThreatMixText();
     elements.arenaValue.textContent = state.gameOver
       ? `${state.endReason} | Score ${state.score} | Best ${state.bestScore}`
       : state.phase === "prerun"
@@ -1421,6 +1643,8 @@ function createGame(elements) {
       ctx.arc(reactorX, reactorY, 64, 0, Math.PI * 2);
       ctx.stroke();
     }
+
+    drawQueuedSpawnTelegraphs(ctx);
 
     for (const shot of state.shots) {
       const shotGlow = ctx.createRadialGradient(shot.x, shot.y, 0, shot.x, shot.y, shot.radius + 10);

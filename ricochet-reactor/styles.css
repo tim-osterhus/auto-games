@@ -325,6 +325,10 @@ h2 {
   text-align: right;
 }
 
+.readout-emphasis {
+  max-width: 19rem;
+}
+
 .briefing-panel {
   margin-top: 18px;
   border-radius: 20px;
@@ -468,7 +472,7 @@ h2 {
 .countdown-banner {
   position: absolute;
   inset: 50% auto auto 50%;
-  z-index: 2;
+  z-index: 4;
   display: grid;
   gap: 0.35rem;
   justify-items: center;
@@ -501,6 +505,11 @@ h2 {
   font-size: clamp(3rem, 8vw, 4.8rem);
   line-height: 0.9;
   letter-spacing: -0.05em;
+}
+
+.countdown-banner[data-mode="resume"] {
+  border-color: rgba(255, 90, 54, 0.28);
+  background: rgba(11, 14, 20, 0.9);
 }
 
 .danger-badge,
