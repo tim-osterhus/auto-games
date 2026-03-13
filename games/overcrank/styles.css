@@ -304,6 +304,18 @@ h1 {
   padding: 16px;
 }
 
+.hud-card-accent {
+  background: rgba(255, 98, 56, 0.08);
+}
+
+.hud-card-wide {
+  grid-column: 1 / -1;
+}
+
+.hud-card-heat {
+  background: rgba(116, 208, 255, 0.08);
+}
+
 .hud-label {
   display: block;
   margin-bottom: 0.55rem;
@@ -336,6 +348,11 @@ h1 {
   text-align: right;
 }
 
+.readout-row span,
+.readout-row strong {
+  line-height: 1.45;
+}
+
 .readout-emphasis {
   color: var(--accent-soft);
 }
@@ -351,6 +368,10 @@ h1 {
   padding-left: 1.1rem;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.notes-list li {
+  max-width: 34rem;
 }
 
 .notes-list li::marker {

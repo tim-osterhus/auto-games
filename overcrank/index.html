@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="shortcut icon" type="image/png" href="../../MillraceIconTransparent.png">
     <link rel="apple-touch-icon" href="../../MillraceIconTransparent.png">
-    <link rel="stylesheet" href="styles.css?v=0.0.3">
+    <link rel="stylesheet" href="styles.css?v=0.0.4">
   </head>
   <body>
     <main class="shell">
@@ -33,11 +33,11 @@
           <div class="hero-block">
             <p class="eyebrow">Machine floor briefing</p>
             <h1>Overcrank</h1>
-            <p class="lede">Prime the line, ride the lifts, read the steam telegraphs, and snatch coolant caches before the shaft flashes over. The endless hazard climb is live.</p>
+            <p class="lede">Prime the line, ride the lifts, chain upward bursts for score, and snatch coolant caches before the shaft flashes over. The score-attack climb is live.</p>
           </div>
           <div class="hero-meta" aria-label="Release metadata">
             <span class="meta-pill status-pill">Prototype</span>
-            <span class="meta-pill version-pill">v0.0.3</span>
+            <span class="meta-pill version-pill">v0.0.4</span>
           </div>
         </div>
       </header>
@@ -54,26 +54,30 @@
 
           <article class="briefing-card">
             <p class="eyebrow">Primary directive</p>
-            <h3>Keep the engine in the band.</h3>
-            <p class="briefing-copy">Kick off the walls, use catwalks and moving lifts to keep the rig climbing, and grab coolant before the heat band catches your boots. This build adds repeating shaft generation plus live hazards and recovery pickups.</p>
+            <h3>Climb clean. Keep the chain alive.</h3>
+            <p class="briefing-copy">Kick off the walls, use catwalks and moving lifts to keep the rig climbing, and bank score by linking steady upward gain. Coolant buys time against the heat chase, but any steam hit or heat-line contact ends the run.</p>
           </article>
 
-          <div class="hud-grid" aria-label="Placeholder HUD">
+          <div class="hud-grid" aria-label="Run HUD">
             <article class="hud-card">
-              <span class="hud-label">Heat load</span>
-              <strong id="heat-value" class="hud-value">--%</strong>
+              <span class="hud-label">Height</span>
+              <strong id="height-value" class="hud-value">0 m</strong>
             </article>
             <article class="hud-card">
-              <span class="hud-label">Torque band</span>
-              <strong id="torque-value" class="hud-value">Stand by</strong>
+              <span class="hud-label">Score</span>
+              <strong id="score-value" class="hud-value">0</strong>
             </article>
             <article class="hud-card">
-              <span class="hud-label">Line pressure</span>
-              <strong id="pressure-value" class="hud-value">Offline</strong>
+              <span class="hud-label">Best score</span>
+              <strong id="best-score-value" class="hud-value">0</strong>
             </article>
-            <article class="hud-card">
-              <span class="hud-label">Cycle state</span>
-              <strong id="cycle-value" class="hud-value">Scaffold</strong>
+            <article class="hud-card hud-card-accent">
+              <span class="hud-label">Chain</span>
+              <strong id="combo-value" class="hud-value">x0</strong>
+            </article>
+            <article class="hud-card hud-card-wide hud-card-heat">
+              <span class="hud-label">Heat status</span>
+              <strong id="heat-status-value" class="hud-value">0% stable</strong>
             </article>
           </div>
 
@@ -83,12 +87,12 @@
               <strong id="status-readout">Awaiting ignition</strong>
             </div>
             <div class="readout-row">
-              <span>Viewport binding</span>
-              <strong id="viewport-readout">Press A/D or arrow keys to engage</strong>
+              <span>Chain window</span>
+              <strong id="chain-readout">Start climbing to light the chain</strong>
             </div>
             <div class="readout-row">
-              <span>Next milestone</span>
-              <strong id="milestone-readout" class="readout-emphasis">Climb above the heat band</strong>
+              <span>Failure state</span>
+              <strong id="failure-readout" class="readout-emphasis">Steam contact or heat-line contact ends the run</strong>
             </div>
           </div>
 
@@ -97,8 +101,9 @@
             <ul class="notes-list">
               <li>Move with A/D or Left/Right. Jump with Space, W, or Up.</li>
               <li>Touch a wall while falling to slide, then jump to wall kick away.</li>
+              <li>Score comes from height gain. Keep climbing without stalling to extend the chain and multiply each rise.</li>
               <li>Blue lifts move, amber catwalks crumble, and steam vents flash before they fire.</li>
-              <li>Coolant pickups push back the heat and slow the chase for a short window.</li>
+              <li>Coolant pickups push back the heat and slow the chase for a short window. If the heat line reaches you, or steam hits you, the run is over.</li>
             </ul>
           </section>
         </section>
@@ -125,7 +130,7 @@
                 <div class="viewport-frame">
                   <p id="overlay-eyebrow" class="eyebrow">Start run</p>
                   <strong id="overlay-title">Ignite the rig</strong>
-                  <p id="overlay-copy" class="overlay-copy">Press Space, W, Up, A, D, or the arrow keys to start. Reach a wall, ride the lifts, dodge steam, and stay above the heat line.</p>
+                  <p id="overlay-copy" class="overlay-copy">Press Space, W, Up, A, D, or the arrow keys to start. Wall kick into a clean climb, ride the lifts, dodge steam, grab coolant, and keep the score chain alive above the heat line.</p>
                 </div>
               </div>
             </div>
@@ -134,6 +139,6 @@
       </section>
     </main>
 
-    <script src="main.js?v=0.0.3"></script>
+    <script src="main.js?v=0.0.4"></script>
   </body>
 </html>

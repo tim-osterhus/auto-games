@@ -1,13 +1,14 @@
 const shell = {
   bootState: document.querySelector("#boot-state"),
   statusMessage: document.querySelector("#status-message"),
-  heatValue: document.querySelector("#heat-value"),
-  torqueValue: document.querySelector("#torque-value"),
-  pressureValue: document.querySelector("#pressure-value"),
-  cycleValue: document.querySelector("#cycle-value"),
+  heightValue: document.querySelector("#height-value"),
+  scoreValue: document.querySelector("#score-value"),
+  bestScoreValue: document.querySelector("#best-score-value"),
+  comboValue: document.querySelector("#combo-value"),
+  heatStatusValue: document.querySelector("#heat-status-value"),
   statusReadout: document.querySelector("#status-readout"),
-  viewportReadout: document.querySelector("#viewport-readout"),
-  milestoneReadout: document.querySelector("#milestone-readout"),
+  chainReadout: document.querySelector("#chain-readout"),
+  failureReadout: document.querySelector("#failure-readout"),
   viewportShell: document.querySelector("#viewport-shell"),
   gameViewport: document.querySelector("#game-viewport"),
   gameCanvas: document.querySelector("#game-canvas"),
@@ -52,7 +53,13 @@ const config = {
   coolantSlowDuration: 3.6,
   ventTelegraph: 0.9,
   ventActive: 1.1,
+  comboGrace: 1.15,
+  comboStep: 52,
+  scorePerMeter: 12,
+  comboBonusStep: 0.35,
 };
+
+const BEST_SCORE_STORAGE_KEY = "millrace.overcrank.best-score";
 
 const canvas = shell.gameCanvas;
 const context = canvas.getContext("2d");
@@ -69,6 +76,28 @@ function createPlayer() {
   };
 }
 
+function loadBestScore() {
+  try {
+    const rawValue = window.localStorage.getItem(BEST_SCORE_STORAGE_KEY);
+    if (!rawValue) {
+      return 0;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function persistBestScore(score) {
+  try {
+    window.localStorage.setItem(BEST_SCORE_STORAGE_KEY, String(score));
+  } catch (error) {
+    // Local storage access can fail in restricted contexts; keep runtime alive.
+  }
+}
+
 const state = {
   mode: "intro",
   cameraY: 0,
@@ -82,6 +111,12 @@ const state = {
     left: false,
     right: false,
   },
+  score: 0,
+  scoreBank: 0,
+  bestScore: loadBestScore(),
+  chainCount: 0,
+  chainProgress: 0,
+  comboTimer: 0,
   coolantSlowTimer: 0,
   coolantPulse: 0,
   platforms: [],
@@ -108,7 +143,7 @@ function updateOverlay() {
     setOverlay(
       "Start run",
       "Ignite the rig",
-      "Press Space, W, Up, A, D, or the arrow keys to start. Ride lifts, avoid steam bursts, grab coolant, and stay above the heat line."
+      "Press Space, W, Up, A, D, or the arrow keys to start. Ride lifts, avoid steam bursts, grab coolant, and keep a live score chain by climbing without stalling."
     );
     return;
   }
@@ -116,7 +151,7 @@ function updateOverlay() {
   setOverlay(
     "Run failed",
     "Heat breach",
-    "The shaft flashed over. Press any movement key or jump key to restart with fresh hazards, lifts, and coolant pickups."
+    "The shaft flashed over. Press any movement key or jump key to restart with a clean score run, fresh hazards, fresh lifts, and fresh coolant pickups."
   );
 }
 
@@ -125,64 +160,52 @@ function updateHud() {
   const heatGap = Math.max(0, state.player.y - state.heatY);
   const heatPercent = Math.max(0, Math.min(100, Math.round(100 - heatGap / 4.8)));
   const coolantSeconds = Math.max(0, state.coolantSlowTimer);
+  const heatState =
+    coolantSeconds > 0
+      ? "coolant"
+      : heatPercent >= 85
+        ? "critical"
+        : heatPercent >= 60
+          ? "rising"
+          : "stable";
+  const chainLabel = state.chainCount > 0 ? `x${state.chainCount}` : "x0";
 
   shell.statusMessage.textContent =
     state.mode === "intro"
-      ? "Stand by. One key press starts the climb."
+      ? "Stand by. One key press starts the climb and begins scoring."
       : state.mode === "running"
         ? coolantSeconds > 0
-          ? `Coolant surge live for ${coolantSeconds.toFixed(1)}s. The heat line is backing off.`
-          : "Climb clean, read steam telegraphs, and keep the heat below your boots."
+          ? `Coolant surge live for ${coolantSeconds.toFixed(1)}s. The heat line is backing off while the chain stays open.`
+          : "Climb clean, read steam telegraphs, and keep the chain alive with steady upward gain."
         : "Heat contact detected. Any movement or jump key restarts.";
-  shell.heatValue.textContent = `${heatPercent}%`;
-  shell.torqueValue.textContent =
-    state.mode === "running"
-      ? state.player.platformId && getPlatformById(state.player.platformId)?.type === "moving"
-        ? "Lift engaged"
-        : Math.abs(state.player.vx) > 30
-          ? "Spooling"
-          : "Centered"
-      : "Stand by";
-  shell.pressureValue.textContent =
-    state.mode === "gameover" ? "Breached" : state.mode === "running" ? `${altitude} m` : "Stand by";
-  shell.cycleValue.textContent =
-    state.mode === "running"
-      ? coolantSeconds > 0
-        ? `Coolant ${coolantSeconds.toFixed(1)}s`
-        : `${state.vents.filter((vent) => isVentActive(vent)).length} vents hot`
-      : state.mode === "intro"
-        ? "Idle"
-        : "Tripped";
+  shell.heightValue.textContent = `${altitude} m`;
+  shell.scoreValue.textContent = `${state.score}`;
+  shell.bestScoreValue.textContent = `${state.bestScore}`;
+  shell.comboValue.textContent = chainLabel;
+  shell.heatStatusValue.textContent = `${heatPercent}% ${heatState}`;
   shell.statusReadout.textContent =
     state.mode === "intro"
       ? "Awaiting ignition"
       : state.mode === "running"
-        ? `${state.platforms.filter((platform) => platform.active !== false).length} supports live`
-        : "Thermal shutdown";
-  shell.viewportReadout.textContent =
+        ? `Run live at ${altitude} m with ${state.vents.filter((vent) => isVentActive(vent)).length} hot vents`
+        : `Run ended at ${altitude} m with ${state.score} points`;
+  shell.chainReadout.textContent =
     state.mode === "intro"
-      ? "Press A/D or arrow keys to engage"
+      ? "Start climbing to light the chain"
       : state.mode === "running"
-        ? `Camera lock ${altitude} m above floor`
-        : "Viewport reset pending";
-  shell.milestoneReadout.textContent =
-    state.mode === "running"
-      ? cooldownReadout(altitude)
-      : "Ride lifts, dodge steam, and chase coolant";
+        ? state.chainCount > 0
+          ? `Chain open for ${state.comboTimer.toFixed(1)}s. Keep rising to hold ${chainLabel}.`
+          : "Find an upward line to start the score chain."
+        : state.chainCount > 0
+          ? `Final chain held at ${chainLabel}. Restart to build past it.`
+          : "Chain broken. Restart and keep the climb continuous.";
+  shell.failureReadout.textContent =
+    state.mode === "gameover"
+      ? "Failure logged: steam contact or heat-line contact."
+      : coolantSeconds > 0
+        ? "Coolant is live, but steam and heat still end the run."
+        : "Steam contact or heat-line contact ends the run.";
   shell.gameViewport.dataset.mode = state.mode;
-}
-
-function cooldownReadout(altitude) {
-  if (state.coolantSlowTimer > 0) {
-    return `Coolant shield holding for ${state.coolantSlowTimer.toFixed(1)}s`;
-  }
-
-  const nextPickup = state.pickups.find((pickup) => !pickup.collected && pickup.y > state.player.y);
-  if (nextPickup) {
-    return `Next coolant cache at ${Math.round((nextPickup.y - config.floorY) / 10)} m`;
-  }
-
-  return `Peak climb ${altitude} m`;
 }
 
 function nextId() {
@@ -330,6 +353,11 @@ function resetRun(mode = "intro") {
   state.nextEntityId = 1;
   state.segmentIndex = 0;
   state.generatedToY = config.floorY;
+  state.score = 0;
+  state.scoreBank = 0;
+  state.chainCount = 0;
+  state.chainProgress = 0;
+  state.comboTimer = 0;
   state.coolantSlowTimer = 0;
   state.coolantPulse = 0;
   state.keys.left = false;
@@ -354,10 +382,20 @@ function failRun() {
   state.mode = "gameover";
   state.player.vx = 0;
   state.player.vy = 0;
+  syncBestScore();
   shell.bootState.textContent = "Overheat";
   updateOverlay();
   updateHud();
   draw();
+}
+
+function syncBestScore() {
+  if (state.score <= state.bestScore) {
+    return;
+  }
+
+  state.bestScore = state.score;
+  persistBestScore(state.bestScore);
 }
 
 function resizeCanvas() {
@@ -522,6 +560,37 @@ function updateHazardsAndPickups(dt) {
   state.coolantPulse = Math.max(0, state.coolantPulse - dt);
 }
 
+function updateScore(dt, previousHighestY) {
+  const climbed = Math.max(0, state.highestY - previousHighestY);
+
+  if (climbed > 0) {
+    state.chainCount = Math.max(1, state.chainCount);
+    state.chainProgress += climbed;
+    state.comboTimer = config.comboGrace;
+
+    while (state.chainProgress >= config.comboStep) {
+      state.chainProgress -= config.comboStep;
+      state.chainCount += 1;
+    }
+
+    const multiplier = 1 + Math.max(0, state.chainCount - 1) * config.comboBonusStep;
+    state.scoreBank += (climbed / 10) * config.scorePerMeter * multiplier;
+    state.score = Math.round(state.scoreBank);
+    syncBestScore();
+    return;
+  }
+
+  if (state.chainCount === 0) {
+    return;
+  }
+
+  state.comboTimer = Math.max(0, state.comboTimer - dt);
+  if (state.comboTimer === 0) {
+    state.chainCount = 0;
+    state.chainProgress = 0;
+  }
+}
+
 function cleanupContent() {
   const threshold = state.cameraY - config.cleanupBelow;
   state.platforms = state.platforms.filter(
@@ -590,7 +659,9 @@ function update(dt) {
     return;
   }
 
+  const previousHighestY = state.highestY;
   state.highestY = Math.max(state.highestY, player.y);
+  updateScore(dt, previousHighestY);
   state.cameraY = Math.max(0, state.highestY - config.cameraLead);
   ensureContent(state.highestY + config.generateAhead);
   cleanupContent();
@@ -799,6 +870,10 @@ window.__overcrank = {
       cameraY: state.cameraY,
       highestY: state.highestY,
       heatY: state.heatY,
+      score: state.score,
+      bestScore: state.bestScore,
+      chainCount: state.chainCount,
+      comboTimer: state.comboTimer,
       coolantSlowTimer: state.coolantSlowTimer,
       platformCounts: state.platforms.reduce((counts, platform) => {
         const key = platform.type;
