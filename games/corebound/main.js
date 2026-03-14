@@ -194,7 +194,7 @@ function createRunState() {
     maxPressure,
     moveCount: 0,
     gameOver: false,
-    statusMessage: "Mine downward, then return to the extractor to bank cargo.",
+    statusMessage: "Mine downward, complete the three contracts, then return to the extractor to bank cargo and payouts.",
     hazardStatus: {
       tone: "stable",
       badge: "Stable",
@@ -952,7 +952,7 @@ function collectPickup(x, y) {
     state.carryingRelic = true;
     const completedContract = updateContractProgress("relic", x, y);
     if (!completedContract) {
-      state.statusMessage = "Recovered the relic core. Keep it intact and get it back to the extractor.";
+      state.statusMessage = "Recovered the relic core. It only pays if you bank it at the extractor, and failure loses it.";
     }
     addTileFeedback(x, y, "relic");
     addFloatingFeedback("Relic secured", x + 0.5, y + 0.5, "relic");

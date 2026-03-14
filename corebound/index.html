@@ -6,7 +6,7 @@
     <title>Corebound | Millrace Arcade</title>
     <meta
       name="description"
-      content="Corebound v0.0.6 advances contracts on pickup, banks contract and relic rewards at the surface, and clearly wipes unbanked contract progress on failure."
+      content="Corebound v0.0.7 refreshes extractor contracts around resource pulls and relic cargo recovery, with banking still required to secure payouts at the surface."
     >
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
@@ -33,11 +33,11 @@
           <div class="hero-heading">
             <p class="eyebrow">Millrace Arcade</p>
             <h1>Corebound</h1>
-            <p class="lede">Dig through procedural caverns, react to refreshed hazards, and bank your haul at the surface extractor before pressure collapses.</p>
+            <p class="lede">Dig through procedural caverns, clear refreshed extractor contracts, recover relic cargo, and bank your haul at the surface extractor before pressure collapses.</p>
           </div>
           <div class="hero-meta" aria-label="Release metadata">
             <span class="meta-pill status-pill">Alpha</span>
-            <span class="meta-pill version-pill">v0.0.6</span>
+            <span class="meta-pill version-pill">v0.0.7</span>
           </div>
         </div>
       </header>
@@ -141,8 +141,9 @@
           </div>
 
           <div class="legend">
-            <p><span class="swatch extractor"></span> Extractor banks cargo and refreshes pressure.</p>
+            <p><span class="swatch extractor"></span> Extractor banks cargo, contract payouts, relic bonuses, and refreshes pressure.</p>
             <p><span class="swatch player"></span> Move with arrow keys or WASD.</p>
+            <p>Failure wipes any unbanked cargo, unpaid contracts, and carried relics.</p>
             <p><span class="swatch copper"></span><span class="swatch amber"></span><span class="swatch iridium"></span> Mine resource tiles, then step onto the drop.</p>
           </div>
         </section>
@@ -168,8 +169,8 @@
       <div class="overlay-card">
         <p class="eyebrow">First shift briefing</p>
         <h2>Mine, bank, upgrade</h2>
-        <p class="overlay-copy">Move with arrow keys or WASD. Each run carves a new shaft with side caverns, so mine deliberately, expose resource drops, then step onto them to collect before pressure runs out.</p>
-        <p class="overlay-copy">Watch the hazard feed for vent hisses and cave-in warnings. Banking at the surface extractor saves credits and upgrades forever, while a failed run only wipes unbanked cargo and run-specific hazards.</p>
+        <p class="overlay-copy">Move with arrow keys or WASD. Each run generates three extractor contracts: two resource pulls and one relic recovery. Mine deliberately, expose resource drops, then step onto them to collect before pressure runs out.</p>
+        <p class="overlay-copy">Completed contracts and recovered relics do not pay instantly. Return to the surface extractor to bank cargo, contract payouts, and relic bonuses. If pressure fails first, you lose every unbanked haul, unpaid contract, and carried relic.</p>
         <button id="onboarding-dismiss" class="button" type="button">Launch drill</button>
       </div>
     </section>

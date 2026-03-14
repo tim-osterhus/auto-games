@@ -9,9 +9,9 @@
       "slug": "corebound",
       "title": "Corebound",
       "status": "Alpha",
-      "version": "0.0.6",
-      "summary": "Corebound v0.0.6 advances extractor contracts on pickup, banks contract and relic rewards at the surface, and wipes unbanked contract progress on failure.",
-      "description": "Corebound is the first live title in the arcade. This v0.0.6 update makes extractor contracts progress as ore is collected, pays contract and relic rewards only when they are banked at the surface, and clearly warns that failure wipes unbanked contract progress and carried relic cargo while preserving banked upgrades and credits.",
+      "version": "0.0.7",
+      "summary": "Corebound v0.0.7 refreshes extractor contracts around resource pulls and relic cargo recovery, with banking still required to secure payouts at the surface.",
+      "description": "Corebound is the first live title in the arcade. This v0.0.7 update refreshes extractor contracts around two resource pulls plus one relic cargo recovery objective, keeps contract and relic rewards tied to surface banking, and warns that failure still wipes any unbanked contract progress and carried relic cargo while preserving banked upgrades and credits.",
       "cta_label": "Open game",
       "source_dir": "games/corebound"
     },
