@@ -8,6 +8,7 @@ const SURFACE_X = 5;
 const CAVERN_COUNT = 3;
 const HAZARD_TELEGRAPH_TURNS = 2;
 const HAZARD_TRIGGER_RADIUS = 1;
+const RUN_LAYOUT_ATTEMPTS = 80;
 
 const HAZARD_TYPES = {
   vent: {
@@ -26,6 +27,27 @@ const RESOURCE_TYPES = {
   copper: { value: 4, label: "Copper shards" },
   amber: { value: 7, label: "Amber resin" },
   iridium: { value: 12, label: "Iridium cores" },
+};
+
+const RESOURCE_IDS = Object.keys(RESOURCE_TYPES);
+
+const CONTRACT_PRESETS = {
+  standard: {
+    copper: { targets: [4, 3, 2], payout: 18, title: "Copper rush" },
+    amber: { targets: [3, 2], payout: 24, title: "Amber insulation" },
+    iridium: { targets: [2, 1], payout: 32, title: "Iridium survey" },
+  },
+  deep: {
+    copper: { targets: [3, 2], payout: 24, title: "Lower seam braces" },
+    amber: { targets: [3, 2], payout: 30, title: "Deep amber lattice" },
+    iridium: { targets: [2, 1], payout: 38, title: "Abyssal iridium scan" },
+  },
+  relic: {
+    payout: 44,
+    target: 1,
+    title: "Relic recovery",
+    description: "Retrieve the buried relic node from the lower shaft and keep it intact through the run.",
+  },
 };
 
 const UPGRADES = {
@@ -60,36 +82,6 @@ const UPGRADES = {
     },
   },
 };
-
-const CONTRACT_STUBS = [
-  {
-    id: "copper-rush",
-    label: "Extractor Contract 01",
-    title: "Copper rush",
-    description: "Feed the surface extractor with copper shards to stabilize the starter route.",
-    resource: "copper",
-    target: 3,
-    payout: 18,
-  },
-  {
-    id: "amber-insulation",
-    label: "Extractor Contract 02",
-    title: "Amber insulation",
-    description: "Deliver amber resin caches for hull-seal calibration work.",
-    resource: "amber",
-    target: 2,
-    payout: 22,
-  },
-  {
-    id: "iridium-survey",
-    label: "Extractor Contract 03",
-    title: "Iridium survey",
-    description: "Return rare iridium cores from deeper caverns for survey analysis.",
-    resource: "iridium",
-    target: 1,
-    payout: 30,
-  },
-];
 
 const elements = {
   grid: document.querySelector("#game-grid"),
@@ -191,13 +183,13 @@ function currentMineCost() {
 
 function createRunState() {
   const maxPressure = currentMaxPressure();
-  const { grid, hazards } = createGrid();
+  const { grid, hazards, pickups, contracts } = createValidatedRunLayout();
   return {
     grid,
     hazards,
     player: { x: SURFACE_X, y: 0 },
     cargo: { copper: 0, amber: 0, iridium: 0 },
-    pickups: [],
+    pickups,
     pressure: maxPressure,
     maxPressure,
     moveCount: 0,
@@ -208,18 +200,58 @@ function createRunState() {
       badge: "Stable",
       text: "No active hazard signatures yet. Procedural caverns can hide vents and cave-ins off the main shaft.",
     },
-    contractStatus: createContractStatus(),
+    contractStatus: contracts,
     carryingRelic: false,
     floatingFeedback: [],
     tileFeedback: [],
   };
 }
 
-function createContractStatus() {
-  return CONTRACT_STUBS.map((contract) => ({
-    ...contract,
-    progress: 0,
-  }));
+function createValidatedRunLayout() {
+  for (let attempt = 0; attempt < RUN_LAYOUT_ATTEMPTS; attempt += 1) {
+    const layout = createGrid();
+    const reachable = getReachableTiles(layout.grid, { x: SURFACE_X, y: 0 });
+    const runDirectives = createContractStatus(layout.grid, layout.hazards, reachable);
+    if (runDirectives) {
+      return {
+        ...layout,
+        pickups: [{ x: runDirectives.relicTile.x, y: runDirectives.relicTile.y, type: "relic" }],
+        contracts: runDirectives.contracts,
+      };
+    }
+  }
+
+  throw new Error("Corebound could not generate a valid contract and relic layout.");
+}
+
+function createContractStatus(grid, hazards, reachable) {
+  const midpoint = (HEIGHT - 1) / 2;
+  const reachableResources = getReachableResourcePools(grid, reachable);
+  const generalResource = pickContractResource(reachableResources.all, CONTRACT_PRESETS.standard);
+  const deepResource = pickContractResource(reachableResources.lowerHalf, CONTRACT_PRESETS.deep);
+  const relicTile = pickRelicTile(reachable, hazards, midpoint);
+
+  if (!generalResource || !deepResource || !relicTile) {
+    return null;
+  }
+
+  return {
+    relicTile,
+    contracts: [
+      buildResourceContract("standard", generalResource.resource, generalResource.available, "Extractor Contract 01"),
+      buildResourceContract("deep", deepResource.resource, deepResource.available, "Extractor Contract 02"),
+      {
+        id: `relic-${relicTile.x}-${relicTile.y}`,
+        kind: "relic",
+        label: "Extractor Contract 03",
+        title: CONTRACT_PRESETS.relic.title,
+        description: CONTRACT_PRESETS.relic.description,
+        target: CONTRACT_PRESETS.relic.target,
+        payout: CONTRACT_PRESETS.relic.payout,
+        progress: 0,
+      },
+    ],
+  };
 }
 
 function createGrid() {
@@ -238,6 +270,136 @@ function createGrid() {
   populateResources(grid);
   const hazards = createHazards(grid, route, caverns);
   return { grid, hazards };
+}
+
+function getReachableTiles(grid, start) {
+  const queue = [{ x: start.x, y: start.y }];
+  const tiles = [{ x: start.x, y: start.y }];
+  const seen = new Set([`${start.x},${start.y}`]);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const adjacent = [
+      { x: current.x, y: current.y - 1 },
+      { x: current.x + 1, y: current.y },
+      { x: current.x, y: current.y + 1 },
+      { x: current.x - 1, y: current.y },
+    ];
+
+    adjacent.forEach((point) => {
+      if (point.x < 0 || point.x >= WIDTH || point.y < 0 || point.y >= HEIGHT) {
+        return;
+      }
+      const key = `${point.x},${point.y}`;
+      if (seen.has(key) || !isWalkableTile(grid[point.y][point.x])) {
+        return;
+      }
+      seen.add(key);
+      queue.push(point);
+      tiles.push(point);
+    });
+  }
+
+  return { tiles, seen };
+}
+
+function getReachableResourcePools(grid, reachable) {
+  const all = {};
+  const lowerHalf = {};
+  const midpoint = (HEIGHT - 1) / 2;
+
+  RESOURCE_IDS.forEach((resource) => {
+    all[resource] = [];
+    lowerHalf[resource] = [];
+  });
+
+  for (let y = 1; y < HEIGHT; y += 1) {
+    for (let x = 0; x < WIDTH; x += 1) {
+      const tile = grid[y][x];
+      if (!RESOURCE_TYPES[tile] || !hasReachableAdjacentTile(reachable.seen, x, y)) {
+        continue;
+      }
+
+      const point = { x, y };
+      all[tile].push(point);
+      if (y > midpoint) {
+        lowerHalf[tile].push(point);
+      }
+    }
+  }
+
+  return { all, lowerHalf };
+}
+
+function hasReachableAdjacentTile(reachableSet, x, y) {
+  const adjacent = [
+    { x, y: y - 1 },
+    { x: x + 1, y },
+    { x, y: y + 1 },
+    { x: x - 1, y },
+  ];
+
+  return adjacent.some((point) => reachableSet.has(`${point.x},${point.y}`));
+}
+
+function pickContractResource(pool, presetGroup) {
+  const candidates = RESOURCE_IDS
+    .map((resource) => ({ resource, available: pool[resource]?.length ?? 0 }))
+    .filter((entry) => chooseContractTarget(presetGroup[entry.resource].targets, entry.available) > 0);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates[randomInt(0, candidates.length - 1)];
+}
+
+function chooseContractTarget(targets, available) {
+  const validTargets = targets.filter((target) => target <= available);
+  if (validTargets.length === 0) {
+    return 0;
+  }
+  return validTargets[randomInt(0, validTargets.length - 1)];
+}
+
+function buildResourceContract(kind, resource, available, label) {
+  const preset = CONTRACT_PRESETS[kind][resource];
+  const target = chooseContractTarget(preset.targets, available);
+  const resourceLabel = RESOURCE_TYPES[resource].label.toLowerCase();
+  const description = kind === "deep"
+    ? `Pull ${resourceLabel} from the lower shaft and return it before the route destabilizes.`
+    : `Feed the extractor with reachable ${resourceLabel} to stabilize the next survey pass.`;
+
+  return {
+    id: `${kind}-${resource}-${target}`,
+    kind,
+    label,
+    title: preset.title,
+    description,
+    resource,
+    target,
+    payout: preset.payout,
+    progress: 0,
+  };
+}
+
+function pickRelicTile(reachable, hazards, midpoint) {
+  const blockedHazards = new Set(hazards.map((hazard) => `${hazard.x},${hazard.y}`));
+  const candidates = reachable.tiles.filter((point) => {
+    if (point.x === SURFACE_X && point.y === 0) {
+      return false;
+    }
+    if (point.y <= midpoint || blockedHazards.has(`${point.x},${point.y}`)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates[randomInt(0, candidates.length - 1)];
 }
 
 function createHazards(grid, route, caverns) {
@@ -754,6 +916,14 @@ function collectPickup(x, y) {
     return;
   }
   state.pickups = state.pickups.filter((item) => item !== pickup);
+  if (pickup.type === "relic") {
+    state.carryingRelic = true;
+    state.statusMessage = "Recovered the relic core. Keep it intact and get it back to the extractor.";
+    addTileFeedback(x, y, "pickup");
+    addFloatingFeedback("Relic", x + 0.5, y + 0.5, "pickup");
+    return;
+  }
+
   state.cargo[pickup.type] += 1;
   state.statusMessage = `Collected ${RESOURCE_TYPES[pickup.type].label}.`;
   addTileFeedback(x, y, "pickup");
@@ -788,6 +958,7 @@ function bankCargo() {
 function triggerFailure() {
   state.gameOver = true;
   state.cargo = { copper: 0, amber: 0, iridium: 0 };
+  state.carryingRelic = false;
   state.pickups = [];
   elements.overlayTitle.textContent = "Pressure failure";
   elements.overlayCopy.textContent = "Unbanked cargo was lost. Banked currency and purchased upgrades persist.";
@@ -940,9 +1111,14 @@ function renderContractPanel() {
   elements.contractList.innerHTML = "";
 
   state.contractStatus.forEach((contract) => {
-    const delivered = Math.min(contract.target, state.cargo[contract.resource] ?? contract.progress);
+    const delivered = contract.kind === "relic"
+      ? Math.min(contract.target, state.carryingRelic ? 1 : contract.progress)
+      : Math.min(contract.target, state.cargo[contract.resource] ?? contract.progress);
     const progressRatio = contract.target > 0 ? Math.min(1, delivered / contract.target) : 0;
     const progressPercent = Math.round(progressRatio * 100);
+    const progressCopy = contract.kind === "relic"
+      ? `${delivered} / ${contract.target} recovered`
+      : `${delivered} / ${contract.target} delivered`;
     const card = document.createElement("article");
     card.className = "contract-card";
     card.innerHTML = `
@@ -955,7 +1131,7 @@ function renderContractPanel() {
       </div>
       <p class="contract-copy">${contract.description}</p>
       <div class="contract-meta">
-        <span>${delivered} / ${contract.target} delivered</span>
+        <span>${progressCopy}</span>
         <span>${contract.payout} cr payout</span>
       </div>
     `;
@@ -1021,7 +1197,10 @@ function render() {
   elements.cargoIridium.textContent = String(state.cargo.iridium);
   elements.cargoTotal.textContent = `${totalCargo()} units`;
   elements.message.textContent = state.statusMessage;
-  elements.message.classList.toggle("is-emphasis", state.statusMessage.includes("Banked") || state.statusMessage.includes("Collected"));
+  elements.message.classList.toggle(
+    "is-emphasis",
+    state.statusMessage.includes("Banked") || state.statusMessage.includes("Collected") || state.statusMessage.includes("Recovered"),
+  );
   elements.hazardBadge.textContent = state.hazardStatus.badge;
   elements.hazardBadge.classList.toggle("is-warning", state.hazardStatus.tone === "warning");
   elements.hazardBadge.classList.toggle("is-impact", state.hazardStatus.tone === "impact");
