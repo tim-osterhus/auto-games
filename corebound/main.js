@@ -61,6 +61,36 @@ const UPGRADES = {
   },
 };
 
+const CONTRACT_STUBS = [
+  {
+    id: "copper-rush",
+    label: "Extractor Contract 01",
+    title: "Copper rush",
+    description: "Feed the surface extractor with copper shards to stabilize the starter route.",
+    resource: "copper",
+    target: 3,
+    payout: 18,
+  },
+  {
+    id: "amber-insulation",
+    label: "Extractor Contract 02",
+    title: "Amber insulation",
+    description: "Deliver amber resin caches for hull-seal calibration work.",
+    resource: "amber",
+    target: 2,
+    payout: 22,
+  },
+  {
+    id: "iridium-survey",
+    label: "Extractor Contract 03",
+    title: "Iridium survey",
+    description: "Return rare iridium cores from deeper caverns for survey analysis.",
+    resource: "iridium",
+    target: 1,
+    payout: 30,
+  },
+];
+
 const elements = {
   grid: document.querySelector("#game-grid"),
   feedbackLayer: document.querySelector("#feedback-layer"),
@@ -74,6 +104,8 @@ const elements = {
   pressureBlock: document.querySelector("#pressure-block"),
   hazardBadge: document.querySelector("#hazard-badge"),
   hazardStatus: document.querySelector("#hazard-status"),
+  contractList: document.querySelector("#contract-list"),
+  relicStatus: document.querySelector("#relic-status"),
   cargoTotal: document.querySelector("#cargo-total"),
   cargoCopper: document.querySelector("#cargo-copper"),
   cargoAmber: document.querySelector("#cargo-amber"),
@@ -176,9 +208,18 @@ function createRunState() {
       badge: "Stable",
       text: "No active hazard signatures yet. Procedural caverns can hide vents and cave-ins off the main shaft.",
     },
+    contractStatus: createContractStatus(),
+    carryingRelic: false,
     floatingFeedback: [],
     tileFeedback: [],
   };
+}
+
+function createContractStatus() {
+  return CONTRACT_STUBS.map((contract) => ({
+    ...contract,
+    progress: 0,
+  }));
 }
 
 function createGrid() {
@@ -895,6 +936,33 @@ function renderUpgradePanel() {
   });
 }
 
+function renderContractPanel() {
+  elements.contractList.innerHTML = "";
+
+  state.contractStatus.forEach((contract) => {
+    const delivered = Math.min(contract.target, state.cargo[contract.resource] ?? contract.progress);
+    const progressRatio = contract.target > 0 ? Math.min(1, delivered / contract.target) : 0;
+    const progressPercent = Math.round(progressRatio * 100);
+    const card = document.createElement("article");
+    card.className = "contract-card";
+    card.innerHTML = `
+      <div class="contract-top">
+        <div>
+          <p class="contract-label">${contract.label}</p>
+          <h3>${contract.title}</h3>
+        </div>
+        <strong>${progressPercent}%</strong>
+      </div>
+      <p class="contract-copy">${contract.description}</p>
+      <div class="contract-meta">
+        <span>${delivered} / ${contract.target} delivered</span>
+        <span>${contract.payout} cr payout</span>
+      </div>
+    `;
+    elements.contractList.appendChild(card);
+  });
+}
+
 function renderFeedback() {
   elements.feedbackLayer.innerHTML = "";
   state.floatingFeedback.forEach((feedback) => {
@@ -960,6 +1028,9 @@ function render() {
   elements.hazardStatus.textContent = state.hazardStatus.text;
   elements.hazardStatus.classList.toggle("is-warning", state.hazardStatus.tone === "warning");
   elements.hazardStatus.classList.toggle("is-impact", state.hazardStatus.tone === "impact");
+  elements.relicStatus.textContent = state.carryingRelic ? "Relic secured in hold" : "Relic hold empty";
+  elements.relicStatus.classList.toggle("is-carrying", state.carryingRelic);
+  renderContractPanel();
   renderUpgradePanel();
   renderFeedback();
 }
