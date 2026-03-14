@@ -410,6 +410,7 @@ h2 {
   border-color: rgba(240, 202, 88, 0.3);
   background: rgba(240, 202, 88, 0.12);
   color: #ffe6a1;
+  box-shadow: 0 0 24px rgba(240, 202, 88, 0.12);
 }
 
 .contract-list {
@@ -424,6 +425,16 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.contract-card.is-complete {
+  border-color: rgba(240, 202, 88, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(240, 202, 88, 0.14);
+}
+
+.contract-card.is-paid {
+  border-color: rgba(114, 241, 200, 0.34);
+  background: rgba(114, 241, 200, 0.08);
 }
 
 .contract-top,
@@ -738,6 +749,11 @@ h2 {
   animation: pickupPulse 0.55s ease-out;
 }
 
+.tile-feedback-relic::before {
+  box-shadow: 0 0 0 7px rgba(244, 114, 182, 0.2);
+  animation: pickupPulse 0.65s ease-out;
+}
+
 .tile-feedback-bank {
   animation: extractorPulse 0.6s ease-out;
 }
@@ -790,6 +806,21 @@ h2 {
 
 .floating-feedback.bank {
   background: var(--amber);
+}
+
+.floating-feedback.contract {
+  background: linear-gradient(180deg, #ffe38a, #ffbf52);
+  color: #241408;
+}
+
+.floating-feedback.relic {
+  background: linear-gradient(180deg, #ff98d0, #f472b6);
+  color: #240816;
+}
+
+.floating-feedback.relic-bank {
+  background: linear-gradient(180deg, #ffd3a0, #ff9e57);
+  color: #241408;
 }
 
 .floating-feedback.damage {

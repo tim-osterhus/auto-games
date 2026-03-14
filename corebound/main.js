@@ -249,6 +249,7 @@ function createContractStatus(grid, hazards, reachable) {
         target: CONTRACT_PRESETS.relic.target,
         payout: CONTRACT_PRESETS.relic.payout,
         progress: 0,
+        paid: false,
       },
     ],
   };
@@ -380,6 +381,7 @@ function buildResourceContract(kind, resource, available, label) {
     target,
     payout: preset.payout,
     progress: 0,
+    paid: false,
   };
 }
 
@@ -717,6 +719,36 @@ function bankedCurrency() {
   return saveState.bankedCurrency;
 }
 
+function announceContractCompletion(contract, x, y) {
+  addFloatingFeedback(`${contract.label} complete`, x + 0.5, y + 0.5, "contract");
+}
+
+function updateContractProgress(resourceType, x, y) {
+  const completedContracts = [];
+  state.contractStatus.forEach((contract) => {
+    const matchesResource = resourceType === "relic"
+      ? contract.kind === "relic"
+      : contract.kind !== "relic" && contract.resource === resourceType;
+    if (!matchesResource || contract.paid || contract.progress >= contract.target) {
+      return;
+    }
+    contract.progress = Math.min(contract.target, contract.progress + 1);
+    if (contract.progress >= contract.target) {
+      completedContracts.push(contract);
+    }
+  });
+
+  completedContracts.forEach((contract, index) => {
+    announceContractCompletion(contract, x, y + index * 0.35);
+  });
+
+  if (completedContracts.length > 0) {
+    const completionLabel = completedContracts.length === 1 ? completedContracts[0].label : `${completedContracts.length} contracts`;
+    state.statusMessage = `${completionLabel} complete. Bank at the extractor to claim payout.`;
+  }
+  return completedContracts.length > 0;
+}
+
 function setHazardStatus(text, tone = "stable") {
   const config = {
     stable: { badge: "Stable" },
@@ -918,27 +950,45 @@ function collectPickup(x, y) {
   state.pickups = state.pickups.filter((item) => item !== pickup);
   if (pickup.type === "relic") {
     state.carryingRelic = true;
-    state.statusMessage = "Recovered the relic core. Keep it intact and get it back to the extractor.";
-    addTileFeedback(x, y, "pickup");
-    addFloatingFeedback("Relic", x + 0.5, y + 0.5, "pickup");
+    const completedContract = updateContractProgress("relic", x, y);
+    if (!completedContract) {
+      state.statusMessage = "Recovered the relic core. Keep it intact and get it back to the extractor.";
+    }
+    addTileFeedback(x, y, "relic");
+    addFloatingFeedback("Relic secured", x + 0.5, y + 0.5, "relic");
     return;
   }
 
   state.cargo[pickup.type] += 1;
-  state.statusMessage = `Collected ${RESOURCE_TYPES[pickup.type].label}.`;
+  const completedContract = updateContractProgress(pickup.type, x, y);
+  if (!completedContract) {
+    state.statusMessage = `Collected ${RESOURCE_TYPES[pickup.type].label}.`;
+  }
   addTileFeedback(x, y, "pickup");
   addFloatingFeedback(`+1 ${pickup.type}`, x + 0.5, y + 0.5, "pickup");
 }
 
 function bankCargo() {
-  const haul = Object.entries(state.cargo).reduce((sum, [type, amount]) => {
+  const cargoHaul = Object.entries(state.cargo).reduce((sum, [type, amount]) => {
     return sum + amount * RESOURCE_TYPES[type].value;
   }, 0);
+  const payableContracts = state.contractStatus.filter((contract) => !contract.paid && contract.progress >= contract.target);
+  const contractHaul = payableContracts
+    .filter((contract) => contract.kind !== "relic")
+    .reduce((sum, contract) => sum + contract.payout, 0);
+  const relicHaul = payableContracts
+    .filter((contract) => contract.kind === "relic")
+    .reduce((sum, contract) => sum + contract.payout, 0);
+  const totalHaul = cargoHaul + contractHaul + relicHaul;
 
   state.cargo = { copper: 0, amber: 0, iridium: 0 };
   state.pressure = state.maxPressure;
+  state.carryingRelic = false;
+  payableContracts.forEach((contract) => {
+    contract.paid = true;
+  });
 
-  if (haul === 0) {
+  if (totalHaul === 0) {
     state.statusMessage = "Extractor sealed. Pressure refreshed, but cargo hold is empty.";
     setHazardStatus("Surface systems clear. No active hazard telegraphs remain on this run.", "stable");
     addTileFeedback(SURFACE_X, 0, "bank");
@@ -946,12 +996,30 @@ function bankCargo() {
     return;
   }
 
-  saveState.bankedCurrency += haul;
+  saveState.bankedCurrency += totalHaul;
   persistSave();
-  state.statusMessage = `Banked ${haul} credits and refreshed hull pressure.`;
+  const bankedParts = [];
+  if (cargoHaul > 0) {
+    bankedParts.push(`${cargoHaul} cargo credits`);
+  }
+  if (contractHaul > 0) {
+    bankedParts.push(`${contractHaul} contract credits`);
+  }
+  if (relicHaul > 0) {
+    bankedParts.push(`${relicHaul} relic bonus credits`);
+  }
+  state.statusMessage = `Banked ${bankedParts.join(", ")}. Hull pressure refreshed.`;
   setHazardStatus("Extractor reset the rig. Banked credits and upgrades persist into the next launch.", "stable");
   addTileFeedback(SURFACE_X, 0, "bank");
-  addFloatingFeedback(`+${haul} cr`, SURFACE_X + 0.5, 0.55, "bank");
+  if (cargoHaul > 0) {
+    addFloatingFeedback(`+${cargoHaul} cr cargo`, SURFACE_X + 0.5, 0.55, "bank");
+  }
+  if (contractHaul > 0) {
+    addFloatingFeedback(`+${contractHaul} cr contracts`, SURFACE_X + 0.5, 0.95, "contract");
+  }
+  if (relicHaul > 0) {
+    addFloatingFeedback(`+${relicHaul} cr relic`, SURFACE_X + 0.5, 1.35, "relic-bank");
+  }
   pulseElement(elements.bankedCard, "is-banked");
 }
 
@@ -959,9 +1027,14 @@ function triggerFailure() {
   state.gameOver = true;
   state.cargo = { copper: 0, amber: 0, iridium: 0 };
   state.carryingRelic = false;
+  state.contractStatus.forEach((contract) => {
+    if (!contract.paid) {
+      contract.progress = 0;
+    }
+  });
   state.pickups = [];
   elements.overlayTitle.textContent = "Pressure failure";
-  elements.overlayCopy.textContent = "Unbanked cargo was lost. Banked currency and purchased upgrades persist.";
+  elements.overlayCopy.textContent = "Unbanked cargo, unpaid contract progress, and any carried relic were lost. Banked currency and purchased upgrades persist.";
   elements.overlay.classList.remove("hidden");
   state.statusMessage = "Pressure collapsed. Restart to launch a fresh run.";
   setHazardStatus("Run lost. Restart clears this run's hazards, but banked currency, upgrades, and briefing progress stay intact.", "impact");
@@ -1111,16 +1184,22 @@ function renderContractPanel() {
   elements.contractList.innerHTML = "";
 
   state.contractStatus.forEach((contract) => {
-    const delivered = contract.kind === "relic"
-      ? Math.min(contract.target, state.carryingRelic ? 1 : contract.progress)
-      : Math.min(contract.target, state.cargo[contract.resource] ?? contract.progress);
+    const delivered = Math.min(contract.target, contract.progress);
     const progressRatio = contract.target > 0 ? Math.min(1, delivered / contract.target) : 0;
     const progressPercent = Math.round(progressRatio * 100);
-    const progressCopy = contract.kind === "relic"
-      ? `${delivered} / ${contract.target} recovered`
-      : `${delivered} / ${contract.target} delivered`;
+    const progressCopy = contract.paid
+      ? "Payout secured"
+      : contract.kind === "relic"
+        ? `${delivered} / ${contract.target} recovered`
+        : `${delivered} / ${contract.target} collected`;
     const card = document.createElement("article");
     card.className = "contract-card";
+    if (contract.progress >= contract.target) {
+      card.classList.add("is-complete");
+    }
+    if (contract.paid) {
+      card.classList.add("is-paid");
+    }
     card.innerHTML = `
       <div class="contract-top">
         <div>
@@ -1199,7 +1278,10 @@ function render() {
   elements.message.textContent = state.statusMessage;
   elements.message.classList.toggle(
     "is-emphasis",
-    state.statusMessage.includes("Banked") || state.statusMessage.includes("Collected") || state.statusMessage.includes("Recovered"),
+    state.statusMessage.includes("Banked")
+      || state.statusMessage.includes("Collected")
+      || state.statusMessage.includes("Recovered")
+      || state.statusMessage.includes("complete"),
   );
   elements.hazardBadge.textContent = state.hazardStatus.badge;
   elements.hazardBadge.classList.toggle("is-warning", state.hazardStatus.tone === "warning");

@@ -9,9 +9,9 @@
       "slug": "corebound",
       "title": "Corebound",
       "status": "Alpha",
-      "version": "0.0.5",
-      "summary": "Corebound v0.0.5 refreshes the dig with procedural caverns, hazard telegraphs, and steadier release-tracked progression.",
-      "description": "Corebound is the first live title in the arcade. This v0.0.5 update ships a procedural cavern refresh plus clearer vent and cave-in hazard messaging while keeping the mining loop lean and steadily versioned.",
+      "version": "0.0.6",
+      "summary": "Corebound v0.0.6 advances extractor contracts on pickup, banks contract and relic rewards at the surface, and wipes unbanked contract progress on failure.",
+      "description": "Corebound is the first live title in the arcade. This v0.0.6 update makes extractor contracts progress as ore is collected, pays contract and relic rewards only when they are banked at the surface, and clearly warns that failure wipes unbanked contract progress and carried relic cargo while preserving banked upgrades and credits.",
       "cta_label": "Open game",
       "source_dir": "games/corebound"
     },
