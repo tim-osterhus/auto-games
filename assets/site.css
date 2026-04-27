@@ -299,7 +299,7 @@ a {
   line-height: 1.65;
 }
 
-.game-card a {
+.game-card > a {
   display: inline-flex;
   margin-top: 18px;
   color: var(--signal);
@@ -308,6 +308,74 @@ a {
   letter-spacing: 0.1em;
   text-decoration: none;
   text-transform: uppercase;
+}
+
+.snapshot-list {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+.snapshot-heading {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.snapshot-list ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snapshot-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--rule);
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: rgba(11, 16, 20, 0.32);
+}
+
+.snapshot-link:hover,
+.snapshot-link:focus-visible {
+  border-color: rgba(78, 224, 207, 0.56);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.snapshot-version {
+  color: var(--signal);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.snapshot-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.snapshot-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+}
+
+.snapshot-commit {
+  color: var(--text-secondary);
 }
 
 .empty-state {

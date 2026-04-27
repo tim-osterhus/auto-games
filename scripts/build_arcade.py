@@ -19,6 +19,50 @@ def escape(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def render_version_snapshots(game: dict) -> str:
+    versions = game.get("versions")
+    if not isinstance(versions, list) or not versions:
+        return ""
+
+    title = escape(game.get("title", game.get("slug", "Untitled Game")))
+    items = []
+    for snapshot in versions:
+        if not isinstance(snapshot, dict):
+            continue
+
+        version_value = snapshot.get("version", "snapshot")
+        version = escape(version_value)
+        path = escape(snapshot.get("path", "#"))
+        label = escape(snapshot.get("label", snapshot.get("title", snapshot.get("summary", f"v{version_value}"))))
+        released_at = escape(snapshot.get("releasedAt", "date pending"))
+        commit = snapshot.get("commit")
+        commit_line = f'<span class="snapshot-commit">commit {escape(str(commit)[:12])}</span>' if commit else ""
+        items.append(
+            f"""
+            <li>
+              <a class="snapshot-link" href="{path}">
+                <span class="snapshot-version">v{version}</span>
+                <span class="snapshot-label">{label}</span>
+                <span class="snapshot-meta"><span>{released_at}</span>{commit_line}</span>
+              </a>
+            </li>
+            """.strip()
+        )
+
+    if not items:
+        return ""
+
+    snapshot_items = "\n".join(items)
+    return f"""
+          <div class="snapshot-list" aria-label="{title} snapshots">
+            <span class="snapshot-heading">Snapshots</span>
+            <ol>
+              {snapshot_items}
+            </ol>
+          </div>
+    """.rstrip()
+
+
 def render_game_card(game: dict) -> str:
     title = escape(game.get("title", game.get("slug", "Untitled Game")))
     slug = escape(game.get("slug", "unknown"))
@@ -26,12 +70,14 @@ def render_game_card(game: dict) -> str:
     status = escape(game.get("status", "playable"))
     summary = escape(game.get("summary", "No summary provided."))
     path = escape(game.get("path", f"games/{slug}/"))
+    snapshots = render_version_snapshots(game)
     return f"""
         <article class="game-card">
           <span class="signal-pill">{status} / v{version}</span>
           <h3>{title}</h3>
           <p>{summary}</p>
           <a href="{path}">Open {slug}</a>
+{snapshots}
         </article>
     """.strip()
 
