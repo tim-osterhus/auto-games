@@ -1,38 +1,40 @@
-# auto-games
+# Millrace Arcade
 
-`auto-games` is the local games repo that publishes to the GitHub repo `auto-games`.
+This repo is the clean public browser-game surface for the Millrace experiment.
 
-This repo publishes the versioned browser-game arcade behind `game.millrace.ai`.
+It starts intentionally small: a static arcade shell, a manifest, a deterministic
+build script, and a smoke test. Millrace will add and improve games from here.
 
-- `game.millrace.ai` is a generated arcade index page.
-- each published title is described in `data/games.json`
-- public releases start lean and grow through visible version bumps
-
-## Source Of Truth
-
-The discoverable games list lives in `data/games.json`.
-
-`scripts/build_arcade.py` reads that manifest and generates:
-
-- `index.html`
-- `assets/site.css`
-- one static page per game slug, such as `corebound/index.html`
-
-## Update Flow
-
-1. Edit `data/games.json`.
-2. Run:
+## Commands
 
 ```bash
-python3 scripts/build_arcade.py
+python scripts/build_arcade.py
+python -m unittest
 ```
 
-3. Verify the generated output:
+`scripts/build_arcade.py` reads `data/games.json` and writes `index.html`.
 
-```bash
-python3 -m unittest tests.test_build_arcade
+## Structure
+
+```text
+assets/site.css        shared arcade styling
+data/games.json        public game manifest
+scripts/build_arcade.py
+tests/test_build_arcade.py
 ```
 
-## Current Public State
+## Game Entries
 
-The first published title is `corebound`, live as version `0.0.1` on the public release track.
+Future games should live under `games/<slug>/` and be listed in
+`data/games.json`.
+
+Each manifest entry should include:
+
+- `slug`
+- `title`
+- `version`
+- `summary`
+- `status`
+- `path`
+
+Player-visible game changes should update version and release copy.

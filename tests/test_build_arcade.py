@@ -1,265 +1,69 @@
 import json
-import subprocess
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-BUILD_SCRIPT = REPO_ROOT / "scripts" / "build_arcade.py"
-COREBOUND_FIXTURE = "tests/fixtures/corebound"
+from scripts import build_arcade
 
 
 class BuildArcadeTests(unittest.TestCase):
-    def test_builder_generates_index_assets_and_release_page(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            manifest_dir = root / "data"
-            manifest_dir.mkdir(parents=True)
-            output_root = root / "site"
+    def test_render_empty_baseline(self) -> None:
+        manifest = {
+            "arcade": {
+                "status": "awaiting-first-game",
+                "summary": "Clean baseline.",
+            },
+            "games": [],
+        }
 
-            (manifest_dir / "games.json").write_text(
+        rendered = build_arcade.render_index(manifest)
+
+        self.assertIn("Millrace Arcade", rendered)
+        self.assertIn("No games are published", rendered)
+        self.assertIn("awaiting-first-game", rendered)
+        self.assertIn("Runtime", rendered)
+
+    def test_render_game_card_escapes_manifest_values(self) -> None:
+        card = build_arcade.render_game_card(
+            {
+                "slug": "signal-runner",
+                "title": "Signal <Runner>",
+                "version": "0.0.1",
+                "status": "playable",
+                "summary": "Route current & avoid overload.",
+                "path": "games/signal-runner/",
+            }
+        )
+
+        self.assertIn("Signal &lt;Runner&gt;", card)
+        self.assertIn("Route current &amp; avoid overload.", card)
+        self.assertIn("games/signal-runner/", card)
+
+    def test_build_writes_index_from_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "games.json").write_text(
                 json.dumps(
                     {
-                        "site": {
-                            "title": "Test Arcade",
-                            "tagline": "Generated from a manifest.",
-                            "announcement": "Day 0 baseline.",
+                        "arcade": {
+                            "status": "ready",
+                            "summary": "Temporary arcade.",
                         },
-                        "games": [
-                            {
-                                "slug": "corebound",
-                                "title": "Corebound",
-                                "status": "Alpha",
-                                "version": "0.0.1",
-                                "summary": "First public build.",
-                                "description": "Early release.",
-                                "cta_label": "Open game",
-                            }
-                        ],
+                        "games": [],
                     }
                 ),
                 encoding="utf-8",
             )
 
-            subprocess.run(
-                [
-                    "python3",
-                    str(BUILD_SCRIPT),
-                    "--manifest",
-                    str((manifest_dir / "games.json").resolve()),
-                    "--output-root",
-                    str(output_root.resolve()),
-                ],
-                cwd=REPO_ROOT,
-                check=True,
-                text=True,
-                capture_output=True,
-            )
+            with mock.patch.object(build_arcade, "MANIFEST_PATH", data_dir / "games.json"), mock.patch.object(
+                build_arcade, "INDEX_PATH", root / "index.html"
+            ):
+                build_arcade.build()
 
-            index_html = (output_root / "index.html").read_text(encoding="utf-8")
-            corebound_html = (output_root / "corebound" / "index.html").read_text(encoding="utf-8")
-            stylesheet = (output_root / "assets" / "site.css").read_text(encoding="utf-8")
-            favicon_exists = (output_root / "MillraceIconTransparent.png").exists()
-
-        self.assertIn("generated from <code>data/games.json</code>", index_html)
-        self.assertIn('href="corebound/"', index_html)
-        self.assertIn("Current build", corebound_html)
-        self.assertIn("v0.0.1", index_html)
-        self.assertIn("v0.0.1", corebound_html)
-        self.assertIn('href="MillraceIconTransparent.png"', index_html)
-        self.assertIn('href="../MillraceIconTransparent.png"', corebound_html)
-        self.assertIn("../assets/site.css", corebound_html)
-        self.assertIn("--accent", stylesheet)
-        self.assertTrue(favicon_exists)
-
-    def test_builder_rejects_duplicate_game_slugs(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            manifest_dir = root / "data"
-            manifest_dir.mkdir(parents=True)
-            output_root = root / "site"
-
-            (manifest_dir / "games.json").write_text(
-                textwrap.dedent(
-                    """\
-                    {
-                      "site": {
-                        "title": "Broken Arcade"
-                      },
-                      "games": [
-                        { "slug": "corebound", "title": "Corebound", "version": "0.0.1" },
-                        { "slug": "corebound", "title": "Duplicate", "version": "0.0.2" }
-                      ]
-                    }
-                    """
-                ),
-                encoding="utf-8",
-            )
-
-            completed = subprocess.run(
-                [
-                    "python3",
-                    str(BUILD_SCRIPT),
-                    "--manifest",
-                    str((manifest_dir / "games.json").resolve()),
-                    "--output-root",
-                    str(output_root.resolve()),
-                ],
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
-            )
-
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("Duplicate game slug", completed.stderr + completed.stdout)
-
-    def test_builder_rejects_invalid_game_version(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            manifest_dir = root / "data"
-            manifest_dir.mkdir(parents=True)
-            output_root = root / "site"
-
-            (manifest_dir / "games.json").write_text(
-                textwrap.dedent(
-                    """\
-                    {
-                      "site": {
-                        "title": "Broken Arcade"
-                      },
-                      "games": [
-                        { "slug": "corebound", "title": "Corebound", "version": "alpha" }
-                      ]
-                    }
-                    """
-                ),
-                encoding="utf-8",
-            )
-
-            completed = subprocess.run(
-                [
-                    "python3",
-                    str(BUILD_SCRIPT),
-                    "--manifest",
-                    str((manifest_dir / "games.json").resolve()),
-                    "--output-root",
-                    str(output_root.resolve()),
-                ],
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
-            )
-
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("requires a semantic version string", completed.stderr + completed.stdout)
-
-    def test_builder_publishes_authored_source_dir(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            manifest_dir = root / "data"
-            manifest_dir.mkdir(parents=True)
-            output_root = root / "site"
-
-            (manifest_dir / "games.json").write_text(
-                json.dumps(
-                    {
-                        "site": {
-                            "title": "Test Arcade",
-                            "tagline": "Generated from a manifest.",
-                        },
-                        "games": [
-                            {
-                                "slug": "corebound",
-                                "title": "Corebound",
-                                "version": "0.0.1",
-                                "summary": "Authored build.",
-                                "source_dir": COREBOUND_FIXTURE,
-                            },
-                            {
-                                "slug": "placeholder-game",
-                                "title": "Placeholder Game",
-                                "version": "0.0.1",
-                                "summary": "Generated page.",
-                            },
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
-
-            completed = subprocess.run(
-                [
-                    "python3",
-                    str(BUILD_SCRIPT),
-                    "--manifest",
-                    str((manifest_dir / "games.json").resolve()),
-                    "--output-root",
-                    str(output_root.resolve()),
-                ],
-                cwd=REPO_ROOT,
-                check=True,
-                text=True,
-                capture_output=True,
-            )
-
-            authored_html = (output_root / "corebound" / "index.html").read_text(encoding="utf-8")
-            authored_asset = (output_root / "corebound" / "assets" / "ore.txt").read_text(encoding="utf-8")
-            placeholder_html = (output_root / "placeholder-game" / "index.html").read_text(encoding="utf-8")
-            index_html = (output_root / "index.html").read_text(encoding="utf-8")
-
-        self.assertIn("Authored Corebound Fixture", authored_html)
-        self.assertIn("ore-cache", authored_asset)
-        self.assertNotIn("Current build", authored_html)
-        self.assertIn("Current build", placeholder_html)
-        self.assertIn('href="corebound/"', index_html)
-        self.assertIn("corebound/index.html", completed.stdout)
-        self.assertIn("corebound/assets/ore.txt", completed.stdout)
-        self.assertIn("placeholder-game/index.html", completed.stdout)
-
-    def test_builder_rejects_missing_source_dir(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            manifest_dir = root / "data"
-            manifest_dir.mkdir(parents=True)
-            output_root = root / "site"
-
-            (manifest_dir / "games.json").write_text(
-                json.dumps(
-                    {
-                        "site": {
-                            "title": "Broken Arcade",
-                        },
-                        "games": [
-                            {
-                                "slug": "corebound",
-                                "title": "Corebound",
-                                "version": "0.0.1",
-                                "source_dir": "tests/fixtures/missing-corebound",
-                            }
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
-
-            completed = subprocess.run(
-                [
-                    "python3",
-                    str(BUILD_SCRIPT),
-                    "--manifest",
-                    str((manifest_dir / "games.json").resolve()),
-                    "--output-root",
-                    str(output_root.resolve()),
-                ],
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
-            )
-
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("source_dir does not exist", completed.stderr + completed.stdout)
+            self.assertIn("Temporary arcade.", (root / "index.html").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

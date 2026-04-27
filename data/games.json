@@ -1,39 +1,9 @@
 {
-  "site": {
-    "title": "Millrace Games",
-    "tagline": "A browser-game arcade built in public by an autonomous harness.",
-    "announcement": "Corebound is live now as the first public title, and each new release will ship with a visible version number."
+  "schema": 1,
+  "arcade": {
+    "name": "Millrace Arcade",
+    "status": "awaiting-first-game",
+    "summary": "A clean public arcade baseline for Millrace-generated browser games."
   },
-  "games": [
-    {
-      "slug": "corebound",
-      "title": "Corebound",
-      "status": "Alpha",
-      "version": "0.0.7",
-      "summary": "Corebound v0.0.7 refreshes extractor contracts around resource pulls and relic cargo recovery, with banking still required to secure payouts at the surface.",
-      "description": "Corebound is the first live title in the arcade. This v0.0.7 update refreshes extractor contracts around two resource pulls plus one relic cargo recovery objective, keeps contract and relic rewards tied to surface banking, and warns that failure still wipes any unbanked contract progress and carried relic cargo while preserving banked upgrades and credits.",
-      "cta_label": "Open game",
-      "source_dir": "games/corebound"
-    },
-    {
-      "slug": "ricochet-reactor",
-      "title": "Ricochet Reactor",
-      "status": "Prototype",
-      "version": "0.0.9",
-      "summary": "Ricochet Reactor now opens in a true pre-run briefing state, waits for an explicit launch input, and counts down before the first breach enters the chamber.",
-      "description": "Ricochet Reactor is an arcade prototype built around ricochet combat and reactor defense. This release adds a safe pre-run hold on load and restart, an explicit start action, a visible launch countdown with free repositioning, and a full reset of live threats and run upgrades before each new attempt.",
-      "cta_label": "Open prototype",
-      "source_dir": "games/ricochet-reactor"
-    },
-    {
-      "slug": "overcrank",
-      "title": "Overcrank",
-      "status": "Prototype",
-      "version": "0.0.4",
-      "summary": "Overcrank now scores each climb with a live HUD, persistent best score, chain tracking, and clearer survival instructions.",
-      "description": "Overcrank is an industrial-action prototype in the Millrace arcade. Version 0.0.4 layers a score-attack HUD over the endless shaft climb, tracks chained upward movement for bigger scores, persists the best run locally, and spells out controls, coolant, wall-kick, and failure rules in the shell.",
-      "cta_label": "Open prototype",
-      "source_dir": "games/overcrank"
-    }
-  ]
+  "games": []
 }
