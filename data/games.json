@@ -17,11 +17,16 @@
         "label": "v0.2.0 continuity",
         "copy": "Contracts, archive sigils, relay reputation, scanner sweeps, route beacons, and coolant support now connect the mine run to visible long-term progression."
       },
-      "snapshot": {
-        "status": "deferred",
-        "version": "0.2.0",
-        "reason": "Corebound v0.2.0 is still uncommitted working-tree content, so no commit-backed static snapshot has been stamped yet."
-      }
+      "versions": [
+        {
+          "version": "0.2.0",
+          "path": "games/corebound/versions/0.2.0/",
+          "releasedAt": "2026-04-27",
+          "label": "v0.2.0 continuity",
+          "summary": "Contracts, archive sigils, relay reputation, scanner sweeps, route beacons, and coolant support now connect the mine run to visible long-term progression.",
+          "commit": "58d87d52128d3b3d53f01e6c52c72a81ae136896"
+        }
+      ]
     }
   ]
 }

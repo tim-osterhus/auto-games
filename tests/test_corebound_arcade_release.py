@@ -30,17 +30,19 @@ class CoreboundArcadeReleaseTests(unittest.TestCase):
         self.assertTrue((GAME_DIR / "corebound.js").is_file())
         self.assertTrue((GAME_DIR / "corebound-data.js").is_file())
 
-    def test_manifest_documents_truthful_snapshot_deferral(self) -> None:
+    def test_manifest_documents_commit_backed_snapshot(self) -> None:
         manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
         corebound = next(game for game in manifest["games"] if game.get("slug") == "corebound")
-        snapshot = corebound.get("snapshot")
+        versions = corebound.get("versions")
 
-        self.assertEqual("deferred", snapshot["status"])
-        self.assertEqual("0.2.0", snapshot["version"])
-        self.assertIn("uncommitted working-tree", snapshot["reason"])
-        self.assertNotIn("commit", snapshot)
-        self.assertNotIn("releasedAt", snapshot)
-        self.assertNotIn("versions", corebound)
+        self.assertNotIn("snapshot", corebound)
+        self.assertIsInstance(versions, list)
+        self.assertEqual("0.2.0", versions[0]["version"])
+        self.assertEqual("games/corebound/versions/0.2.0/", versions[0]["path"])
+        self.assertEqual("2026-04-27", versions[0]["releasedAt"])
+        self.assertEqual("v0.2.0 continuity", versions[0]["label"])
+        self.assertTrue(versions[0]["commit"].startswith("58d87d5"))
+        self.assertTrue((GAME_DIR / "versions" / "0.2.0" / "index.html").is_file())
 
     def test_generated_arcade_links_to_corebound_build(self) -> None:
         index = INDEX_PATH.read_text(encoding="utf-8")
@@ -51,8 +53,11 @@ class CoreboundArcadeReleaseTests(unittest.TestCase):
         self.assertIn('href="games/corebound/"', index)
         self.assertIn("contracts, archive sets, Survey relay", index)
         self.assertIn("v0.2.0 continuity", index)
-        self.assertIn("Snapshot deferred", index)
-        self.assertIn("uncommitted working-tree", index)
+        self.assertIn("Snapshots", index)
+        self.assertIn('href="games/corebound/versions/0.2.0/"', index)
+        self.assertIn("commit 58d87d52128d", index)
+        self.assertNotIn("Snapshot deferred", index)
+        self.assertNotIn("uncommitted working-tree", index)
         self.assertNotIn("No playable builds are listed yet", index)
 
 
