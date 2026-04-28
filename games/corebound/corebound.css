@@ -124,6 +124,7 @@ h1 {
 
 .viewport-frame {
   min-height: 420px;
+  height: min(72vh, 680px);
   display: grid;
   padding: 10px;
   position: relative;
@@ -528,6 +529,7 @@ h1 {
   min-width: 0;
   min-height: 0;
   cursor: pointer;
+  touch-action: none;
 }
 
 .control-pad button:active {

@@ -32,7 +32,15 @@
       anchorCharges: 0,
       utilityCooling: 0,
       charterDrillHeat: 0,
-      returnEnergyPenalty: 0
+      returnEnergyPenalty: 0,
+      motion: {
+        maxSpeed: 4.2,
+        acceleration: 11.5,
+        braking: 18,
+        velocityDecay: 7.5,
+        tapImpulse: 1.35,
+        cameraFollow: 8.5
+      }
     },
     economy: {
       resources: {

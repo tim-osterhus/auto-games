@@ -57,12 +57,27 @@
     D: [1, 0]
   };
 
+  const startingCellX = Math.floor(DATA.world.width / 2);
+
   const state = {
     grid: [],
     player: {
-      x: Math.floor(DATA.world.width / 2),
+      x: startingCellX,
       y: 0,
       facing: [0, 1]
+    },
+    motion: {
+      worldX: startingCellX,
+      worldY: 0,
+      velocityX: 0,
+      velocityY: 0,
+      cameraX: 0,
+      cameraY: 0,
+      lastFrame: null
+    },
+    input: {
+      held: {},
+      lastVector: [0, 1]
     },
     cargo: [],
     resources: {
@@ -306,9 +321,93 @@
     hud.log.textContent = message;
   }
 
+  function motionSettings() {
+    return DATA.rig.motion || {
+      maxSpeed: 4,
+      acceleration: 10,
+      braking: 16,
+      velocityDecay: 7,
+      tapImpulse: 1.2,
+      cameraFollow: 8
+    };
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function approachZero(value, amount) {
+    if (Math.abs(value) <= amount) {
+      return 0;
+    }
+    return value - Math.sign(value) * amount;
+  }
+
+  function capMotionVelocity() {
+    const motion = state.motion;
+    const limit = motionSettings().maxSpeed;
+    const speed = Math.hypot(motion.velocityX, motion.velocityY);
+    if (speed <= limit || speed === 0) {
+      return;
+    }
+    const scale = limit / speed;
+    motion.velocityX *= scale;
+    motion.velocityY *= scale;
+  }
+
+  function viewportShape() {
+    return {
+      cols: canvas.width < 680 ? 15 : 21,
+      rows: canvas.height < 520 ? 13 : 17
+    };
+  }
+
+  function cameraBounds(cols, rows) {
+    return {
+      x: Math.max(0, DATA.world.width - cols),
+      y: Math.max(0, DATA.world.depth - rows + 1)
+    };
+  }
+
+  function cameraTarget(cols, rows) {
+    const bounds = cameraBounds(cols, rows);
+    const facing = state.player.facing;
+    const leadX = facing[0] * 1.25;
+    const leadY = facing[1] > 0 ? 1.8 : facing[1] < 0 ? -1.2 : 0;
+    return {
+      x: clamp(state.motion.worldX + leadX - cols * 0.5, 0, bounds.x),
+      y: clamp(state.motion.worldY + leadY - rows * 0.36, 0, bounds.y)
+    };
+  }
+
+  function syncMotionToPlayer(syncCamera) {
+    state.motion.worldX = state.player.x;
+    state.motion.worldY = state.player.y;
+    state.motion.velocityX = 0;
+    state.motion.velocityY = 0;
+    if (syncCamera) {
+      const shape = viewportShape();
+      const target = cameraTarget(shape.cols, shape.rows);
+      state.motion.cameraX = target.x;
+      state.motion.cameraY = target.y;
+    }
+  }
+
+  function cellFromMotion(worldX, worldY) {
+    return {
+      x: Math.round(worldX),
+      y: Math.round(worldY)
+    };
+  }
+
+  function clearHeldInput() {
+    state.input.held = {};
+  }
+
   function centerSurfaceDock() {
-    state.player.x = Math.floor(DATA.world.width / 2);
+    state.player.x = startingCellX;
     state.player.y = 0;
+    syncMotionToPlayer(true);
   }
 
   function surfaceService(message) {
@@ -317,6 +416,8 @@
     state.runRouteId = null;
     state.energy = rigStats().maxEnergy;
     state.heat = 0;
+    clearHeldInput();
+    syncMotionToPlayer(true);
     setMessage(message || "Surface lock reached. Settle cargo, repair, or relaunch.");
     updateHud();
     render();
@@ -1338,28 +1439,25 @@
     return true;
   }
 
-  function tryMove(dx, dy) {
+  function enterCell(targetX, targetY, dx, dy) {
     state.player.facing = [dx, dy];
     if (state.player.y === 0 && state.docked) {
       if (dy <= 0 || !launchRun()) {
-        return;
+        return false;
       }
     }
 
-    const targetX = state.player.x + dx;
-    const targetY = state.player.y + dy;
     const cell = cellAt(targetX, targetY);
     if (!cell) {
       setMessage("Boundary strut holds.");
-      return;
+      return false;
     }
 
     let drilled = false;
     if (cell.kind === "solid") {
       if (!drillBlock(targetX, targetY, cell)) {
         updateHud();
-        render();
-        return;
+        return false;
       }
       drilled = true;
     }
@@ -1389,15 +1487,167 @@
 
     if (state.player.y === 0) {
       surfaceService("Surface lock reached. Settle cargo, repair, or relaunch.");
-      return;
+      return true;
     }
     if (state.energy <= 0 || state.hull <= 0) {
       returnToSurface(state.hull <= 0 ? "Emergency casing recall fired." : "Reserve power low. Surface winch engaged.");
-      return;
+      return false;
     }
 
     updateHud();
-    render();
+    return true;
+  }
+
+  function stopMotionAtCell(dx, dy) {
+    state.motion.worldX = state.player.x;
+    state.motion.worldY = state.player.y;
+    if (dx) {
+      state.motion.velocityX = 0;
+    }
+    if (dy) {
+      state.motion.velocityY = 0;
+    }
+  }
+
+  function activeInputVector() {
+    let inputX = 0;
+    let inputY = 0;
+    for (const key of Object.keys(state.input.held)) {
+      const dir = state.input.held[key];
+      inputX += dir[0];
+      inputY += dir[1];
+    }
+
+    inputX = Math.sign(inputX);
+    inputY = Math.sign(inputY);
+    if (inputX && inputY) {
+      if (state.input.lastVector[0]) {
+        inputY = 0;
+      } else {
+        inputX = 0;
+      }
+    }
+    return [inputX, inputY];
+  }
+
+  function nudgeMotion(dx, dy) {
+    if (!dx && !dy) {
+      return;
+    }
+    state.player.facing = [dx, dy];
+    state.input.lastVector = [dx, dy];
+    if (state.player.y === 0 && state.docked && dy <= 0) {
+      return;
+    }
+
+    const impulse = motionSettings().tapImpulse;
+    state.motion.velocityX += dx * impulse;
+    state.motion.velocityY += dy * impulse;
+    capMotionVelocity();
+  }
+
+  function beginDirectionalInput(source, dx, dy) {
+    if (!dx && !dy) {
+      return;
+    }
+    if (!state.input.held[source]) {
+      nudgeMotion(dx, dy);
+    }
+    state.input.held[source] = [dx, dy];
+    state.input.lastVector = [dx, dy];
+  }
+
+  function endDirectionalInput(source) {
+    delete state.input.held[source];
+  }
+
+  function tryMove(dx, dy) {
+    nudgeMotion(dx, dy);
+  }
+
+  function startLaunchDescent() {
+    nudgeMotion(0, 1);
+    state.motion.velocityY = Math.max(state.motion.velocityY, motionSettings().maxSpeed * 0.9);
+  }
+
+  function applyMotionInput(dt) {
+    const motion = state.motion;
+    const settings = motionSettings();
+    const input = activeInputVector();
+    const accelStep = settings.acceleration * dt;
+    const brakingStep = settings.braking * dt;
+    const decayStep = settings.velocityDecay * dt;
+
+    if (input[0] || input[1]) {
+      state.player.facing = input;
+      if (state.player.y === 0 && state.docked && input[1] <= 0) {
+        motion.velocityX = approachZero(motion.velocityX, brakingStep);
+        motion.velocityY = approachZero(motion.velocityY, brakingStep);
+        return;
+      }
+
+      if (input[0]) {
+        motion.velocityX += input[0] * accelStep;
+        motion.velocityY = approachZero(motion.velocityY, brakingStep);
+      } else if (input[1]) {
+        motion.velocityY += input[1] * accelStep;
+        motion.velocityX = approachZero(motion.velocityX, brakingStep);
+      }
+    } else {
+      motion.velocityX = approachZero(motion.velocityX, decayStep);
+      motion.velocityY = approachZero(motion.velocityY, decayStep);
+    }
+
+    capMotionVelocity();
+  }
+
+  function updateMotion(dt) {
+    if (!dt) {
+      return;
+    }
+
+    applyMotionInput(dt);
+    const motion = state.motion;
+    if (Math.abs(motion.velocityX) < 0.001 && Math.abs(motion.velocityY) < 0.001) {
+      return;
+    }
+
+    const proposedX = motion.worldX + motion.velocityX * dt;
+    const proposedY = motion.worldY + motion.velocityY * dt;
+    const target = cellFromMotion(proposedX, proposedY);
+
+    if (target.x !== state.player.x || target.y !== state.player.y) {
+      let dx = Math.sign(target.x - state.player.x);
+      let dy = Math.sign(target.y - state.player.y);
+      if (dx && dy) {
+        if (Math.abs(proposedX - state.player.x) >= Math.abs(proposedY - state.player.y)) {
+          dy = 0;
+        } else {
+          dx = 0;
+        }
+      }
+
+      const entered = enterCell(state.player.x + dx, state.player.y + dy, dx, dy);
+      if (!entered) {
+        stopMotionAtCell(dx, dy);
+        return;
+      }
+      if (state.docked) {
+        return;
+      }
+    }
+
+    motion.worldX = clamp(proposedX, -0.49, DATA.world.width - 0.51);
+    motion.worldY = clamp(proposedY, -0.49, DATA.world.depth + 0.49);
+  }
+
+  function updateCamera(dt) {
+    const shape = viewportShape();
+    const target = cameraTarget(shape.cols, shape.rows);
+    const follow = motionSettings().cameraFollow;
+    const blend = dt ? 1 - Math.exp(-follow * dt) : 1;
+    state.motion.cameraX += (target.x - state.motion.cameraX) * blend;
+    state.motion.cameraY += (target.y - state.motion.cameraY) * blend;
   }
 
   function oreCounts() {
@@ -1715,7 +1965,7 @@
 
   function updateHud() {
     const stats = rigStats();
-    const depth = state.player.y * DATA.world.metersPerTile;
+    const depth = Math.max(0, Math.round(state.motion.worldY * DATA.world.metersPerTile));
     const load = cargoLoad();
     hud.depth.textContent = `${depth} m`;
     hud.cargo.textContent = `${load} / ${stats.cargoCapacity}`;
@@ -1866,36 +2116,50 @@
       return;
     }
 
-    const cols = canvas.width < 680 ? 15 : 21;
-    const rows = canvas.height < 520 ? 13 : 17;
+    const shape = viewportShape();
+    const cols = shape.cols;
+    const rows = shape.rows;
     const size = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
     const originX = Math.floor((canvas.width - cols * size) / 2);
     const originY = Math.floor((canvas.height - rows * size) / 2);
-    const startX = Math.max(0, Math.min(DATA.world.width - cols, state.player.x - Math.floor(cols / 2)));
-    const startY = Math.max(0, Math.min(DATA.world.depth - rows + 1, state.player.y - Math.floor(rows / 3)));
+    const bounds = cameraBounds(cols, rows);
+    const cameraX = clamp(state.motion.cameraX, 0, bounds.x);
+    const cameraY = clamp(state.motion.cameraY, 0, bounds.y);
+    const startX = Math.floor(cameraX);
+    const startY = Math.floor(cameraY);
+    const offsetX = (cameraX - startX) * size;
+    const offsetY = (cameraY - startY) * size;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#050708";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(originX, originY, cols * size, rows * size);
+    ctx.clip();
+
+    for (let row = 0; row <= rows; row += 1) {
+      for (let col = 0; col <= cols; col += 1) {
         const worldX = startX + col;
         const worldY = startY + row;
         const cell = cellAt(worldX, worldY);
         if (!cell) {
           continue;
         }
-        drawCell(cell, originX + col * size, originY + row * size, size, worldX, worldY);
+        const screenX = originX + col * size - offsetX;
+        const screenY = originY + row * size - offsetY;
+        drawCell(cell, screenX, screenY, size, worldX, worldY);
         if (state.beacons.some((beacon) => beacon.x === worldX && beacon.y === worldY)) {
-          drawBeaconMark(originX + col * size, originY + row * size, size);
+          drawBeaconMark(screenX, screenY, size);
         }
       }
     }
 
-    const rigX = state.player.x - startX;
-    const rigY = state.player.y - startY;
-    drawRig(originX + rigX * size, originY + rigY * size, size);
+    const rigScreenX = originX + (state.motion.worldX - cameraX) * size;
+    const rigScreenY = originY + (state.motion.worldY - cameraY) * size;
+    drawRig(rigScreenX, rigScreenY, size);
+    ctx.restore();
 
     ctx.strokeStyle = "rgba(71, 224, 195, 0.22)";
     ctx.lineWidth = Math.max(1, Math.floor(size * 0.05));
@@ -1908,12 +2172,36 @@
       return;
     }
     event.preventDefault();
-    tryMove(dir[0], dir[1]);
+    beginDirectionalInput(`key:${event.key}`, dir[0], dir[1]);
+  });
+
+  document.addEventListener("keyup", (event) => {
+    if (!dirs[event.key]) {
+      return;
+    }
+    event.preventDefault();
+    endDirectionalInput(`key:${event.key}`);
   });
 
   document.querySelectorAll("[data-dir]").forEach((button) => {
+    const dir = button.dataset.dir.split(",").map(Number);
+    const source = `pad:${button.dataset.dir}`;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      beginDirectionalInput(source, dir[0], dir[1]);
+    });
+    button.addEventListener("pointerup", (event) => {
+      event.preventDefault();
+      endDirectionalInput(source);
+    });
+    button.addEventListener("pointercancel", () => {
+      endDirectionalInput(source);
+    });
+    button.addEventListener("pointerleave", () => {
+      endDirectionalInput(source);
+    });
     button.addEventListener("click", () => {
-      const dir = button.dataset.dir.split(",").map(Number);
       tryMove(dir[0], dir[1]);
     });
   });
@@ -1923,7 +2211,7 @@
   hud.actions.repair.addEventListener("click", repairRig);
   hud.actions.launch.addEventListener("click", () => {
     if (launchRun()) {
-      tryMove(0, 1);
+      startLaunchDescent();
     }
   });
 
@@ -1931,4 +2219,13 @@
   generateWorld();
   updateHud();
   resizeCanvas();
+  window.requestAnimationFrame(function gameLoop(timestamp) {
+    const lastFrame = state.motion.lastFrame || timestamp;
+    const dt = Math.min(0.06, Math.max(0, (timestamp - lastFrame) / 1000));
+    state.motion.lastFrame = timestamp;
+    updateMotion(dt);
+    updateCamera(dt);
+    render();
+    window.requestAnimationFrame(gameLoop);
+  });
 })();
