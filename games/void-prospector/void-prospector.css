@@ -80,6 +80,7 @@ input {
 .topline,
 .hud-grid,
 .target-panel,
+.survey-panel,
 .control-strip {
   position: relative;
   z-index: 2;
@@ -98,6 +99,7 @@ input {
 .run-chip,
 .readout span,
 .panel-head span,
+.choice-row label,
 .target-data,
 .control-strip {
   color: var(--muted);
@@ -139,15 +141,16 @@ input {
 
 .hud-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(96px, 1fr));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 8px;
-  width: min(1120px, calc(100vw - 36px));
+  width: min(920px, calc(100vw - 360px));
   margin: 16px 18px 0;
   pointer-events: none;
 }
 
 .readout,
 .target-panel,
+.survey-panel,
 .control-strip {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -193,6 +196,15 @@ input {
   width: min(320px, calc(100vw - 36px));
 }
 
+.survey-panel {
+  position: fixed;
+  left: 18px;
+  bottom: 112px;
+  width: min(392px, calc(100vw - 36px));
+  max-height: min(280px, max(210px, calc(100vh - 410px)));
+  overflow: auto;
+}
+
 .panel-head {
   display: flex;
   justify-content: space-between;
@@ -228,6 +240,128 @@ input {
   padding: 10px;
 }
 
+.ladder-status {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.sector-list {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.sector-row:first-child {
+  border-top: 0;
+}
+
+.sector-row strong,
+.sector-row span,
+.event-log li {
+  overflow-wrap: anywhere;
+}
+
+.sector-row strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sector-row span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.sector-row[data-state="current"] {
+  background: rgba(75, 214, 192, 0.08);
+}
+
+.sector-row[data-state="locked"] {
+  color: var(--dim);
+  opacity: 0.62;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 72px;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.choice-row select,
+.choice-row button,
+.service-panel button {
+  min-height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: rgba(75, 214, 192, 0.06);
+  color: var(--text);
+}
+
+.choice-row select {
+  width: 100%;
+  padding: 7px;
+}
+
+.choice-row button,
+.service-panel button {
+  cursor: pointer;
+  padding: 7px 8px;
+  text-transform: uppercase;
+}
+
+.choice-row button:hover,
+.choice-row button:focus-visible,
+.service-panel button:hover,
+.service-panel button:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+  outline: none;
+}
+
+.choice-row button:disabled,
+.service-panel button:disabled {
+  cursor: not-allowed;
+  border-color: rgba(132, 148, 140, 0.14);
+  background: rgba(132, 148, 140, 0.04);
+  color: var(--dim);
+}
+
+.service-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.event-log {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 10px 12px 28px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .target-data span,
 .action-panel button {
   min-height: 32px;
@@ -242,6 +376,10 @@ input {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   padding: 0 10px 10px;
+}
+
+.action-panel button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .action-panel button {
@@ -296,10 +434,20 @@ input {
 
   .hud-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(1120px, calc(100vw - 36px));
   }
 
   .readout-wide {
     grid-column: span 3;
+  }
+
+  .survey-panel {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: calc(100vw - 36px);
+    max-height: none;
+    margin: 8px 18px 0;
   }
 }
 
@@ -342,6 +490,15 @@ input {
     bottom: auto;
     width: calc(100vw - 24px);
     margin: 8px 12px 0;
+  }
+
+  .survey-panel {
+    width: calc(100vw - 24px);
+    margin: 8px 12px 0;
+  }
+
+  .choice-row {
+    grid-template-columns: 1fr;
   }
 
   .control-strip {

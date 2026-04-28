@@ -16,7 +16,7 @@
     <header class="topline">
       <a class="backlink" href="../../">Millrace Arcade</a>
       <div class="identity">
-        <span class="eyebrow">First sortie</span>
+        <span class="eyebrow">v0.1.0 Survey Ladder</span>
         <h1>Void Prospector</h1>
       </div>
       <div class="run-chip" id="run-status">launch / stable</div>
@@ -26,6 +26,14 @@
       <article class="readout readout-wide">
         <span>Objective</span>
         <strong id="objective-readout">Mine charter ore and return to Frontier Spoke.</strong>
+      </article>
+      <article class="readout">
+        <span>Ladder</span>
+        <strong id="ladder-readout">tier 1 / 0 charted</strong>
+      </article>
+      <article class="readout readout-wide">
+        <span>Sector</span>
+        <strong id="sector-readout">Spoke Approach / mapped harbor</strong>
       </article>
       <article class="readout">
         <span>Hull</span>
@@ -48,18 +56,30 @@
         <strong id="pressure-readout">0</strong>
       </article>
       <article class="readout">
+        <span>Hazard</span>
+        <strong id="hazard-readout">clear / 0.0</strong>
+      </article>
+      <article class="readout">
         <span>Contract</span>
         <strong id="contract-readout">active / 0 of 8</strong>
+      </article>
+      <article class="readout">
+        <span>Scan</span>
+        <strong id="scan-readout">0 / 0</strong>
       </article>
       <article class="readout">
         <span>Upgrade</span>
         <strong id="upgrade-readout">beam rig / 90cr</strong>
       </article>
+      <article class="readout">
+        <span>Station Kit</span>
+        <strong id="service-readout">no services</strong>
+      </article>
       <article class="readout readout-wide">
         <span>Target</span>
         <strong id="target-readout">asteroid / 0m</strong>
       </article>
-      <article class="readout readout-wide">
+      <article class="readout">
         <span>Station</span>
         <strong id="station-readout">bearing 000 / 0m</strong>
       </article>
@@ -71,6 +91,7 @@
       <span>A/D steer</span>
       <span>Tab/E target</span>
       <span>Space/M mine</span>
+      <span>C scan</span>
       <span>F/Enter dock</span>
       <span>U upgrade</span>
       <span>R restart</span>
@@ -90,10 +111,33 @@
       </div>
       <div class="action-panel" aria-label="Action controls">
         <button type="button" id="mine-action">Mine</button>
+        <button type="button" id="scan-action">Scan</button>
         <button type="button" id="dock-action">Dock</button>
         <button type="button" id="upgrade-action">Upgrade</button>
         <button type="button" id="restart-action">Restart</button>
       </div>
+    </aside>
+
+    <aside class="survey-panel" aria-label="Survey Ladder controls">
+      <div class="panel-head">
+        <span>Survey ladder</span>
+        <strong id="ladder-title">v0.1.0 / tier 1</strong>
+      </div>
+      <div class="ladder-status" id="ladder-status-surface">
+        Spoke Approach online. Complete charters to unlock the route.
+      </div>
+      <div class="sector-list" id="sector-list" aria-label="Sector route state"></div>
+      <div class="choice-row">
+        <label for="sector-select">Route</label>
+        <select id="sector-select" aria-label="Choose unlocked sector"></select>
+        <button type="button" id="sector-action">Set</button>
+      </div>
+      <div class="service-panel" aria-label="Station service decisions">
+        <button type="button" id="service-probes-action">Probes</button>
+        <button type="button" id="service-decoy-action">Decoy</button>
+        <button type="button" id="countermeasure-action">Burst</button>
+      </div>
+      <ol class="event-log" id="event-log" aria-label="Recent survey events"></ol>
     </aside>
   </main>
 

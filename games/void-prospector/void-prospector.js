@@ -1217,6 +1217,17 @@ const VoidProspector = (() => {
     return syncDerivedState(next);
   }
 
+  function sectorChoiceOpen(state) {
+    return (
+      state.contract.status === "active" &&
+      state.cargo.ore === 0 &&
+      state.contract.deliveredOre === 0 &&
+      state.contract.deliveredScans === 0 &&
+      state.stats.oreMined === 0 &&
+      state.stats.anomaliesScanned === 0
+    );
+  }
+
   function chooseSector(state, sectorId) {
     const current = syncDerivedState(clone(state));
     const sector = GAME_DATA.surveyLadder.sectors.find((candidate) => candidate.id === sectorId);
@@ -1224,13 +1235,7 @@ const VoidProspector = (() => {
       current.ladder.lastChoice = `locked ${sectorId}`;
       return syncDerivedState(current);
     }
-    const runStarted =
-      current.tick > 0 ||
-      current.cargo.ore > 0 ||
-      current.contract.deliveredOre > 0 ||
-      current.contract.deliveredScans > 0 ||
-      current.contract.status === "complete";
-    if (runStarted) {
+    if (!sectorChoiceOpen(current)) {
       current.ladder.lastChoice = "finish current charter first";
       return syncDerivedState(current);
     }
@@ -1451,6 +1456,7 @@ const VoidProspector = (() => {
         effectiveIntensity: state.hazard.effectiveIntensity,
         exposure: state.hazard.exposure,
         surveyed: state.hazard.surveyed,
+        warningThreshold: state.hazard.warningThreshold,
       },
     };
   }
@@ -1463,6 +1469,106 @@ const VoidProspector = (() => {
       purchased: state.stationServices.purchased.includes(service.id),
       affordable: state.credits >= service.cost,
     }));
+  }
+
+  function sectorRouteState(state, sector) {
+    if (state.ladder.currentSectorId === sector.id) {
+      return "current";
+    }
+    if (state.ladder.completedSectorIds.includes(sector.id)) {
+      return "complete";
+    }
+    if (!state.ladder.unlockedSectorIds.includes(sector.id)) {
+      return "locked";
+    }
+    if (state.ladder.recommendedSectorId === sector.id) {
+      return "recommended";
+    }
+    return "open";
+  }
+
+  function serviceStatusText(state, service) {
+    if (state.stationServices.purchased.includes(service.id)) {
+      return "installed";
+    }
+    if (!state.station.proximity.dockable) {
+      return "dock required";
+    }
+    if (state.credits < service.cost) {
+      return `${service.cost - state.credits}cr short`;
+    }
+    return `${service.cost}cr ready`;
+  }
+
+  function surveyCockpitSurface(state) {
+    const summary = surveySummary(state);
+    const completedCount = summary.completedSectorIds.length;
+    const totalSectors = GAME_DATA.surveyLadder.sectors.length;
+    const target = targetSummary(state);
+    const canAct = state.run.status !== "failed" && state.run.status !== "complete";
+    const services = GAME_DATA.surveyLadder.stationServices.map((service) => ({
+      id: service.id,
+      name: service.name,
+      cost: service.cost,
+      purchased: state.stationServices.purchased.includes(service.id),
+      affordable: state.credits >= service.cost,
+      enabled:
+        state.station.proximity.dockable &&
+        !state.stationServices.purchased.includes(service.id) &&
+        state.credits >= service.cost,
+      status: serviceStatusText(state, service),
+    }));
+    const sectors = GAME_DATA.surveyLadder.sectors.map((sector) => ({
+      id: sector.id,
+      name: sector.name,
+      tier: sector.tier,
+      condition: sector.condition,
+      state: sectorRouteState(state, sector),
+      unlocked: state.ladder.unlockedSectorIds.includes(sector.id),
+      completed: state.ladder.completedSectorIds.includes(sector.id),
+      current: state.ladder.currentSectorId === sector.id,
+      recommended: state.ladder.recommendedSectorId === sector.id,
+      objective: sector.objective,
+      requiredOre: sector.requiredOre,
+      requiredScans: sector.requiredScans,
+      rewardCredits: sector.rewardCredits,
+      hazardStatus: sector.hazard.status,
+      pirateSpawnTick: sector.pirate.spawnTick,
+    }));
+    const serviceNames = services.filter((service) => service.purchased).map((service) => service.name);
+    const scanGoal =
+      state.contract.requiredScans > 0
+        ? `${state.contract.deliveredScans}/${state.contract.requiredScans} scans`
+        : `${state.anomalies.filter((anomaly) => anomaly.scanState.scanned).length}/${state.anomalies.length} optional`;
+    const countermeasureReady =
+      canAct && state.stationServices.countermeasureCharges > 0 && state.pirate.state !== "dormant";
+
+    return {
+      titleText: `${summary.releaseLabel} v${summary.version} / tier ${summary.tier}`,
+      ladderText: `tier ${summary.tier} / ${completedCount}/${totalSectors} charted`,
+      sectorText: `${summary.sectorName} / ${summary.condition}`,
+      objectiveProgressText: `${state.contract.title}: ${summary.contract.ore} ore / ${summary.contract.scans} scans`,
+      hazardText: `${summary.hazard.status} / exposure ${round(summary.hazard.exposure, 1)} / eff ${round(summary.hazard.effectiveIntensity, 1)}`,
+      scanText: `${scanGoal} / ${state.scanning.status}`,
+      serviceText:
+        serviceNames.length > 0
+          ? `${serviceNames.join(" + ")} / ${state.stationServices.countermeasureCharges} burst`
+          : `${state.stationServices.lastService} / ${state.stationServices.countermeasureCharges} burst`,
+      statusText: `${summary.sectorName}: ${state.run.objective}`,
+      routeText: `${completedCount} charted / next ${sectorById(summary.recommendedSectorId).name}`,
+      sectors,
+      services,
+      actions: {
+        canScan: canAct && target.kind === "anomaly",
+        canSetSector: canAct && sectorChoiceOpen(state),
+        countermeasureReady,
+        countermeasureText:
+          state.stationServices.countermeasureCharges > 0
+            ? `${state.stationServices.countermeasureCharges} burst${state.stationServices.countermeasureCharges === 1 ? "" : "s"}`
+            : "no burst",
+      },
+      log: state.log.slice(0, 3).map((entry) => entry.message),
+    };
   }
 
   function targetSummary(state) {
@@ -1523,13 +1629,18 @@ const VoidProspector = (() => {
     dom.canvas = document.getElementById("void-prospector-scene");
     dom.runStatus = document.getElementById("run-status");
     dom.objective = document.getElementById("objective-readout");
+    dom.ladder = document.getElementById("ladder-readout");
+    dom.sector = document.getElementById("sector-readout");
     dom.hull = document.getElementById("hull-readout");
     dom.fuel = document.getElementById("fuel-readout");
     dom.cargo = document.getElementById("cargo-readout");
     dom.credits = document.getElementById("credits-readout");
     dom.pressure = document.getElementById("pressure-readout");
+    dom.hazard = document.getElementById("hazard-readout");
     dom.contract = document.getElementById("contract-readout");
+    dom.scan = document.getElementById("scan-readout");
     dom.upgrade = document.getElementById("upgrade-readout");
+    dom.service = document.getElementById("service-readout");
     dom.target = document.getElementById("target-readout");
     dom.station = document.getElementById("station-readout");
     dom.targetName = document.getElementById("target-name");
@@ -1538,27 +1649,136 @@ const VoidProspector = (() => {
     dom.targetRange = document.getElementById("target-range");
     dom.targetState = document.getElementById("target-state");
     dom.mineAction = document.getElementById("mine-action");
+    dom.scanAction = document.getElementById("scan-action");
     dom.dockAction = document.getElementById("dock-action");
     dom.upgradeAction = document.getElementById("upgrade-action");
     dom.restartAction = document.getElementById("restart-action");
+    dom.ladderTitle = document.getElementById("ladder-title");
+    dom.ladderStatus = document.getElementById("ladder-status-surface");
+    dom.sectorList = document.getElementById("sector-list");
+    dom.sectorSelect = document.getElementById("sector-select");
+    dom.sectorAction = document.getElementById("sector-action");
+    dom.serviceProbesAction = document.getElementById("service-probes-action");
+    dom.serviceDecoyAction = document.getElementById("service-decoy-action");
+    dom.countermeasureAction = document.getElementById("countermeasure-action");
+    dom.eventLog = document.getElementById("event-log");
+  }
+
+  function renderSectorRows(surface) {
+    if (!dom.sectorList) {
+      return;
+    }
+    const signature = surface.sectors.map((sector) => `${sector.id}:${sector.state}`).join("|");
+    if (dom.sectorList.dataset.signature === signature) {
+      return;
+    }
+    dom.sectorList.dataset.signature = signature;
+    dom.sectorList.replaceChildren();
+    surface.sectors.forEach((sector) => {
+      const row = document.createElement("div");
+      row.className = "sector-row";
+      row.dataset.state = sector.state;
+
+      const name = document.createElement("strong");
+      name.textContent = `T${sector.tier} ${sector.name}`;
+      const state = document.createElement("span");
+      state.textContent = `${sector.state} / ${sector.condition}`;
+      row.append(name, state);
+      dom.sectorList.append(row);
+    });
+  }
+
+  function renderSectorSelect(surface, state) {
+    if (!dom.sectorSelect) {
+      return;
+    }
+    const signature = surface.sectors.map((sector) => `${sector.id}:${sector.unlocked}:${sector.current}`).join("|");
+    if (dom.sectorSelect.dataset.signature !== signature) {
+      dom.sectorSelect.dataset.signature = signature;
+      dom.sectorSelect.replaceChildren();
+      surface.sectors.forEach((sector) => {
+        const option = document.createElement("option");
+        option.value = sector.id;
+        option.disabled = !sector.unlocked;
+        option.textContent = `T${sector.tier} ${sector.name}${sector.unlocked ? "" : " locked"}`;
+        dom.sectorSelect.append(option);
+      });
+    }
+    if (dom.sectorSelect.dataset.currentSector !== state.ladder.currentSectorId && document.activeElement !== dom.sectorSelect) {
+      dom.sectorSelect.value = state.ladder.currentSectorId;
+      dom.sectorSelect.dataset.currentSector = state.ladder.currentSectorId;
+    }
+  }
+
+  function renderEventLog(surface) {
+    if (!dom.eventLog) {
+      return;
+    }
+    const signature = surface.log.join("|");
+    if (dom.eventLog.dataset.signature === signature) {
+      return;
+    }
+    dom.eventLog.dataset.signature = signature;
+    dom.eventLog.replaceChildren();
+    surface.log.forEach((message) => {
+      const item = document.createElement("li");
+      item.textContent = message;
+      dom.eventLog.append(item);
+    });
+  }
+
+  function renderSurveyPanel(state, surface) {
+    if (dom.ladderTitle) {
+      dom.ladderTitle.textContent = surface.titleText;
+    }
+    if (dom.ladderStatus) {
+      dom.ladderStatus.textContent = surface.statusText;
+    }
+    renderSectorRows(surface);
+    renderSectorSelect(surface, state);
+    renderEventLog(surface);
+
+    if (dom.sectorAction) {
+      dom.sectorAction.disabled = !surface.actions.canSetSector;
+    }
+    if (dom.serviceProbesAction) {
+      const service = surface.services.find((candidate) => candidate.id === "survey-probes");
+      dom.serviceProbesAction.disabled = !service || !service.enabled;
+      dom.serviceProbesAction.textContent = service ? `Probes ${service.status}` : "Probes";
+    }
+    if (dom.serviceDecoyAction) {
+      const service = surface.services.find((candidate) => candidate.id === "decoy-burst");
+      dom.serviceDecoyAction.disabled = !service || !service.enabled;
+      dom.serviceDecoyAction.textContent = service ? `Decoy ${service.status}` : "Decoy";
+    }
+    if (dom.countermeasureAction) {
+      dom.countermeasureAction.disabled = !surface.actions.countermeasureReady;
+      dom.countermeasureAction.textContent = `Burst ${surface.actions.countermeasureText}`;
+    }
   }
 
   function renderHud(state) {
     const target = targetSummary(state);
     const station = dockingStatus(state);
     const upgrade = upgradeSummary(state);
+    const surface = surveyCockpitSurface(state);
     dom.runStatus.textContent = `${state.run.status} / ${state.renderer.status}`;
     dom.objective.textContent = state.run.objective;
+    dom.ladder.textContent = surface.ladderText;
+    dom.sector.textContent = surface.sectorText;
     dom.hull.textContent = `${Math.round(state.ship.hull)} / ${state.ship.maxHull}`;
     dom.fuel.textContent = `${Math.round(state.ship.fuel)} / ${state.ship.maxFuel}`;
     dom.cargo.textContent = `${state.cargo.ore} / ${state.cargo.capacity} / ${state.cargo.value}cr`;
     dom.credits.textContent = String(state.credits);
     dom.pressure.textContent = `${Math.round(state.pirate.pressure)} / ${state.pirate.encounterState}`;
+    dom.hazard.textContent = surface.hazardText;
     dom.contract.textContent =
       state.contract.requiredScans > 0
         ? `${state.contract.status} / ${state.contract.deliveredOre}/${state.contract.requiredOre} ore / ${state.contract.deliveredScans}/${state.contract.requiredScans} scans`
         : `${state.contract.status} / ${state.contract.deliveredOre} of ${state.contract.requiredOre}`;
+    dom.scan.textContent = surface.scanText;
     dom.upgrade.textContent = upgrade.text;
+    dom.service.textContent = surface.serviceText;
     dom.target.textContent = `${target.kind} / ${target.name} / ${target.distance}m`;
     dom.station.textContent = `${formatBearing(station.bearing)} / ${station.distance}m / ${station.dockable ? "dock" : "approach"}`;
     dom.targetName.textContent = target.name;
@@ -1572,8 +1792,18 @@ const VoidProspector = (() => {
     dom.pressure.closest(".readout").dataset.tone = state.pirate.pressure > 60 ? "danger" : "signal";
     dom.contract.closest(".readout").dataset.tone = state.contract.status === "complete" ? "signal" : "warn";
     dom.upgrade.closest(".readout").dataset.tone = upgrade.affordable ? "signal" : "warn";
+    dom.ladder.closest(".readout").dataset.tone = "signal";
+    dom.sector.closest(".readout").dataset.tone = state.ladder.currentTier > 1 ? "warn" : "signal";
+    dom.hazard.closest(".readout").dataset.tone = state.hazard.effectiveIntensity > 1 ? "danger" : state.hazard.intensity > 0 ? "warn" : "signal";
+    dom.scan.closest(".readout").dataset.tone =
+      state.contract.requiredScans > state.contract.deliveredScans ? "warn" : "signal";
+    dom.service.closest(".readout").dataset.tone =
+      state.stationServices.countermeasureCharges > 0 || state.stationServices.purchased.length > 0 ? "signal" : "warn";
     if (dom.mineAction) {
       dom.mineAction.disabled = target.kind !== "asteroid" || state.cargo.ore >= state.cargo.capacity || state.run.status === "failed";
+    }
+    if (dom.scanAction) {
+      dom.scanAction.disabled = !surface.actions.canScan;
     }
     if (dom.dockAction) {
       dom.dockAction.disabled = !station.dockable || state.run.status === "failed";
@@ -1584,6 +1814,7 @@ const VoidProspector = (() => {
     if (dom.restartAction) {
       dom.restartAction.disabled = false;
     }
+    renderSurveyPanel(state, surface);
   }
 
   function controlNameForCode(code) {
@@ -1601,11 +1832,22 @@ const VoidProspector = (() => {
     }
     if (action === "mine") {
       currentState = mineTarget(currentState, 1);
+    } else if (action === "scan") {
+      currentState = scanTarget(currentState, 1);
     } else if (action === "interact") {
       currentState = dockAtStation(currentState);
     } else if (action === "upgrade") {
       const upgrade = nextAffordableUpgrade(currentState);
       currentState = purchaseUpgrade(currentState, upgrade ? upgrade.id : "refined-beam");
+    } else if (action === "service-probes") {
+      currentState = purchaseStationService(currentState, "survey-probes");
+    } else if (action === "service-decoy") {
+      currentState = purchaseStationService(currentState, "decoy-burst");
+    } else if (action === "countermeasure") {
+      currentState = deployCountermeasure(currentState);
+    } else if (action === "sector") {
+      const sectorId = dom.sectorSelect ? dom.sectorSelect.value : currentState.ladder.currentSectorId;
+      currentState = chooseSector(currentState, sectorId);
     } else if (action === "reset") {
       currentState = resetRun(currentState);
     }
@@ -1644,6 +1886,9 @@ const VoidProspector = (() => {
     if (dom.mineAction) {
       dom.mineAction.addEventListener("click", () => performAction("mine"));
     }
+    if (dom.scanAction) {
+      dom.scanAction.addEventListener("click", () => performAction("scan"));
+    }
     if (dom.dockAction) {
       dom.dockAction.addEventListener("click", () => performAction("interact"));
     }
@@ -1652,6 +1897,18 @@ const VoidProspector = (() => {
     }
     if (dom.restartAction) {
       dom.restartAction.addEventListener("click", () => performAction("reset"));
+    }
+    if (dom.sectorAction) {
+      dom.sectorAction.addEventListener("click", () => performAction("sector"));
+    }
+    if (dom.serviceProbesAction) {
+      dom.serviceProbesAction.addEventListener("click", () => performAction("service-probes"));
+    }
+    if (dom.serviceDecoyAction) {
+      dom.serviceDecoyAction.addEventListener("click", () => performAction("service-decoy"));
+    }
+    if (dom.countermeasureAction) {
+      dom.countermeasureAction.addEventListener("click", () => performAction("countermeasure"));
     }
   }
 
@@ -2066,6 +2323,7 @@ const VoidProspector = (() => {
     dockingStatus,
     upgradeSummary,
     surveySummary,
+    surveyCockpitSurface,
     stationServiceSummary,
     targetSummary,
     bearingTo,
