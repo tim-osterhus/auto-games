@@ -203,6 +203,7 @@
     },
     drillContact: null,
     completedDrillCell: null,
+    breakthroughRelease: null,
     breakageBursts: [],
     cargo: [],
     resources: {
@@ -904,6 +905,10 @@
     state.drillContact = null;
   }
 
+  function clearBreakthroughRelease() {
+    state.breakthroughRelease = null;
+  }
+
   function centerSurfaceDock() {
     state.player.x = startingCellX;
     state.player.y = 0;
@@ -918,6 +923,7 @@
     state.heat = 0;
     clearHeldInput();
     clearDrillContact();
+    clearBreakthroughRelease();
     state.completedDrillCell = null;
     syncMotionToPlayer(true);
     setMessage(message || "Surface lock reached. Settle cargo, repair, or relaunch.");
@@ -980,6 +986,7 @@
     state.heat = 0;
     clearHeldInput();
     clearDrillContact();
+    clearBreakthroughRelease();
     state.completedDrillCell = null;
     setMessage("Run reset at surface lock. Resources, upgrades, and filed work stay intact.");
     updateHud();
@@ -2171,9 +2178,13 @@
   }
 
   function setPostBreakMotion(contact) {
-    const settleSpeed = Math.max(1.1, motionSettings().maxSpeed * 0.34);
-    state.motion.worldX = state.player.x - contact.dx * 0.18;
-    state.motion.worldY = state.player.y - contact.dy * 0.18;
+    const settleSpeed = Math.max(1.8, motionSettings().maxSpeed * 0.62);
+    const lead = 0.26;
+    const alongX = contact.dx ? Math.abs(state.motion.worldX - state.player.x) : 0;
+    const alongY = contact.dy ? Math.abs(state.motion.worldY - state.player.y) : 0;
+    state.player.facing = [contact.dx, contact.dy];
+    state.motion.worldX = contact.dx ? state.player.x + contact.dx * Math.max(alongX, lead) : state.player.x;
+    state.motion.worldY = contact.dy ? state.player.y + contact.dy * Math.max(alongY, lead) : state.player.y;
     if (contact.dx) {
       state.motion.velocityX = contact.dx * settleSpeed;
       state.motion.velocityY = approachZero(state.motion.velocityY, settleSpeed * 0.08);
@@ -2181,6 +2192,37 @@
     if (contact.dy) {
       state.motion.velocityY = contact.dy * settleSpeed;
       state.motion.velocityX = approachZero(state.motion.velocityX, settleSpeed * 0.08);
+    }
+  }
+
+  function startBreakthroughRelease(contact) {
+    state.breakthroughRelease = {
+      targetX: contact.targetX,
+      targetY: contact.targetY,
+      dx: contact.dx,
+      dy: contact.dy,
+      age: 0,
+      duration: 0.72
+    };
+    setPostBreakMotion(contact);
+  }
+
+  function updateBreakthroughRelease(dt) {
+    const release = state.breakthroughRelease;
+    if (!release) {
+      return;
+    }
+
+    release.age += dt;
+    if (state.player.x === release.targetX && state.player.y === release.targetY) {
+      state.completedDrillCell = null;
+      clearBreakthroughRelease();
+      return;
+    }
+
+    if (release.age > release.duration) {
+      state.completedDrillCell = null;
+      clearBreakthroughRelease();
     }
   }
 
@@ -2203,14 +2245,11 @@
 
     markOnboarding("drilled", hadOre ? null : "First seam cut. Follow ore markers and keep reserves visible.");
     state.completedDrillCell = { x: targetX, y: targetY };
+    state.completedDrillCell.direction = [contact.dx, contact.dy];
     clearDrillContact();
-    const entered = enterCell(targetX, targetY, contact.dx, contact.dy);
-    state.completedDrillCell = null;
-    if (entered && !state.docked) {
-      setPostBreakMotion(contact);
-    }
+    startBreakthroughRelease(contact);
     updateHud();
-    return entered;
+    return true;
   }
 
   function advanceDrillContact(targetX, targetY, dx, dy, dt) {
@@ -2356,6 +2395,10 @@
 
     state.player.x = targetX;
     state.player.y = targetY;
+    if (drilled) {
+      state.completedDrillCell = null;
+      clearBreakthroughRelease();
+    }
     updateContractProgress();
     updateCharterProgress();
     updateRouteProgress();
@@ -2539,6 +2582,14 @@
       const pulse = Math.sin(state.motion.animTime * 44) * (0.012 + ratio * 0.012);
       x -= contact.dx * pulse;
       y -= contact.dy * pulse;
+    }
+
+    const release = state.breakthroughRelease;
+    if (release) {
+      const life = clamp(1 - release.age / release.duration, 0, 1);
+      const push = Math.sin(state.motion.animTime * 31) * life * 0.01;
+      x += release.dx * (0.012 + push);
+      y += release.dy * (0.012 + push);
     }
 
     for (const burst of state.breakageBursts) {
@@ -3043,6 +3094,39 @@
     ctx.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, screenX, screenY, size, size);
   }
 
+  function drawRoughSeamLine(startX, startY, endX, endY, jitterX, jitterY, seed) {
+    const segments = 5;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    for (let index = 1; index <= segments; index += 1) {
+      const t = index / segments;
+      const wobble = (hash(seed, index, 181) - 0.5) * 2;
+      const x = startX + (endX - startX) * t + jitterX * wobble;
+      const y = startY + (endY - startY) * t + jitterY * wobble;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function drawStrataLaminae(cell, screenX, screenY, size, worldX, worldY, material, band) {
+    const lamina = material.lamina || band.lamina || "rgba(231, 240, 236, 0.08)";
+    const count = 2 + Math.floor(hash(worldX, worldY, 175) * 2);
+    ctx.save();
+    ctx.strokeStyle = lamina;
+    ctx.lineWidth = Math.max(1, size * 0.018);
+    ctx.globalAlpha = 0.58;
+    for (let index = 0; index < count; index += 1) {
+      const seed = 183 + index * 19;
+      const y = screenY + size * (0.2 + index * 0.22 + hash(worldX, worldY, seed) * 0.11);
+      const drift = (hash(worldX, worldY, seed + 2) - 0.5) * size * 0.16;
+      ctx.beginPath();
+      ctx.moveTo(screenX + size * 0.04, y);
+      ctx.quadraticCurveTo(screenX + size * 0.5, y + drift, screenX + size * 0.96, y - drift * 0.45);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawMaterialBridge(cell, screenX, screenY, size, worldX, worldY, material) {
     const seam = Math.max(1, size * 0.045);
     const bridgeFill = material.bridge || "rgba(143, 161, 157, 0.1)";
@@ -3081,10 +3165,7 @@
         continue;
       }
       ctx.strokeStyle = openBoundary ? "rgba(5, 7, 8, 0.52)" : "rgba(231, 240, 236, 0.12)";
-      ctx.beginPath();
-      ctx.moveTo(edge[2], edge[3]);
-      ctx.lineTo(edge[4], edge[5]);
-      ctx.stroke();
+      drawRoughSeamLine(edge[2], edge[3], edge[4], edge[5], edge[0] ? 0 : size * 0.025, edge[1] ? 0 : size * 0.025, worldX * 29 + worldY * 31 + edge[0] * 7 + edge[1] * 11);
     }
     ctx.restore();
   }
@@ -3161,6 +3242,7 @@
     ctx.fillStyle = band.shadow;
     ctx.fillRect(screenX, screenY + size * 0.56, size, size * 0.44);
     drawMaterialBridge(cell, screenX, screenY, size, worldX, worldY, material);
+    drawStrataLaminae(cell, screenX, screenY, size, worldX, worldY, material, band);
     drawTerrainCracks(cell, screenX, screenY, size, worldX, worldY, material);
     drawMaterialSilhouette(cell, screenX, screenY, size, worldX, worldY);
 
@@ -3177,6 +3259,14 @@
       return null;
     }
     return contact;
+  }
+
+  function breakthroughReleaseForCell(worldX, worldY) {
+    const release = state.breakthroughRelease;
+    if (!release || release.targetX !== worldX || release.targetY !== worldY) {
+      return null;
+    }
+    return release;
   }
 
   function materialPocketPath(cx, cy, radiusX, radiusY, seed, rotation) {
@@ -3274,6 +3364,14 @@
     ctx.strokeStyle = hazard.color;
     ctx.globalAlpha = inclusion.seamAlpha || 0.66;
     ctx.lineWidth = Math.max(1, size * 0.04);
+    for (let index = 0; index < 3; index += 1) {
+      const branch = rotation + (index - 1) * 0.7;
+      const startX = cx + Math.cos(branch) * size * 0.18;
+      const startY = cy + Math.sin(branch) * size * 0.13;
+      const endX = cx + Math.cos(branch) * size * 0.48;
+      const endY = cy + Math.sin(branch) * size * 0.34;
+      drawRoughSeamLine(startX, startY, endX, endY, size * 0.018, size * 0.018, seed + index * 13);
+    }
     const lines = inclusion.form === "vent" ? 4 : 3;
     for (let index = 0; index < lines; index += 1) {
       const drift = (index - (lines - 1) * 0.5) * size * 0.12;
@@ -3324,6 +3422,15 @@
     ctx.strokeStyle = ore.color;
     ctx.globalAlpha = deposit.seamAlpha || 0.66;
     ctx.lineWidth = Math.max(1, size * 0.035);
+    const tendrils = deposit.form === "thread" ? 5 : 3;
+    for (let index = 0; index < tendrils; index += 1) {
+      const branch = rotation + (index - (tendrils - 1) * 0.5) * 0.42;
+      const startX = cx + Math.cos(branch) * size * 0.16;
+      const startY = cy + Math.sin(branch) * size * 0.12;
+      const endX = cx + Math.cos(branch) * size * 0.5;
+      const endY = cy + Math.sin(branch) * size * 0.28;
+      drawRoughSeamLine(startX, startY, endX, endY, size * 0.014, size * 0.014, seed + index * 23);
+    }
     const veins = deposit.form === "cluster" ? 5 : 3;
     for (let index = 0; index < veins; index += 1) {
       const t = index / Math.max(1, veins - 1);
@@ -3394,26 +3501,62 @@
     ctx.restore();
   }
 
+  function drawBreakthroughReleaseWake(release, screenX, screenY, size) {
+    if (!release) {
+      return;
+    }
+
+    const life = clamp(1 - release.age / release.duration, 0, 1);
+    const centerX = screenX + size * 0.5;
+    const centerY = screenY + size * 0.5;
+    ctx.save();
+    ctx.globalAlpha = life;
+    ctx.strokeStyle = "rgba(231, 240, 236, 0.28)";
+    ctx.lineWidth = Math.max(1, size * 0.035);
+    for (let index = 0; index < 4; index += 1) {
+      const drift = (index - 1.5) * size * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(centerX - release.dx * size * 0.44 + (release.dy ? drift : 0), centerY - release.dy * size * 0.44 + (release.dx ? drift : 0));
+      ctx.lineTo(centerX - release.dx * size * (0.08 + (1 - life) * 0.18), centerY - release.dy * size * (0.08 + (1 - life) * 0.18));
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(71, 224, 195, 0.18)";
+    ctx.fillRect(centerX - size * 0.22, centerY - size * 0.22, size * 0.44, size * 0.44);
+    ctx.restore();
+  }
+
+  function drawTunnelRim(cell, screenX, screenY, size, worldX, worldY) {
+    const edges = [
+      [-1, 0, screenX + size * 0.07, screenY, screenX + size * 0.07, screenY + size],
+      [1, 0, screenX + size * 0.93, screenY, screenX + size * 0.93, screenY + size],
+      [0, -1, screenX, screenY + size * 0.07, screenX + size, screenY + size * 0.07],
+      [0, 1, screenX, screenY + size * 0.93, screenX + size, screenY + size * 0.93]
+    ];
+
+    ctx.save();
+    ctx.lineWidth = Math.max(2, size * 0.07);
+    for (const edge of edges) {
+      const neighbor = solidTerrainNeighbor(cell, worldX, worldY, edge[0], edge[1]);
+      if (!neighbor) {
+        continue;
+      }
+      const terrain = DATA.terrainTypes[neighbor.terrain] || {};
+      const material = terrainMaterial(neighbor.terrain);
+      ctx.strokeStyle = material.rim || terrain.edge || "rgba(82, 96, 94, 0.62)";
+      ctx.globalAlpha = 0.42;
+      drawRoughSeamLine(edge[2], edge[3], edge[4], edge[5], edge[0] ? size * 0.015 : 0, edge[1] ? size * 0.015 : 0, worldX * 41 + worldY * 43 + edge[0] * 5 + edge[1] * 7);
+    }
+    ctx.restore();
+  }
+
   function drawTunnelCell(cell, screenX, screenY, size, worldX, worldY) {
     ctx.fillStyle = worldY % 2 === 0 ? "#070a0b" : "#080c0d";
     ctx.fillRect(screenX, screenY, size, size);
-    const edgeShade = "rgba(5, 7, 8, 0.58)";
-    ctx.fillStyle = edgeShade;
-    if (solidTerrainNeighbor(cell, worldX, worldY, -1, 0)) {
-      ctx.fillRect(screenX, screenY, size * 0.08, size);
-    }
-    if (solidTerrainNeighbor(cell, worldX, worldY, 1, 0)) {
-      ctx.fillRect(screenX + size * 0.92, screenY, size * 0.08, size);
-    }
-    if (solidTerrainNeighbor(cell, worldX, worldY, 0, -1)) {
-      ctx.fillRect(screenX, screenY, size, size * 0.08);
-    }
-    if (solidTerrainNeighbor(cell, worldX, worldY, 0, 1)) {
-      ctx.fillRect(screenX, screenY + size * 0.92, size, size * 0.08);
-    }
+    drawTunnelRim(cell, screenX, screenY, size, worldX, worldY);
     ctx.fillStyle = "rgba(143, 161, 157, 0.08)";
     ctx.fillRect(screenX + size * 0.18, screenY + size * 0.5, size * 0.64, Math.max(1, size * 0.045));
     drawBreakageBurst(breakageBurstForCell(worldX, worldY), screenX, screenY, size);
+    drawBreakthroughReleaseWake(breakthroughReleaseForCell(worldX, worldY), screenX, screenY, size);
     drawHazardMark(cell, screenX, screenY, size, worldX, worldY);
   }
 
@@ -3750,6 +3893,7 @@
     state.motion.animTime += dt;
     updateMotion(dt);
     updateBreakageBursts(dt);
+    updateBreakthroughRelease(dt);
     updateCamera(dt);
     render();
     window.requestAnimationFrame(gameLoop);

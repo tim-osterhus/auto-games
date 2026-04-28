@@ -64,6 +64,8 @@ class CoreboundMaterialRenderingTests(unittest.TestCase):
             "textureAlpha:",
             "seamAlpha:",
             "pocket:",
+            "lamina:",
+            "rim:",
         ):
             self.assertIn(token, data)
 
@@ -81,10 +83,13 @@ class CoreboundMaterialRenderingTests(unittest.TestCase):
             "MATERIAL_RENDERING",
             "function materialStrataBand(worldY)",
             "function drawTextureWindow(image, screenX, screenY, size, worldX, worldY)",
+            "function drawRoughSeamLine(startX, startY, endX, endY, jitterX, jitterY, seed)",
+            "function drawStrataLaminae(cell, screenX, screenY, size, worldX, worldY, material, band)",
             "function drawMaterialBridge(cell, screenX, screenY, size, worldX, worldY, material)",
             "sameMaterialNeighbor(cell, worldX, worldY",
             "function drawMaterialSilhouette(cell, screenX, screenY, size, worldX, worldY)",
             "function drawTerrainCracks(cell, screenX, screenY, size, worldX, worldY, material)",
+            "function drawTunnelRim(cell, screenX, screenY, size, worldX, worldY)",
             "drawTunnelCell(cell, screenX, screenY, size, worldX, worldY)",
         ):
             self.assertIn(token, script)
@@ -107,6 +112,7 @@ class CoreboundMaterialRenderingTests(unittest.TestCase):
             "MATERIAL_RENDERING.hazardInclusions",
             "drawOreMark(cell",
             "drawHazardMark(cell",
+            "drawRoughSeamLine(startX, startY, endX, endY",
             'drawAtlasSlot("readables.ore_hazard_atlas"',
         ):
             self.assertIn(token, script)
@@ -116,15 +122,21 @@ class CoreboundMaterialRenderingTests(unittest.TestCase):
 
         for token in (
             "breakageBursts: []",
+            "breakthroughRelease: null",
             "function addBreakageBurst(x, y, terrainKey, oreKey, hazardKey)",
             "function updateBreakageBursts(dt)",
+            "function startBreakthroughRelease(contact)",
+            "function updateBreakthroughRelease(dt)",
+            "function drawBreakthroughReleaseWake(release, screenX, screenY, size)",
             "function drawBreakageBurst(burst, screenX, screenY, size)",
             "addBreakageBurst(x, y, brokenTerrainKey, brokenOreKey, brokenHazardKey)",
             "function setPostBreakMotion(contact)",
             "setPostBreakMotion(contact)",
+            "startBreakthroughRelease(contact)",
             "function cameraMaterialShake()",
             "const materialShake = cameraMaterialShake()",
             "updateBreakageBursts(dt)",
+            "updateBreakthroughRelease(dt)",
         ):
             self.assertIn(token, script)
 

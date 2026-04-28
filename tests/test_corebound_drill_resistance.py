@@ -14,6 +14,7 @@ class CoreboundDrillResistanceTests(unittest.TestCase):
         for token in (
             "drillContact: null",
             "completedDrillCell",
+            "breakthroughRelease: null",
             "function startDrillContact(targetX, targetY, dx, dy, cell)",
             "direction: [dx, dy]",
             "progress: 0",
@@ -23,9 +24,21 @@ class CoreboundDrillResistanceTests(unittest.TestCase):
             "function completeDrillContact(contact)",
             "drillBlock(targetX, targetY, cell)",
             "state.completedDrillCell = { x: targetX, y: targetY }",
+            "state.completedDrillCell.direction = [contact.dx, contact.dy]",
+            "function startBreakthroughRelease(contact)",
+            "startBreakthroughRelease(contact)",
+            "function updateBreakthroughRelease(dt)",
             "completedDrillMatches(targetX, targetY)",
         ):
             self.assertIn(token, script)
+
+        complete_contact = re.search(
+            r"function completeDrillContact\(contact\) \{(?P<body>.*?)\n  function advanceDrillContact",
+            script,
+            re.S,
+        )
+        self.assertIsNotNone(complete_contact)
+        self.assertNotIn("enterCell(", complete_contact.group("body"))
 
         enter_cell = re.search(
             r"function enterCell\(targetX, targetY, dx, dy\) \{(?P<body>.*?)\n  function stopMotionAtCell",
@@ -37,6 +50,7 @@ class CoreboundDrillResistanceTests(unittest.TestCase):
         self.assertIn('if (cell.kind === "solid")', solid_branch)
         self.assertIn("advanceDrillContact(targetX, targetY, dx, dy, 0)", solid_branch)
         self.assertNotIn("drillBlock(targetX, targetY, cell)", solid_branch)
+        self.assertIn("if (drilled) {\n      state.completedDrillCell = null;\n      clearBreakthroughRelease();", solid_branch)
 
     def test_drill_duration_and_pressure_are_data_driven_by_terrain_and_rig_stats(self) -> None:
         script = (GAME_DIR / "corebound.js").read_text(encoding="utf-8")
@@ -91,6 +105,8 @@ class CoreboundDrillResistanceTests(unittest.TestCase):
             "if (!drilled) {\n        applyHazardPressure(cell, \"transit\");",
             "cell.kind = \"tunnel\"",
             "collectOre(cell.ore)",
+            "startBreakthroughRelease(contact)",
+            "clearBreakthroughRelease()",
             "updateContractProgress()",
             "updateCharterProgress()",
             "updateRouteProgress()",

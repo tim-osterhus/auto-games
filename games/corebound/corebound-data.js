@@ -204,25 +204,25 @@
     },
     materialRendering: {
       strataBands: [
-        { to: 15, wash: "rgba(143, 161, 157, 0.07)", shadow: "rgba(5, 7, 8, 0.18)" },
-        { to: 34, wash: "rgba(82, 96, 94, 0.1)", shadow: "rgba(5, 7, 8, 0.22)" },
-        { to: 56, wash: "rgba(131, 168, 198, 0.08)", shadow: "rgba(5, 7, 8, 0.26)" },
-        { to: 82, wash: "rgba(71, 224, 195, 0.07)", shadow: "rgba(5, 7, 8, 0.31)" },
-        { to: 110, wash: "rgba(194, 165, 228, 0.06)", shadow: "rgba(5, 7, 8, 0.36)" },
-        { to: 999, wash: "rgba(211, 193, 122, 0.06)", shadow: "rgba(5, 7, 8, 0.42)" }
+        { to: 15, wash: "rgba(180, 154, 104, 0.08)", shadow: "rgba(5, 7, 8, 0.18)", lamina: "rgba(213, 166, 73, 0.16)" },
+        { to: 34, wash: "rgba(82, 96, 94, 0.11)", shadow: "rgba(5, 7, 8, 0.22)", lamina: "rgba(143, 161, 157, 0.15)" },
+        { to: 56, wash: "rgba(131, 168, 198, 0.09)", shadow: "rgba(5, 7, 8, 0.26)", lamina: "rgba(131, 168, 198, 0.15)" },
+        { to: 82, wash: "rgba(71, 224, 195, 0.075)", shadow: "rgba(5, 7, 8, 0.31)", lamina: "rgba(71, 224, 195, 0.14)" },
+        { to: 110, wash: "rgba(194, 165, 228, 0.07)", shadow: "rgba(5, 7, 8, 0.36)", lamina: "rgba(194, 165, 228, 0.14)" },
+        { to: 999, wash: "rgba(211, 193, 122, 0.07)", shadow: "rgba(5, 7, 8, 0.42)", lamina: "rgba(211, 193, 122, 0.14)" }
       ],
       terrainMaterials: {
-        loam: { bridge: "rgba(143, 161, 157, 0.1)", crack: "rgba(231, 240, 236, 0.22)", fleck: "rgba(213, 166, 73, 0.1)", textureAlpha: 0.46 },
-        gritstone: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.1)", textureAlpha: 0.52 },
-        ironClay: { bridge: "rgba(213, 111, 95, 0.1)", crack: "rgba(213, 166, 73, 0.2)", fleck: "rgba(215, 111, 95, 0.13)", textureAlpha: 0.5 },
-        basaltLock: { bridge: "rgba(82, 96, 94, 0.15)", crack: "rgba(143, 161, 157, 0.2)", fleck: "rgba(71, 224, 195, 0.08)", textureAlpha: 0.58 },
-        pressureGlass: { bridge: "rgba(131, 168, 198, 0.12)", crack: "rgba(131, 168, 198, 0.33)", fleck: "rgba(71, 224, 195, 0.11)", textureAlpha: 0.62 },
-        shaleFault: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.1)", textureAlpha: 0.55 },
-        thermalBasalt: { bridge: "rgba(215, 111, 95, 0.11)", crack: "rgba(213, 111, 95, 0.34)", fleck: "rgba(213, 166, 73, 0.14)", textureAlpha: 0.6 },
-        machineRib: { bridge: "rgba(71, 224, 195, 0.11)", crack: "rgba(71, 224, 195, 0.24)", fleck: "rgba(131, 168, 198, 0.12)", textureAlpha: 0.6 },
-        coreRind: { bridge: "rgba(194, 165, 228, 0.11)", crack: "rgba(194, 165, 228, 0.28)", fleck: "rgba(213, 166, 73, 0.12)", textureAlpha: 0.64 },
-        choirSlate: { bridge: "rgba(71, 224, 195, 0.12)", crack: "rgba(71, 224, 195, 0.34)", fleck: "rgba(231, 240, 236, 0.1)", textureAlpha: 0.66 },
-        anchorRib: { bridge: "rgba(213, 166, 73, 0.12)", crack: "rgba(211, 193, 122, 0.34)", fleck: "rgba(71, 224, 195, 0.1)", textureAlpha: 0.66 }
+        loam: { bridge: "rgba(143, 161, 157, 0.1)", crack: "rgba(231, 240, 236, 0.22)", fleck: "rgba(213, 166, 73, 0.12)", textureAlpha: 0.46, lamina: "rgba(213, 166, 73, 0.15)", rim: "rgba(83, 99, 78, 0.62)" },
+        gritstone: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.11)", textureAlpha: 0.52, lamina: "rgba(143, 161, 157, 0.14)", rim: "rgba(89, 97, 102, 0.62)" },
+        ironClay: { bridge: "rgba(213, 111, 95, 0.12)", crack: "rgba(213, 166, 73, 0.22)", fleck: "rgba(215, 111, 95, 0.14)", textureAlpha: 0.5, lamina: "rgba(213, 111, 95, 0.15)", rim: "rgba(121, 77, 62, 0.64)" },
+        basaltLock: { bridge: "rgba(82, 96, 94, 0.15)", crack: "rgba(143, 161, 157, 0.2)", fleck: "rgba(71, 224, 195, 0.09)", textureAlpha: 0.58, lamina: "rgba(82, 96, 94, 0.18)", rim: "rgba(72, 82, 90, 0.64)" },
+        pressureGlass: { bridge: "rgba(131, 168, 198, 0.13)", crack: "rgba(131, 168, 198, 0.34)", fleck: "rgba(71, 224, 195, 0.12)", textureAlpha: 0.62, lamina: "rgba(131, 168, 198, 0.18)", rim: "rgba(95, 120, 131, 0.68)" },
+        shaleFault: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.11)", textureAlpha: 0.55, lamina: "rgba(143, 161, 157, 0.15)", rim: "rgba(108, 122, 112, 0.64)" },
+        thermalBasalt: { bridge: "rgba(215, 111, 95, 0.13)", crack: "rgba(213, 111, 95, 0.35)", fleck: "rgba(213, 166, 73, 0.15)", textureAlpha: 0.6, lamina: "rgba(215, 111, 95, 0.18)", rim: "rgba(142, 81, 70, 0.68)" },
+        machineRib: { bridge: "rgba(71, 224, 195, 0.12)", crack: "rgba(71, 224, 195, 0.25)", fleck: "rgba(131, 168, 198, 0.13)", textureAlpha: 0.6, lamina: "rgba(71, 224, 195, 0.16)", rim: "rgba(94, 127, 130, 0.68)" },
+        coreRind: { bridge: "rgba(194, 165, 228, 0.12)", crack: "rgba(194, 165, 228, 0.3)", fleck: "rgba(213, 166, 73, 0.13)", textureAlpha: 0.64, lamina: "rgba(194, 165, 228, 0.17)", rim: "rgba(127, 106, 165, 0.68)" },
+        choirSlate: { bridge: "rgba(71, 224, 195, 0.13)", crack: "rgba(71, 224, 195, 0.35)", fleck: "rgba(231, 240, 236, 0.11)", textureAlpha: 0.66, lamina: "rgba(71, 224, 195, 0.16)", rim: "rgba(74, 168, 151, 0.7)" },
+        anchorRib: { bridge: "rgba(213, 166, 73, 0.13)", crack: "rgba(211, 193, 122, 0.35)", fleck: "rgba(71, 224, 195, 0.11)", textureAlpha: 0.66, lamina: "rgba(211, 193, 122, 0.17)", rim: "rgba(155, 143, 103, 0.7)" }
       },
       oreDeposits: {
         copperSeed: { form: "cluster", pocket: "rgba(213, 154, 83, 0.22)", seamAlpha: 0.7 },
@@ -252,8 +252,8 @@
         energyCost: 3,
         hullRisk: 0,
         heat: 1,
-        color: "#2b2f2b",
-        edge: "#3c463d"
+        color: "#30362e",
+        edge: "#53634e"
       },
       gritstone: {
         label: "Gritstone",
@@ -261,8 +261,8 @@
         energyCost: 5,
         hullRisk: 1,
         heat: 2,
-        color: "#343536",
-        edge: "#505052"
+        color: "#34383b",
+        edge: "#596166"
       },
       ironClay: {
         label: "Iron clay",
@@ -270,8 +270,8 @@
         energyCost: 6,
         hullRisk: 1,
         heat: 2,
-        color: "#3a312d",
-        edge: "#6b5044"
+        color: "#41312c",
+        edge: "#794d3e"
       },
       basaltLock: {
         label: "Basalt lock",
@@ -279,7 +279,7 @@
         energyCost: 8,
         hullRisk: 2,
         heat: 3,
-        color: "#252a2e",
+        color: "#252d31",
         edge: "#48525a"
       },
       pressureGlass: {
@@ -288,7 +288,7 @@
         energyCost: 11,
         hullRisk: 3,
         heat: 4,
-        color: "#202a31",
+        color: "#1f2c34",
         edge: "#5f7883"
       },
       shaleFault: {
@@ -297,7 +297,7 @@
         energyCost: 9,
         hullRisk: 3,
         heat: 3,
-        color: "#282d2b",
+        color: "#29312f",
         edge: "#6c7a70"
       },
       thermalBasalt: {
@@ -306,7 +306,7 @@
         energyCost: 12,
         hullRisk: 3,
         heat: 7,
-        color: "#2d2424",
+        color: "#332321",
         edge: "#8e5146"
       },
       machineRib: {
@@ -315,7 +315,7 @@
         energyCost: 14,
         hullRisk: 4,
         heat: 5,
-        color: "#1f2829",
+        color: "#1d2d2e",
         edge: "#5e7f82"
       },
       coreRind: {
@@ -324,7 +324,7 @@
         energyCost: 17,
         hullRisk: 5,
         heat: 8,
-        color: "#231f25",
+        color: "#281f2d",
         edge: "#7f6aa5"
       },
       choirSlate: {
@@ -333,7 +333,7 @@
         energyCost: 20,
         hullRisk: 6,
         heat: 9,
-        color: "#171d1f",
+        color: "#172325",
         edge: "#4aa897"
       },
       anchorRib: {
@@ -342,7 +342,7 @@
         energyCost: 23,
         hullRisk: 7,
         heat: 11,
-        color: "#191819",
+        color: "#1f1d19",
         edge: "#9b8f67"
       }
     },
