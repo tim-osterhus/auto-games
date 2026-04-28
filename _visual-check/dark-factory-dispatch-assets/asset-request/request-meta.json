@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "created_at": "20260428T092254Z",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "out_dir": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets",
+  "manifest": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/asset-request-manifest.json",
+  "prompt_path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/asset-request/request-prompt.md",
+  "summary_path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/asset-request/codex-summary.md",
+  "references": [],
+  "command": [
+    "/home/tim/.local/bin/codex",
+    "--ask-for-approval",
+    "never",
+    "exec",
+    "--model",
+    "gpt-5.5",
+    "--sandbox",
+    "workspace-write",
+    "--skip-git-repo-check",
+    "-C",
+    "/mnt/f/_evolve/millrace-games/auto-games",
+    "-o",
+    "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/asset-request/codex-summary.md",
+    "--add-dir",
+    "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets",
+    "$imagegen\n\nYou are creating browser-game visual assets for a Millrace task.\n\nUse Codex built-in image generation/editing only. Do not use OPENAI_API_KEY, the OpenAI SDK, the Images API, or any API-key fallback. Do not read or print Codex credential files.\n\nMode: generate\nWorking directory: /mnt/f/_evolve/millrace-games/auto-games\nFinal asset destination directory: /mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets\nManifest path to write: /mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/asset-request-manifest.json\nReference images attached or provided:\n- none\n\nAsset brief:\nCreate an original raster asset pack for the static browser game Dark Factory Dispatch. Visual direction: mono-first, operator-grade, diagrammatic, restrained, square-framed, dark factory UI, lightly luminous teal as precise signal, no copied game art, no logos, no baked-in UI labels or readable text. Save final project-consumed assets under games/dark-factory-dispatch/assets/ using exactly these PNG filenames and dimensions: lane-forge-line.png 96x96 transparent icon of a compact heated forge module; lane-assembler-bay.png 96x96 transparent icon of a balanced robotic assembler bay; lane-clean-room.png 96x96 transparent icon of a sealed clean-room fabrication module; job-smelt-circuits.png 96x96 transparent icon combining scrap plates and circuit traces; job-print-modules.png 96x96 transparent icon of stacked machine modules; job-assemble-drones.png 96x96 transparent icon of compact factory drones in a launch rack; job-weave-defenses.png 96x96 transparent icon of defensive mesh/shield plates; fault-material-jam.png 96x96 transparent warning icon for a clogged feed chute/material jam; fault-logic-drift.png 96x96 transparent warning icon for unstable logic drift; arcade-title-card.png 800x450 opaque title-card art showing a dark factory dispatch floor with three production lanes, queue rails, teal signal lines, and no text. Keep all icons centered, high contrast at 28px display size, with transparent backgrounds. Write the requested manifest with id, path, role, description, width, height, intended_use, and notes for every asset.\n\nRequirements:\n- Create original assets only; do not copy protected game art, characters, names, logos, maps, or exact presentation.\n- Save every final project-consumed asset under the final asset destination directory.\n- Keep UI text, labels, scores, and controls out of raster assets unless the brief explicitly asks for baked-in text.\n- For edits, preserve the source non-destructively and write a new output file.\n- If transparency is needed, make the final file a PNG or WebP with usable alpha, or clearly report why that was not possible.\n- Prefer stable, descriptive lowercase filenames.\n- After generation or editing, write the manifest JSON exactly at the manifest path.\n\nManifest schema:\n{\n  \"schema_version\": 1,\n  \"status\": \"complete | blocked\",\n  \"mode\": \"generate\",\n  \"workdir\": \"/mnt/f/_evolve/millrace-games/auto-games\",\n  \"assets\": [\n    {\n      \"path\": \"absolute or workdir-relative path to an asset\",\n      \"role\": \"sprite | sprite-strip | icon | background | texture | concept | other\",\n      \"description\": \"short asset description\",\n      \"width\": null,\n      \"height\": null,\n      \"notes\": \"generation or editing notes\"\n    }\n  ],\n  \"notes\": \"short summary, or blocker reason when status is blocked\"\n}\n\nFinish with a concise summary of files created and any checks the caller should run.\n"
+  ],
+  "environment_redacted": {
+    "PATH": "/home/tim/.local/bin:/home/tim/.codex/tmp/arg0/codex-arg061NfHI:/home/tim/.local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path:/home/tim/.local/bin:/home/tim/.codex/tmp/arg0/codex-arg0hJofcI:/home/tim/.nvm/versions/node/v22.20.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path:/home/tim/.local/bin:/home/tim/.bun/bin:/home/tim/.opencode/bin:/home/tim/.nvm/versions/node/v22.20.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/Common Files/Oracle/Java/javapath:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/java8path:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/javapath:/mnt/c/Users/Tim/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0/LocalCache/local-packages/Python310/Scripts:/mnt/c/Python38/Scripts/:/mnt/c/Python38/:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/ProgramData/chocolatey/bin:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/Program Files/dotnet/:/mnt/c/Program Files/NVIDIA Corporation/NVIDIA app/NvDLISR:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/nodejs/:/mnt/c/Program Files/WezTerm:/mnt/c/Program Files/GitHub CLI/:/mnt/c/Program Files/Tailscale/:/Docker/host/bin:/mnt/c/Users/Tim/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0/LocalCache/local-packages/Python310/Scripts:/mnt/c/Users/Tim/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/Tim/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Users/Tim/AppData/Local/Programs/Ollama:/mnt/c/Users/Tim/AppData/Roaming/npm:/mnt/f/Anti-Gravity/Antigravity/bin:/snap/bin:/mnt/c/Program Files/WezTerm"
+  },
+  "dry_run": false
+}

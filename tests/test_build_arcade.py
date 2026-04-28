@@ -86,6 +86,24 @@ class BuildArcadeTests(unittest.TestCase):
         self.assertIn('href="games/corebound/versions/0.1.0/"', card)
         self.assertIn("First descent", card)
 
+    def test_render_game_card_includes_local_thumbnail_art(self) -> None:
+        card = build_arcade.render_game_card(
+            {
+                "slug": "dark-factory-dispatch",
+                "title": "Dark Factory Dispatch",
+                "version": "0.0.1",
+                "status": "playable",
+                "summary": "Run the dispatch floor.",
+                "path": "games/dark-factory-dispatch/",
+                "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
+            }
+        )
+
+        self.assertIn("game-thumbnail", card)
+        self.assertIn('src="games/dark-factory-dispatch/assets/arcade-title-card.png"', card)
+        self.assertIn('aria-label="Dark Factory Dispatch title card"', card)
+        self.assertNotIn("://", card)
+
     def test_render_index_tolerates_games_without_versions(self) -> None:
         rendered = build_arcade.render_index(
             {

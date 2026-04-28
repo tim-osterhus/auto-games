@@ -96,6 +96,20 @@ def render_release_note(game: dict) -> str:
     """.rstrip()
 
 
+def render_thumbnail(game: dict) -> str:
+    thumbnail = game.get("thumbnail")
+    if not isinstance(thumbnail, str) or not thumbnail.strip():
+        return ""
+
+    title = escape(game.get("title", game.get("slug", "Untitled Game")))
+    src = escape(thumbnail.strip())
+    return f"""
+          <div class="game-thumbnail" aria-label="{title} title card">
+            <img src="{src}" alt="" loading="lazy" />
+          </div>
+    """.rstrip()
+
+
 def render_game_card(game: dict) -> str:
     title = escape(game.get("title", game.get("slug", "Untitled Game")))
     slug = escape(game.get("slug", "unknown"))
@@ -106,9 +120,11 @@ def render_game_card(game: dict) -> str:
     snapshots = render_version_snapshots(game)
     snapshot_deferral = render_snapshot_deferral(game)
     release_note = render_release_note(game)
+    thumbnail = render_thumbnail(game)
     return f"""
         <article class="game-card">
           <span class="signal-pill">{status} / v{version}</span>
+{thumbnail}
           <h3>{title}</h3>
           <p>{summary}</p>
 {release_note}

@@ -12,7 +12,28 @@ const DarkFactoryDispatch = (() => {
     "stability",
   ];
 
+  const ASSET_PATHS = {
+    sourceManifest: "assets/asset-manifest.json",
+    titleCard: "assets/arcade-title-card.png",
+    lanes: {
+      "forge-line": "assets/lane-forge-line.png",
+      "assembler-bay": "assets/lane-assembler-bay.png",
+      "clean-room": "assets/lane-clean-room.png",
+    },
+    jobs: {
+      "smelt-circuits": "assets/job-smelt-circuits.png",
+      "print-modules": "assets/job-print-modules.png",
+      "assemble-drones": "assets/job-assemble-drones.png",
+      "weave-defenses": "assets/job-weave-defenses.png",
+    },
+    faults: {
+      "material-jam": "assets/fault-material-jam.png",
+      "logic-drift": "assets/fault-logic-drift.png",
+    },
+  };
+
   const GAME_DATA = {
+    assets: ASSET_PATHS,
     resources: {
       scrap: { label: "Scrap", initial: 28 },
       circuits: { label: "Circuits", initial: 3 },
@@ -172,6 +193,13 @@ const DarkFactoryDispatch = (() => {
       return "none";
     }
     return keys.map((key) => `${key} ${bundle[key]}`).join(" / ");
+  }
+
+  function iconMarkup(src, className = "asset-icon") {
+    if (!src) {
+      return "";
+    }
+    return `<img class="${className}" src="${src}" alt="" aria-hidden="true" loading="lazy" decoding="async" />`;
   }
 
   function roundTenth(value) {
@@ -836,6 +864,9 @@ const DarkFactoryDispatch = (() => {
     dom.lanes.innerHTML = state.lanes.map((lane) => {
       const jobType = lane.currentJob ? byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId) : null;
       const jobText = jobType ? jobType.name : "idle bay";
+      const laneIcon = iconMarkup(ASSET_PATHS.lanes[lane.id], "asset-icon lane-icon");
+      const jobIcon = jobType ? iconMarkup(ASSET_PATHS.jobs[jobType.id], "asset-icon job-icon") : "";
+      const faultIcon = lane.fault ? iconMarkup(ASSET_PATHS.faults[lane.fault.id], "asset-icon fault-icon") : "";
       const faultText = lane.fault
         ? `${lane.fault.name} / ${lane.fault.phase} / ${lane.fault.decision} / ${formatBundle(lane.fault.recovery)}`
         : "clear";
@@ -843,18 +874,18 @@ const DarkFactoryDispatch = (() => {
       return `
         <article class="lane-card" data-status="${lane.status}">
           <div class="lane-title">
-            <strong>${lane.name}</strong>
+            <span class="asset-title">${laneIcon}<strong>${lane.name}</strong></span>
             <span class="status-pill">${statusText}</span>
           </div>
-          <div class="lane-job"><span>Current job</span>${jobText}</div>
+          <div class="lane-job"><span>Current job</span><div class="job-inline">${jobIcon}<strong>${jobText}</strong></div></div>
           <div class="progress-track" aria-label="${lane.name} progress" style="--progress: ${lane.progress}%"><span></span></div>
           <div class="lane-meta">
             <span>${lane.trait}</span>
             <span>rate ${lane.throughput}</span>
             <span>jam ${Math.round(lane.jamRisk * 100)}%</span>
             <span>recover ${lane.recoveryRemaining}</span>
-            <span>fault ${faultText}</span>
           </div>
+          <div class="fault-readout" data-active="${lane.fault ? "true" : "false"}">${faultIcon}<span>fault ${faultText}</span></div>
           <div class="lane-actions">
             <button type="button" data-action="assign" data-lane="${lane.id}">assign</button>
             <button type="button" data-action="start" data-lane="${lane.id}">start</button>
@@ -875,7 +906,7 @@ const DarkFactoryDispatch = (() => {
       return `
         <li class="queue-item">
           <div class="queue-title">
-            <strong>${jobType.name}</strong>
+            <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[entry.jobTypeId], "asset-icon queue-icon")}<strong>${jobType.name}</strong></span>
             <span class="status-pill">p${entry.priority}</span>
           </div>
           <div class="queue-meta">
@@ -940,7 +971,7 @@ const DarkFactoryDispatch = (() => {
     dom.jobs.innerHTML = GAME_DATA.jobTypes.map((jobType) => `
       <article class="job-card">
         <div class="job-title">
-          <strong>${jobType.name}</strong>
+          <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[jobType.id], "asset-icon job-icon")}<strong>${jobType.name}</strong></span>
           <span class="status-pill">${jobType.duration} ticks</span>
         </div>
         <div class="job-io">

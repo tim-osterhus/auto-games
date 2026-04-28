@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "asset_count": 10,
+  "assets": [
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-forge-line.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 12291,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4535590277777778,
+      "content_bbox": [
+        15,
+        11,
+        81,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-assembler-bay.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 13736,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.5399305555555556,
+      "content_bbox": [
+        11,
+        12,
+        85,
+        84
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-clean-room.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 12789,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.5260416666666666,
+      "content_bbox": [
+        11,
+        12,
+        85,
+        83
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-smelt-circuits.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 14362,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4568142361111111,
+      "content_bbox": [
+        11,
+        12,
+        85,
+        84
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-print-modules.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 12282,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4291449652777778,
+      "content_bbox": [
+        18,
+        11,
+        77,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-assemble-drones.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 12210,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4724392361111111,
+      "content_bbox": [
+        18,
+        11,
+        77,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-weave-defenses.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 13394,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4405381944444444,
+      "content_bbox": [
+        13,
+        11,
+        83,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/fault-material-jam.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 11307,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.4499782986111111,
+      "content_bbox": [
+        17,
+        11,
+        79,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/fault-logic-drift.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 14959,
+      "width": 96,
+      "height": 96,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.5523003472222222,
+      "content_bbox": [
+        11,
+        11,
+        84,
+        85
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/arcade-title-card.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 661788,
+      "width": 800,
+      "height": 450,
+      "has_alpha_channel": false,
+      "has_transparency": false,
+      "alpha_coverage": 1.0,
+      "content_bbox": [
+        0,
+        0,
+        800,
+        450
+      ]
+    }
+  ]
+}

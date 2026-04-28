@@ -136,6 +136,23 @@ select {
   padding: 16px 0;
 }
 
+.title-card-band {
+  height: clamp(118px, 17vw, 210px);
+  margin: 0 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #090d0b;
+  box-shadow: 0 18px 42px var(--shadow);
+}
+
+.title-card-band img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
 .readout {
   min-height: 58px;
   padding: 10px;
@@ -239,6 +256,40 @@ select {
   align-items: baseline;
 }
 
+.asset-title,
+.job-inline {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-title strong,
+.job-inline strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(75, 214, 192, 0.12));
+}
+
+.lane-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+
+.fault-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
 .lane-title strong,
 .queue-title strong,
 .job-title strong,
@@ -254,6 +305,25 @@ select {
   color: var(--muted);
   font-size: 0.68rem;
   text-transform: uppercase;
+}
+
+.fault-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.fault-readout[data-active="true"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.08);
+  color: var(--text);
 }
 
 .lane-card[data-status="running"] .status-pill,

@@ -147,7 +147,7 @@ class CoreboundArcadeReleaseTests(unittest.TestCase):
 
         self.assertIn("Corebound is playable.", index)
         self.assertIn("playable / v0.7.0", index)
-        self.assertIn("games <strong>1 game</strong>", index)
+        self.assertIn("games <strong>2 games</strong>", index)
         self.assertIn('href="games/corebound/"', index)
         self.assertIn("v0.7.0 HUD Breakthrough", index)
         self.assertIn("compact overlay HUD", index)
@@ -165,7 +165,7 @@ class CoreboundArcadeReleaseTests(unittest.TestCase):
         self.assertIn('href="games/corebound/versions/0.3.0/"', index)
         self.assertIn('href="games/corebound/versions/0.2.0/"', index)
         self.assertIn("commit db07d9e81cdb", index)
-        self.assertNotIn("Snapshot deferred", index)
+        self.assertNotIn('aria-label="Corebound snapshot continuity"', index)
         self.assertNotIn("uncommitted working-tree", index)
         self.assertNotIn("No playable builds are listed yet", index)
 

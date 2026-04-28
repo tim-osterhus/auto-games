@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "assets": [
+    {
+      "id": "lane-forge-line",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-forge-line.png",
+      "role": "icon",
+      "description": "Transparent compact heated forge module icon with amber heat and teal signal accents.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for forge-line lane selection or status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "lane-assembler-bay",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-assembler-bay.png",
+      "role": "icon",
+      "description": "Transparent balanced robotic assembler bay icon with paired arms and teal status details.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for assembler-bay lane selection or status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "lane-clean-room",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/lane-clean-room.png",
+      "role": "icon",
+      "description": "Transparent sealed clean-room fabrication module icon with gasketed chamber and teal viewport.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for clean-room lane selection or status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-smelt-circuits",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-smelt-circuits.png",
+      "role": "icon",
+      "description": "Transparent scrap plates and circuit-trace job icon with precise teal routing node.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for smelt-circuits work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-print-modules",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-print-modules.png",
+      "role": "icon",
+      "description": "Transparent stacked machine-module job icon with aligned ports and teal indicators.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for print-modules work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-assemble-drones",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-assemble-drones.png",
+      "role": "icon",
+      "description": "Transparent compact factory drones in a launch rack with teal readiness lights.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for assemble-drones work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-weave-defenses",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/job-weave-defenses.png",
+      "role": "icon",
+      "description": "Transparent defensive mesh and shield-plate job icon with teal energy weave.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for weave-defenses work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "fault-material-jam",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/fault-material-jam.png",
+      "role": "icon",
+      "description": "Transparent clogged feed-chute warning icon with blocked industrial intake and amber hazard accents.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Fault icon for material-jam warnings.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "fault-logic-drift",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/fault-logic-drift.png",
+      "role": "icon",
+      "description": "Transparent unstable processor-core warning icon with drifting teal circuit signals and amber containment frame.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Fault icon for logic-drift warnings.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "arcade-title-card",
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/dark-factory-dispatch/assets/arcade-title-card.png",
+      "role": "background",
+      "description": "Opaque dark factory dispatch floor title art with three production lanes, queue rails, and teal signal lines.",
+      "width": 800,
+      "height": 450,
+      "intended_use": "Title card, menu background, or game splash art.",
+      "notes": "Generated with Codex built-in image generation, center-cropped to 16:9, contrast/sharpness adjusted, and resized to 800x450 opaque PNG."
+    }
+  ],
+  "notes": "Created an original mono-first dark factory raster asset pack using Codex built-in image generation only; no OpenAI SDK, Images API, API key, logos, or readable UI labels were used. Transparent icons were produced through chroma-key removal and validated for alpha corners."
+}

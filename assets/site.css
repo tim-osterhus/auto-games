@@ -281,6 +281,21 @@ a {
   background: rgba(15, 21, 28, 0.78);
 }
 
+.game-thumbnail {
+  aspect-ratio: 16 / 9;
+  margin: 14px 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: #080d10;
+}
+
+.game-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .game-card:hover,
 .game-card:focus-within {
   border-color: rgba(78, 224, 207, 0.56);

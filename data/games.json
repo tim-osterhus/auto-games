@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release and the first Dark Factory Dispatch floor."
   },
   "games": [
     {
@@ -67,6 +67,24 @@
           "commit": "58d87d52128d3b3d53f01e6c52c72a81ae136896"
         }
       ]
+    },
+    {
+      "slug": "dark-factory-dispatch",
+      "title": "Dark Factory Dispatch",
+      "version": "0.0.1",
+      "status": "playable",
+      "summary": "Run a compact machine-intelligence factory by queueing jobs, assigning imperfect production lanes, recovering jams, meeting contract pressure, and buying upgrades between shifts.",
+      "path": "games/dark-factory-dispatch/",
+      "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
+      "release": {
+        "label": "v0.0.1 Dispatch Floor",
+        "copy": "Dispatch Floor introduces the three-lane factory board, resource-backed work orders, timed contracts, recoverable material and logic faults, upgrade choices, and original project-local lane, job, fault, and title-card art."
+      },
+      "snapshot": {
+        "status": "deferred",
+        "version": "0.0.1",
+        "reason": "Builder produced a working-tree release; commit-backed snapshot stamping is deferred until publication."
+      }
     }
   ]
 }
