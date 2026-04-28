@@ -3,21 +3,29 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.4.0 Natural Motion release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.5.0 Resistance Start release."
   },
   "games": [
     {
       "slug": "corebound",
       "title": "Corebound",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "status": "playable",
-      "summary": "Pilot Mantis-01 with held-input motion, camera-follow drilling, generated rig, terrain, ore, and hazard art, plus visible upgrade identity while Deep Charters, late routes, contracts, archive sets, and relay utilities keep the run strategic.",
+      "summary": "Pilot Mantis-01 through held-input motion, stateful terrain resistance, staged first-run objectives, visible menu help, generated rig and mine art, and progressively revealed contracts, Deep Charters, late routes, archives, relay utilities, upgrades, and research.",
       "path": "games/corebound/",
       "release": {
-        "label": "v0.4.0 Natural Motion",
-        "copy": "Natural Motion turns Corebound's tile-authored mine into a continuous vehicle run: held input accelerates the rig through collision-bridged cells, generated bitmap assets draw the pod, surface base, strata, ore and hazard readables, and upgrade or research icons visibly identify installed systems."
+        "label": "v0.5.0 Resistance Start",
+        "copy": "Resistance Start makes solid terrain bite back: held contact builds terrain-hardness progress with dust, sparks, heat, and energy pressure before cells clear, while first-run objectives and the persistent help menu stage launch, sustained drilling, ore, return, sell or refine, and first upgrades before surfacing advanced systems."
       },
       "versions": [
+        {
+          "version": "0.5.0",
+          "path": "games/corebound/versions/0.5.0/",
+          "releasedAt": "2026-04-28",
+          "label": "v0.5.0 Resistance Start",
+          "summary": "Stateful drill resistance, terrain-hardness contact progress, first-session objectives, persistent menu help, and staged system reveals land on top of the Natural Motion asset release.",
+          "commit": "6335ba3bda223a3bda745c8ae89427cf22de669b"
+        },
         {
           "version": "0.4.0",
           "path": "games/corebound/versions/0.4.0/",
