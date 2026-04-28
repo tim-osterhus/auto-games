@@ -30,12 +30,14 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertEqual("v0.0.1 Dispatch Floor", game["release"]["label"])
         self.assertIn("original project-local lane, job, fault, and title-card art", game["release"]["copy"])
 
-        snapshot = game["snapshot"]
-        self.assertEqual("deferred", snapshot["status"])
+        self.assertNotIn("snapshot", game)
+        snapshot = game["versions"][0]
         self.assertEqual("0.0.1", snapshot["version"])
-        self.assertIn("commit-backed", snapshot["reason"])
-        self.assertNotIn("commit", snapshot)
-        self.assertNotIn("releasedAt", snapshot)
+        self.assertEqual("games/dark-factory-dispatch/versions/0.0.1/", snapshot["path"])
+        self.assertEqual("2026-04-28", snapshot["releasedAt"])
+        self.assertEqual("v0.0.1 Dispatch Floor", snapshot["label"])
+        self.assertIn("Three-lane factory dispatch board", snapshot["summary"])
+        self.assertRegex(snapshot["commit"], r"^[0-9a-f]{40}$")
 
     def test_manifest_preserves_corebound_while_listing_two_games(self) -> None:
         manifest = load_manifest()
@@ -56,8 +58,23 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertIn('href="games/dark-factory-dispatch/"', html)
         self.assertIn('src="games/dark-factory-dispatch/assets/arcade-title-card.png"', html)
         self.assertIn("v0.0.1 Dispatch Floor", html)
-        self.assertIn("Snapshot deferred", html)
-        self.assertIn("Builder produced a working-tree release; commit-backed snapshot stamping is deferred until publication.", html)
+        self.assertIn("Snapshots", html)
+        self.assertIn('href="games/dark-factory-dispatch/versions/0.0.1/"', html)
+        self.assertNotIn("Snapshot deferred", html)
+
+    def test_snapshot_directory_preserves_playable_static_release(self) -> None:
+        snapshot_dir = ROOT / "games" / "dark-factory-dispatch" / "versions" / "0.0.1"
+        html = (snapshot_dir / "index.html").read_text(encoding="utf-8")
+        script = (snapshot_dir / "dark-factory-dispatch.js").read_text(encoding="utf-8")
+
+        self.assertIn("<title>Dark Factory Dispatch</title>", html)
+        self.assertIn("dark-factory-dispatch.css", html)
+        self.assertIn("dark-factory-dispatch.js", html)
+        self.assertIn('src="assets/arcade-title-card.png"', html)
+        self.assertNotIn("/versions/", script)
+        self.assertFalse((snapshot_dir / "versions").exists())
+        self.assertTrue((snapshot_dir / "assets" / "arcade-title-card.png").is_file())
+        self.assertRegex(game_by_slug("dark-factory-dispatch")["versions"][0]["commit"], r"^[0-9a-f]{40}$")
 
 
 if __name__ == "__main__":

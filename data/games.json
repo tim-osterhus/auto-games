@@ -80,11 +80,16 @@
         "label": "v0.0.1 Dispatch Floor",
         "copy": "Dispatch Floor introduces the three-lane factory board, resource-backed work orders, timed contracts, recoverable material and logic faults, upgrade choices, and original project-local lane, job, fault, and title-card art."
       },
-      "snapshot": {
-        "status": "deferred",
-        "version": "0.0.1",
-        "reason": "Builder produced a working-tree release; commit-backed snapshot stamping is deferred until publication."
-      }
+      "versions": [
+        {
+          "version": "0.0.1",
+          "path": "games/dark-factory-dispatch/versions/0.0.1/",
+          "releasedAt": "2026-04-28",
+          "label": "v0.0.1 Dispatch Floor",
+          "summary": "Three-lane factory dispatch board with queued jobs, timed contracts, recoverable material and logic faults, upgrade choices, and original local lane, job, fault, and title-card art.",
+          "commit": "1e2fa8193edbf7edc3138bcf7e88a0dc092acf75"
+        }
+      ]
     }
   ]
 }
