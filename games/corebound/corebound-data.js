@@ -202,6 +202,49 @@
         gravityShear: 5
       }
     },
+    materialRendering: {
+      strataBands: [
+        { to: 15, wash: "rgba(143, 161, 157, 0.07)", shadow: "rgba(5, 7, 8, 0.18)" },
+        { to: 34, wash: "rgba(82, 96, 94, 0.1)", shadow: "rgba(5, 7, 8, 0.22)" },
+        { to: 56, wash: "rgba(131, 168, 198, 0.08)", shadow: "rgba(5, 7, 8, 0.26)" },
+        { to: 82, wash: "rgba(71, 224, 195, 0.07)", shadow: "rgba(5, 7, 8, 0.31)" },
+        { to: 110, wash: "rgba(194, 165, 228, 0.06)", shadow: "rgba(5, 7, 8, 0.36)" },
+        { to: 999, wash: "rgba(211, 193, 122, 0.06)", shadow: "rgba(5, 7, 8, 0.42)" }
+      ],
+      terrainMaterials: {
+        loam: { bridge: "rgba(143, 161, 157, 0.1)", crack: "rgba(231, 240, 236, 0.22)", fleck: "rgba(213, 166, 73, 0.1)", textureAlpha: 0.46 },
+        gritstone: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.1)", textureAlpha: 0.52 },
+        ironClay: { bridge: "rgba(213, 111, 95, 0.1)", crack: "rgba(213, 166, 73, 0.2)", fleck: "rgba(215, 111, 95, 0.13)", textureAlpha: 0.5 },
+        basaltLock: { bridge: "rgba(82, 96, 94, 0.15)", crack: "rgba(143, 161, 157, 0.2)", fleck: "rgba(71, 224, 195, 0.08)", textureAlpha: 0.58 },
+        pressureGlass: { bridge: "rgba(131, 168, 198, 0.12)", crack: "rgba(131, 168, 198, 0.33)", fleck: "rgba(71, 224, 195, 0.11)", textureAlpha: 0.62 },
+        shaleFault: { bridge: "rgba(143, 161, 157, 0.12)", crack: "rgba(231, 240, 236, 0.24)", fleck: "rgba(131, 168, 198, 0.1)", textureAlpha: 0.55 },
+        thermalBasalt: { bridge: "rgba(215, 111, 95, 0.11)", crack: "rgba(213, 111, 95, 0.34)", fleck: "rgba(213, 166, 73, 0.14)", textureAlpha: 0.6 },
+        machineRib: { bridge: "rgba(71, 224, 195, 0.11)", crack: "rgba(71, 224, 195, 0.24)", fleck: "rgba(131, 168, 198, 0.12)", textureAlpha: 0.6 },
+        coreRind: { bridge: "rgba(194, 165, 228, 0.11)", crack: "rgba(194, 165, 228, 0.28)", fleck: "rgba(213, 166, 73, 0.12)", textureAlpha: 0.64 },
+        choirSlate: { bridge: "rgba(71, 224, 195, 0.12)", crack: "rgba(71, 224, 195, 0.34)", fleck: "rgba(231, 240, 236, 0.1)", textureAlpha: 0.66 },
+        anchorRib: { bridge: "rgba(213, 166, 73, 0.12)", crack: "rgba(211, 193, 122, 0.34)", fleck: "rgba(71, 224, 195, 0.1)", textureAlpha: 0.66 }
+      },
+      oreDeposits: {
+        copperSeed: { form: "cluster", pocket: "rgba(213, 154, 83, 0.22)", seamAlpha: 0.7 },
+        saltglass: { form: "pocket", pocket: "rgba(185, 217, 206, 0.2)", seamAlpha: 0.62 },
+        cobaltThread: { form: "thread", pocket: "rgba(112, 156, 204, 0.22)", seamAlpha: 0.68 },
+        nickelBloom: { form: "cluster", pocket: "rgba(158, 167, 123, 0.2)", seamAlpha: 0.62 },
+        emberFossil: { form: "vein", pocket: "rgba(213, 110, 87, 0.2)", seamAlpha: 0.72 },
+        vaporCrystal: { form: "pocket", pocket: "rgba(125, 215, 200, 0.2)", seamAlpha: 0.68 },
+        prismMarrow: { form: "thread", pocket: "rgba(194, 165, 228, 0.22)", seamAlpha: 0.7 },
+        archiveShard: { form: "pocket", pocket: "rgba(215, 208, 168, 0.2)", seamAlpha: 0.68 },
+        coreMote: { form: "cluster", pocket: "rgba(226, 182, 111, 0.22)", seamAlpha: 0.72 },
+        echoPearl: { form: "pocket", pocket: "rgba(167, 223, 209, 0.22)", seamAlpha: 0.7 },
+        relayCore: { form: "vein", pocket: "rgba(211, 193, 122, 0.22)", seamAlpha: 0.76 }
+      },
+      hazardInclusions: {
+        gasVent: { form: "vent", pocket: "rgba(132, 169, 124, 0.2)", seamAlpha: 0.62 },
+        heatFissure: { form: "fissure", pocket: "rgba(215, 111, 95, 0.24)", seamAlpha: 0.78 },
+        pressureFault: { form: "fault", pocket: "rgba(131, 168, 198, 0.22)", seamAlpha: 0.68 },
+        magneticBloom: { form: "bloom", pocket: "rgba(194, 165, 228, 0.22)", seamAlpha: 0.72 },
+        gravityShear: { form: "shear", pocket: "rgba(211, 193, 122, 0.22)", seamAlpha: 0.76 }
+      }
+    },
     terrainTypes: {
       loam: {
         label: "Loam plate",

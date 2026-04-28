@@ -12,6 +12,9 @@
   --warning: #d5a649;
   --danger: #d76f5f;
   --blue: #83a8c6;
+  --strata-warm: rgba(213, 166, 73, 0.08);
+  --strata-cool: rgba(131, 168, 198, 0.08);
+  --strata-signal: rgba(71, 224, 195, 0.07);
   --shadow: rgba(0, 0, 0, 0.35);
   font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -31,7 +34,8 @@ body {
 body {
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(71, 224, 195, 0.05), transparent 22rem),
+    linear-gradient(180deg, rgba(71, 224, 195, 0.05), transparent 18rem),
+    linear-gradient(180deg, transparent 0 38%, var(--strata-cool) 38% 39%, transparent 39% 58%, var(--strata-warm) 58% 59%, transparent 59% 78%, var(--strata-signal) 78% 79%, transparent 79%),
     linear-gradient(180deg, #070a0c 0%, #090d0e 100%);
   color: var(--ink);
 }
@@ -129,7 +133,9 @@ h1 {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: rgba(13, 18, 20, 0.92);
+  background:
+    linear-gradient(180deg, rgba(71, 224, 195, 0.04), transparent 34%),
+    rgba(13, 18, 20, 0.92);
   box-shadow: 0 18px 60px var(--shadow);
 }
 
@@ -147,7 +153,7 @@ h1 {
   height: 100%;
   min-height: 0;
   display: block;
-  background: #050708;
+  background: #040607;
 }
 
 #corebound-canvas:focus-visible {

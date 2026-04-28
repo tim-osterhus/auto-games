@@ -90,6 +90,7 @@
 
   const startingCellX = Math.floor(DATA.world.width / 2);
   const ASSET_DATA = DATA.assets || { images: {} };
+  const MATERIAL_RENDERING = DATA.materialRendering || {};
   const assetImages = {};
 
   function loadAssetImages() {
@@ -197,6 +198,7 @@
     },
     drillContact: null,
     completedDrillCell: null,
+    breakageBursts: [],
     cargo: [],
     resources: {
       credits: 0,
@@ -1971,6 +1973,39 @@
     return true;
   }
 
+  function addBreakageBurst(x, y, terrainKey, oreKey, hazardKey) {
+    state.breakageBursts = state.breakageBursts.filter((burst) => burst.age < burst.duration);
+    state.breakageBursts.push({
+      x,
+      y,
+      terrainKey,
+      oreKey,
+      hazardKey,
+      age: 0,
+      duration: 0.82
+    });
+  }
+
+  function updateBreakageBursts(dt) {
+    if (!state.breakageBursts.length) {
+      return;
+    }
+    for (const burst of state.breakageBursts) {
+      burst.age += dt;
+    }
+    state.breakageBursts = state.breakageBursts.filter((burst) => burst.age < burst.duration);
+  }
+
+  function breakageBurstForCell(worldX, worldY) {
+    for (let index = state.breakageBursts.length - 1; index >= 0; index -= 1) {
+      const burst = state.breakageBursts[index];
+      if (burst.x === worldX && burst.y === worldY) {
+        return burst;
+      }
+    }
+    return null;
+  }
+
   function drillCompletionCost(targetY, terrain, stats) {
     const pressure = pressureTier(targetY);
     return Math.max(1, terrain.energyCost + pressure - stats.drillCostReduction);
@@ -2119,6 +2154,20 @@
     return true;
   }
 
+  function setPostBreakMotion(contact) {
+    const settleSpeed = Math.max(1.1, motionSettings().maxSpeed * 0.34);
+    state.motion.worldX = state.player.x - contact.dx * 0.18;
+    state.motion.worldY = state.player.y - contact.dy * 0.18;
+    if (contact.dx) {
+      state.motion.velocityX = contact.dx * settleSpeed;
+      state.motion.velocityY = approachZero(state.motion.velocityY, settleSpeed * 0.08);
+    }
+    if (contact.dy) {
+      state.motion.velocityY = contact.dy * settleSpeed;
+      state.motion.velocityX = approachZero(state.motion.velocityX, settleSpeed * 0.08);
+    }
+  }
+
   function completeDrillContact(contact) {
     const targetX = contact.targetX;
     const targetY = contact.targetY;
@@ -2142,8 +2191,7 @@
     const entered = enterCell(targetX, targetY, contact.dx, contact.dy);
     state.completedDrillCell = null;
     if (entered && !state.docked) {
-      state.motion.worldX = state.player.x;
-      state.motion.worldY = state.player.y;
+      setPostBreakMotion(contact);
     }
     updateHud();
     return entered;
@@ -2228,12 +2276,16 @@
       state.hull = Math.max(0, state.hull - hullRisk * 4);
     }
 
+    const brokenTerrainKey = cell.terrain;
+    const brokenOreKey = cell.ore;
+    const brokenHazardKey = cell.hazard;
     if (cell.ore) {
       collectOre(cell.ore);
     } else {
       setMessage(`${terrain.label} cut.`);
     }
 
+    addBreakageBurst(x, y, brokenTerrainKey, brokenOreKey, brokenHazardKey);
     cell.kind = "tunnel";
     cell.terrain = null;
     cell.ore = null;
@@ -2462,13 +2514,38 @@
     motion.worldY = clamp(proposedY, -0.49, DATA.world.depth + 0.49);
   }
 
+  function cameraMaterialShake() {
+    let x = 0;
+    let y = 0;
+    const contact = state.drillContact;
+    if (contact) {
+      const ratio = contact.required ? clamp(contact.progress / contact.required, 0, 1) : 0;
+      const pulse = Math.sin(state.motion.animTime * 44) * (0.012 + ratio * 0.012);
+      x -= contact.dx * pulse;
+      y -= contact.dy * pulse;
+    }
+
+    for (const burst of state.breakageBursts) {
+      const life = clamp(1 - burst.age / burst.duration, 0, 1);
+      if (life <= 0) {
+        continue;
+      }
+      x += Math.sin(state.motion.animTime * 38 + burst.x) * life * 0.006;
+      y += Math.cos(state.motion.animTime * 41 + burst.y) * life * 0.006;
+    }
+    return { x, y };
+  }
+
   function updateCamera(dt) {
     const shape = viewportShape();
     const target = cameraTarget(shape.cols, shape.rows);
     const follow = motionSettings().cameraFollow;
     const blend = dt ? 1 - Math.exp(-follow * dt) : 1;
-    state.motion.cameraX += (target.x - state.motion.cameraX) * blend;
-    state.motion.cameraY += (target.y - state.motion.cameraY) * blend;
+    const materialShake = cameraMaterialShake();
+    const shakenX = target.x + materialShake.x;
+    const shakenY = target.y + materialShake.y;
+    state.motion.cameraX += (shakenX - state.motion.cameraX) * blend;
+    state.motion.cameraY += (shakenY - state.motion.cameraY) * blend;
   }
 
   function oreCounts() {
@@ -2913,6 +2990,109 @@
     return (ASSET_DATA.terrainTextures || {})[terrainKey] || null;
   }
 
+  function terrainMaterial(terrainKey) {
+    const materials = MATERIAL_RENDERING.terrainMaterials || {};
+    return materials[terrainKey] || {};
+  }
+
+  function materialStrataBand(worldY) {
+    const bands = MATERIAL_RENDERING.strataBands || [];
+    return bands.find((band) => worldY <= band.to) || { wash: "rgba(143, 161, 157, 0.06)", shadow: "rgba(5, 7, 8, 0.28)" };
+  }
+
+  function solidTerrainNeighbor(cell, worldX, worldY, dx, dy) {
+    const neighbor = cellAt(worldX + dx, worldY + dy);
+    return neighbor && neighbor.kind === "solid" ? neighbor : null;
+  }
+
+  function sameMaterialNeighbor(cell, worldX, worldY, dx, dy) {
+    const neighbor = solidTerrainNeighbor(cell, worldX, worldY, dx, dy);
+    return neighbor && neighbor.terrain === cell.terrain;
+  }
+
+  function drawTextureWindow(image, screenX, screenY, size, worldX, worldY) {
+    const sourceSize = Math.min(image.width, image.height, 96);
+    const maxX = Math.max(0, image.width - sourceSize);
+    const maxY = Math.max(0, image.height - sourceSize);
+    const sourceX = Math.floor(hash(worldX, worldY, 131) * maxX);
+    const sourceY = Math.floor(hash(worldX, worldY, 137) * maxY);
+    ctx.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, screenX, screenY, size, size);
+  }
+
+  function drawMaterialBridge(cell, screenX, screenY, size, worldX, worldY, material) {
+    const seam = Math.max(1, size * 0.045);
+    const bridgeFill = material.bridge || "rgba(143, 161, 157, 0.1)";
+    ctx.save();
+    ctx.fillStyle = bridgeFill;
+    if (sameMaterialNeighbor(cell, worldX, worldY, -1, 0)) {
+      ctx.fillRect(screenX - seam * 0.5, screenY, seam, size);
+    }
+    if (sameMaterialNeighbor(cell, worldX, worldY, 1, 0)) {
+      ctx.fillRect(screenX + size - seam * 0.5, screenY, seam, size);
+    }
+    if (sameMaterialNeighbor(cell, worldX, worldY, 0, -1)) {
+      ctx.fillRect(screenX, screenY - seam * 0.5, size, seam);
+    }
+    if (sameMaterialNeighbor(cell, worldX, worldY, 0, 1)) {
+      ctx.fillRect(screenX, screenY + size - seam * 0.5, size, seam);
+    }
+    ctx.restore();
+  }
+
+  function drawMaterialSilhouette(cell, screenX, screenY, size, worldX, worldY) {
+    const edges = [
+      [-1, 0, screenX, screenY, screenX, screenY + size],
+      [1, 0, screenX + size, screenY, screenX + size, screenY + size],
+      [0, -1, screenX, screenY, screenX + size, screenY],
+      [0, 1, screenX, screenY + size, screenX + size, screenY + size]
+    ];
+
+    ctx.save();
+    ctx.lineWidth = Math.max(1, size * 0.025);
+    for (const edge of edges) {
+      const neighbor = solidTerrainNeighbor(cell, worldX, worldY, edge[0], edge[1]);
+      const openBoundary = !neighbor;
+      const terrainShift = neighbor && neighbor.terrain !== cell.terrain;
+      if (!openBoundary && !terrainShift) {
+        continue;
+      }
+      ctx.strokeStyle = openBoundary ? "rgba(5, 7, 8, 0.52)" : "rgba(231, 240, 236, 0.12)";
+      ctx.beginPath();
+      ctx.moveTo(edge[2], edge[3]);
+      ctx.lineTo(edge[4], edge[5]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawTerrainCracks(cell, screenX, screenY, size, worldX, worldY, material) {
+    const terrain = DATA.terrainTypes[cell.terrain];
+    const crackCount = 1 + Math.floor(hash(worldX, worldY, 149) * 3);
+    ctx.save();
+    ctx.lineWidth = Math.max(1, size * 0.022);
+    ctx.strokeStyle = material.crack || terrain.edge;
+    for (let index = 0; index < crackCount; index += 1) {
+      const seed = index * 17;
+      const startX = screenX + size * (0.12 + hash(worldX, worldY, 151 + seed) * 0.76);
+      const startY = screenY + size * (0.18 + hash(worldX, worldY, 153 + seed) * 0.64);
+      const length = size * (0.18 + hash(worldX, worldY, 157 + seed) * 0.3);
+      const angle = (hash(worldX, worldY, 159 + seed) - 0.5) * Math.PI * 0.9;
+      ctx.globalAlpha = 0.36 + hash(worldX, worldY, 161 + seed) * 0.26;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(startX + Math.cos(angle) * length, startY + Math.sin(angle) * length);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.32;
+    ctx.strokeStyle = material.fleck || "rgba(231, 240, 236, 0.12)";
+    ctx.beginPath();
+    const bandY = screenY + size * (0.18 + hash(worldX, worldY, 167) * 0.62);
+    ctx.moveTo(screenX + size * 0.08, bandY);
+    ctx.lineTo(screenX + size * 0.92, bandY + (hash(worldX, worldY, 173) - 0.5) * size * 0.12);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawSurfaceCell(screenX, screenY, size, worldX) {
     const launchContext = worldX === startingCellX ? loadedAsset("surface.launch_shaft_context") : null;
     const facilities = loadedAsset("surface.facilities_panel");
@@ -2939,25 +3119,32 @@
 
   function drawTextureTile(cell, screenX, screenY, size, worldX, worldY) {
     const terrain = DATA.terrainTypes[cell.terrain];
+    const material = terrainMaterial(cell.terrain);
+    const band = materialStrataBand(worldY);
     const image = loadedAsset(terrainTextureId(cell.terrain));
 
     ctx.fillStyle = terrain.color;
     ctx.fillRect(screenX, screenY, size, size);
     if (image) {
       ctx.save();
-      ctx.globalAlpha = 0.68;
-      ctx.drawImage(image, 0, 0, image.width, image.height, screenX, screenY, size, size);
+      ctx.globalAlpha = material.textureAlpha || 0.56;
+      drawTextureWindow(image, screenX, screenY, size, worldX, worldY);
       ctx.restore();
-      ctx.fillStyle = "rgba(5, 7, 8, 0.22)";
-      ctx.fillRect(screenX, screenY, size, size);
     }
 
-    ctx.strokeStyle = terrain.edge;
-    ctx.strokeRect(screenX + 1, screenY + 1, size - 2, size - 2);
+    ctx.fillStyle = band.wash;
+    ctx.fillRect(screenX, screenY, size, size);
+    ctx.fillStyle = band.shadow;
+    ctx.fillRect(screenX, screenY + size * 0.56, size, size * 0.44);
+    drawMaterialBridge(cell, screenX, screenY, size, worldX, worldY, material);
+    drawTerrainCracks(cell, screenX, screenY, size, worldX, worldY, material);
+    drawMaterialSilhouette(cell, screenX, screenY, size, worldX, worldY);
 
     const grain = hash(worldX, worldY, 101);
-    ctx.fillStyle = `rgba(231, 240, 236, ${0.04 + grain * 0.07})`;
-    ctx.fillRect(screenX + size * 0.18, screenY + size * 0.2, size * 0.2, size * 0.08);
+    ctx.fillStyle = material.fleck || `rgba(231, 240, 236, ${0.04 + grain * 0.07})`;
+    ctx.globalAlpha = 0.42;
+    ctx.fillRect(screenX + size * (0.12 + grain * 0.32), screenY + size * (0.16 + hash(worldX, worldY, 109) * 0.52), size * 0.18, Math.max(1, size * 0.055));
+    ctx.globalAlpha = 1;
   }
 
   function drillContactForCell(worldX, worldY) {
@@ -2966,6 +3153,34 @@
       return null;
     }
     return contact;
+  }
+
+  function materialPocketPath(cx, cy, radiusX, radiusY, seed, rotation) {
+    const points = 9;
+    ctx.beginPath();
+    for (let index = 0; index < points; index += 1) {
+      const angle = rotation + (index / points) * Math.PI * 2;
+      const jitter = 0.76 + hash(seed, index, 191) * 0.34;
+      const x = cx + Math.cos(angle) * radiusX * jitter;
+      const y = cy + Math.sin(angle) * radiusY * jitter;
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+  }
+
+  function drawReadableInPocket(kind, key, cx, cy, size, seed, rotation) {
+    const iconSize = size * 0.5;
+    ctx.save();
+    materialPocketPath(cx, cy, size * 0.28, size * 0.22, seed, rotation);
+    ctx.clip();
+    ctx.globalAlpha = 0.5;
+    const drawn = drawReadableIcon(kind, key, cx - iconSize * 0.5, cy - iconSize * 0.5, iconSize);
+    ctx.restore();
+    return drawn;
   }
 
   function drawDrillContactFeedback(contact, screenX, screenY, size) {
@@ -3016,56 +3231,166 @@
     return drawAtlasSlot("readables.ore_hazard_atlas", slot, screenX, screenY, size);
   }
 
-  function drawHazardMark(cell, screenX, screenY, size) {
+  function drawEmbeddedHazardPocket(cell, screenX, screenY, size, worldX, worldY) {
+    const hazard = DATA.hazardTypes[cell.hazard];
+    const inclusion = (MATERIAL_RENDERING.hazardInclusions || {})[cell.hazard] || {};
+    const seed = worldX * 31 + worldY * 43;
+    const cx = screenX + size * (0.45 + (hash(worldX, worldY, 211) - 0.5) * 0.18);
+    const cy = screenY + size * (0.56 + (hash(worldX, worldY, 213) - 0.5) * 0.18);
+    const rotation = (hash(worldX, worldY, 217) - 0.5) * Math.PI;
+
+    ctx.save();
+    materialPocketPath(cx, cy, size * 0.34, size * 0.2, seed, rotation);
+    ctx.fillStyle = "rgba(5, 7, 8, 0.5)";
+    ctx.fill();
+    materialPocketPath(cx, cy, size * 0.29, size * 0.16, seed + 5, rotation);
+    ctx.fillStyle = inclusion.pocket || hazard.color;
+    ctx.fill();
+
+    ctx.strokeStyle = hazard.color;
+    ctx.globalAlpha = inclusion.seamAlpha || 0.66;
+    ctx.lineWidth = Math.max(1, size * 0.04);
+    const lines = inclusion.form === "vent" ? 4 : 3;
+    for (let index = 0; index < lines; index += 1) {
+      const drift = (index - (lines - 1) * 0.5) * size * 0.12;
+      ctx.beginPath();
+      if (inclusion.form === "fault" || inclusion.form === "shear") {
+        ctx.moveTo(cx - size * 0.34, cy + drift);
+        ctx.lineTo(cx + size * 0.34, cy - drift * 0.55);
+      } else if (inclusion.form === "bloom") {
+        ctx.arc(cx, cy, size * (0.1 + index * 0.055), rotation, rotation + Math.PI * 1.35);
+      } else {
+        ctx.moveTo(cx + drift, cy - size * 0.22);
+        ctx.lineTo(cx - drift * 0.45, cy + size * 0.22);
+      }
+      ctx.stroke();
+    }
+
+    drawReadableInPocket("hazard", cell.hazard, cx, cy, size, seed + 11, rotation);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = hazard.color;
+    ctx.fillRect(screenX + size * 0.16, screenY + size * 0.84, size * 0.68, Math.max(2, size * 0.045));
+    ctx.restore();
+  }
+
+  function drawHazardMark(cell, screenX, screenY, size, worldX, worldY) {
     if (!cell.hazard) {
       return;
     }
 
-    const hazard = DATA.hazardTypes[cell.hazard];
-    const iconSize = size * 0.42;
-    const iconX = screenX + size * 0.29;
-    const iconY = screenY + size * 0.5;
-
-    ctx.fillStyle = "rgba(5, 7, 8, 0.66)";
-    ctx.fillRect(iconX - size * 0.06, iconY - size * 0.04, iconSize + size * 0.12, iconSize + size * 0.08);
-    if (!drawReadableIcon("hazard", cell.hazard, iconX, iconY, iconSize)) {
-      ctx.fillStyle = hazard.color;
-      ctx.fillRect(screenX + size * 0.14, screenY + size * 0.78, size * 0.72, Math.max(2, size * 0.07));
-    }
-    ctx.fillStyle = hazard.color;
-    ctx.fillRect(screenX + size * 0.14, screenY + size * 0.84, size * 0.72, Math.max(2, size * 0.06));
-    ctx.strokeStyle = "rgba(5, 7, 8, 0.72)";
-    ctx.strokeRect(screenX + size * 0.14, screenY + size * 0.84, size * 0.72, Math.max(2, size * 0.06));
+    drawEmbeddedHazardPocket(cell, screenX, screenY, size, worldX || 0, worldY || 0);
   }
 
-  function drawOreMark(cell, screenX, screenY, size) {
+  function drawEmbeddedOreDeposit(cell, screenX, screenY, size, worldX, worldY) {
     const ore = DATA.oreTypes[cell.ore];
-    const cx = screenX + size / 2;
-    const cy = screenY + size * 0.43;
-    const iconSize = size * 0.58;
-    const iconX = cx - iconSize / 2;
-    const iconY = cy - iconSize / 2;
+    const deposit = (MATERIAL_RENDERING.oreDeposits || {})[cell.ore] || {};
+    const seed = worldX * 37 + worldY * 47;
+    const cx = screenX + size * (0.5 + (hash(worldX, worldY, 229) - 0.5) * 0.16);
+    const cy = screenY + size * (0.43 + (hash(worldX, worldY, 233) - 0.5) * 0.16);
+    const rotation = (hash(worldX, worldY, 239) - 0.5) * Math.PI * 0.7;
 
-    ctx.fillStyle = "rgba(5, 7, 8, 0.68)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.34, 0, Math.PI * 2);
+    ctx.save();
+    materialPocketPath(cx, cy, size * 0.36, size * 0.24, seed, rotation);
+    ctx.fillStyle = "rgba(5, 7, 8, 0.5)";
     ctx.fill();
-    if (!drawReadableIcon("ore", cell.ore, iconX, iconY, iconSize)) {
-      const r = size * 0.2;
-      ctx.fillStyle = ore.color;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - r);
-      ctx.lineTo(cx + r, cy);
-      ctx.lineTo(cx, cy + r);
-      ctx.lineTo(cx - r, cy);
-      ctx.closePath();
-      ctx.fill();
-    }
+    materialPocketPath(cx, cy, size * 0.3, size * 0.18, seed + 3, rotation);
+    ctx.fillStyle = deposit.pocket || ore.color;
+    ctx.fill();
+
     ctx.strokeStyle = ore.color;
-    ctx.lineWidth = Math.max(1, Math.floor(size * 0.04));
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.33, 0, Math.PI * 2);
+    ctx.globalAlpha = deposit.seamAlpha || 0.66;
+    ctx.lineWidth = Math.max(1, size * 0.035);
+    const veins = deposit.form === "cluster" ? 5 : 3;
+    for (let index = 0; index < veins; index += 1) {
+      const t = index / Math.max(1, veins - 1);
+      const spread = (t - 0.5) * size * 0.36;
+      ctx.beginPath();
+      if (deposit.form === "cluster") {
+        const chipX = cx + (hash(seed, index, 241) - 0.5) * size * 0.42;
+        const chipY = cy + (hash(seed, index, 243) - 0.5) * size * 0.28;
+        ctx.rect(chipX, chipY, Math.max(2, size * 0.07), Math.max(2, size * 0.055));
+      } else if (deposit.form === "thread") {
+        ctx.moveTo(cx + spread * 0.4, cy - size * 0.24);
+        ctx.lineTo(cx - spread * 0.2, cy + size * 0.24);
+      } else {
+        ctx.moveTo(cx - size * 0.32, cy + spread * 0.35);
+        ctx.lineTo(cx + size * 0.32, cy - spread * 0.2);
+      }
+      ctx.stroke();
+    }
+
+    drawReadableInPocket("ore", cell.ore, cx, cy, size, seed + 17, rotation);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = ore.color;
+    ctx.lineWidth = Math.max(1, size * 0.022);
+    materialPocketPath(cx, cy, size * 0.35, size * 0.23, seed + 29, rotation);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawOreMark(cell, screenX, screenY, size, worldX, worldY) {
+    drawEmbeddedOreDeposit(cell, screenX, screenY, size, worldX, worldY);
+  }
+
+  function drawBreakageBurst(burst, screenX, screenY, size) {
+    if (!burst) {
+      return;
+    }
+    const life = clamp(1 - burst.age / burst.duration, 0, 1);
+    const terrain = DATA.terrainTypes[burst.terrainKey] || {};
+    const material = terrainMaterial(burst.terrainKey);
+    ctx.save();
+    ctx.globalAlpha = life;
+    ctx.fillStyle = material.fleck || terrain.edge || "rgba(143, 161, 157, 0.28)";
+    for (let index = 0; index < 8; index += 1) {
+      const angle = hash(burst.x, burst.y, 251 + index) * Math.PI * 2;
+      const distance = size * (0.08 + (1 - life) * 0.28 + hash(burst.x, burst.y, 257 + index) * 0.16);
+      const chipSize = Math.max(1.5, size * (0.035 + hash(burst.x, burst.y, 263 + index) * 0.04));
+      const chipX = screenX + size * 0.5 + Math.cos(angle) * distance;
+      const chipY = screenY + size * 0.5 + Math.sin(angle) * distance;
+      ctx.fillRect(chipX, chipY, chipSize, chipSize);
+    }
+    if (burst.oreKey) {
+      const ore = DATA.oreTypes[burst.oreKey];
+      ctx.strokeStyle = ore.color;
+      ctx.lineWidth = Math.max(1, size * 0.04);
+      ctx.beginPath();
+      ctx.arc(screenX + size * 0.5, screenY + size * 0.48, size * (0.16 + (1 - life) * 0.12), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (burst.hazardKey) {
+      const hazard = DATA.hazardTypes[burst.hazardKey];
+      ctx.strokeStyle = hazard.color;
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(screenX + size * 0.24, screenY + size * 0.72);
+      ctx.lineTo(screenX + size * 0.76, screenY + size * 0.28);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawTunnelCell(cell, screenX, screenY, size, worldX, worldY) {
+    ctx.fillStyle = worldY % 2 === 0 ? "#070a0b" : "#080c0d";
+    ctx.fillRect(screenX, screenY, size, size);
+    const edgeShade = "rgba(5, 7, 8, 0.58)";
+    ctx.fillStyle = edgeShade;
+    if (solidTerrainNeighbor(cell, worldX, worldY, -1, 0)) {
+      ctx.fillRect(screenX, screenY, size * 0.08, size);
+    }
+    if (solidTerrainNeighbor(cell, worldX, worldY, 1, 0)) {
+      ctx.fillRect(screenX + size * 0.92, screenY, size * 0.08, size);
+    }
+    if (solidTerrainNeighbor(cell, worldX, worldY, 0, -1)) {
+      ctx.fillRect(screenX, screenY, size, size * 0.08);
+    }
+    if (solidTerrainNeighbor(cell, worldX, worldY, 0, 1)) {
+      ctx.fillRect(screenX, screenY + size * 0.92, size, size * 0.08);
+    }
+    ctx.fillStyle = "rgba(143, 161, 157, 0.08)";
+    ctx.fillRect(screenX + size * 0.18, screenY + size * 0.5, size * 0.64, Math.max(1, size * 0.045));
+    drawBreakageBurst(breakageBurstForCell(worldX, worldY), screenX, screenY, size);
+    drawHazardMark(cell, screenX, screenY, size, worldX, worldY);
   }
 
   function drawCell(cell, screenX, screenY, size, worldX, worldY) {
@@ -3075,18 +3400,14 @@
     }
 
     if (cell.kind === "tunnel") {
-      ctx.fillStyle = worldY % 2 === 0 ? "#080b0c" : "#090d0e";
-      ctx.fillRect(screenX, screenY, size, size);
-      ctx.strokeStyle = "rgba(82, 96, 94, 0.16)";
-      ctx.strokeRect(screenX + 0.5, screenY + 0.5, size - 1, size - 1);
-      drawHazardMark(cell, screenX, screenY, size);
+      drawTunnelCell(cell, screenX, screenY, size, worldX, worldY);
       return;
     }
 
     drawTextureTile(cell, screenX, screenY, size, worldX, worldY);
 
     if (!cell.ore) {
-      drawHazardMark(cell, screenX, screenY, size);
+      drawHazardMark(cell, screenX, screenY, size, worldX, worldY);
       const contact = drillContactForCell(worldX, worldY);
       if (contact) {
         drawDrillContactFeedback(contact, screenX, screenY, size);
@@ -3094,8 +3415,8 @@
       return;
     }
 
-    drawOreMark(cell, screenX, screenY, size);
-    drawHazardMark(cell, screenX, screenY, size);
+    drawOreMark(cell, screenX, screenY, size, worldX, worldY);
+    drawHazardMark(cell, screenX, screenY, size, worldX, worldY);
     const contact = drillContactForCell(worldX, worldY);
     if (contact) {
       drawDrillContactFeedback(contact, screenX, screenY, size);
@@ -3404,6 +3725,7 @@
     state.motion.lastFrame = timestamp;
     state.motion.animTime += dt;
     updateMotion(dt);
+    updateBreakageBursts(dt);
     updateCamera(dt);
     render();
     window.requestAnimationFrame(gameLoop);
