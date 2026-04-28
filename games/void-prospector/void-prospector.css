@@ -219,12 +219,42 @@ input {
   padding: 10px;
 }
 
-.target-data span {
+.target-data span,
+.action-panel button {
   min-height: 32px;
   padding: 8px;
   border: 1px solid var(--line-soft);
   color: var(--text);
   overflow-wrap: anywhere;
+}
+
+.action-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.action-panel button {
+  cursor: pointer;
+  border-radius: 0;
+  background: rgba(75, 214, 192, 0.08);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.action-panel button:hover,
+.action-panel button:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal);
+  outline: none;
+}
+
+.action-panel button:disabled {
+  cursor: not-allowed;
+  border-color: rgba(132, 148, 140, 0.14);
+  background: rgba(132, 148, 140, 0.04);
+  color: var(--dim);
 }
 
 .control-strip {

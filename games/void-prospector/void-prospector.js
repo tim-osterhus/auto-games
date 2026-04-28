@@ -17,6 +17,10 @@ const VoidProspector = (() => {
       turnLeft: ["KeyA", "ArrowLeft"],
       turnRight: ["KeyD", "ArrowRight"],
       retarget: ["Tab", "KeyE"],
+      mine: ["Space", "KeyM"],
+      interact: ["Enter", "KeyF"],
+      upgrade: ["KeyU"],
+      reset: ["KeyR"],
     },
     ship: {
       name: "Prospector Kite",
@@ -29,6 +33,7 @@ const VoidProspector = (() => {
       maxSpeed: 18,
       turnRate: 2.2,
       fuelBurnPerSecond: 4,
+      miningPower: 1,
       startPosition: { x: 0, y: 0, z: 18 },
       startVelocity: { x: 0, y: 0, z: 0 },
       startHeading: 0,
@@ -45,12 +50,12 @@ const VoidProspector = (() => {
       name: "Frontier Spoke",
       position: { x: 24, y: 0, z: -12 },
       dockingRadius: 8,
-      services: ["sell cargo", "repair hull", "refuel", "contract board"],
+      services: ["sell cargo", "repair hull", "refuel", "contract board", "upgrade rig"],
     },
     contract: {
       id: "charter-ore-spoke",
       title: "Spoke Charter",
-      objective: "Survey ore nodes, keep fuel margin, and return with a station vector.",
+      objective: "Mine 8 ore, dock at Frontier Spoke, and keep the pirate wake off the hold.",
       requiredOre: 8,
       rewardCredits: 160,
       status: "active",
@@ -102,7 +107,23 @@ const VoidProspector = (() => {
       attackRadius: 16,
       driftSpeed: 4.2,
       pressureRate: 0.7,
+      hullDamagePerSecond: 2.4,
+      stealCooldown: 6,
     },
+    upgrades: [
+      {
+        id: "refined-beam",
+        name: "Refined Beam",
+        cost: 90,
+        miningPowerBonus: 0.55,
+      },
+      {
+        id: "cargo-baffles",
+        name: "Cargo Baffles",
+        cost: 120,
+        cargoCapacityBonus: 2,
+      },
+    ],
     sector: {
       radius: 68,
       gridStep: 12,
@@ -115,6 +136,7 @@ const VoidProspector = (() => {
     brake: false,
     turnLeft: false,
     turnRight: false,
+    mine: false,
   };
   let currentState = null;
   let sceneHandle = null;
@@ -127,6 +149,10 @@ const VoidProspector = (() => {
   function round(value, places = 2) {
     const factor = 10 ** places;
     return Math.round(value * factor) / factor;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   function vector(x = 0, y = 0, z = 0) {
@@ -237,8 +263,41 @@ const VoidProspector = (() => {
     };
   }
 
+  function upgradeById(upgradeId) {
+    return GAME_DATA.upgrades.find((upgrade) => upgrade.id === upgradeId) || null;
+  }
+
+  function purchasedUpgradeStats(purchased = []) {
+    return purchased.reduce(
+      (stats, upgradeId) => {
+        const upgrade = upgradeById(upgradeId);
+        if (!upgrade) {
+          return stats;
+        }
+        stats.miningPower += upgrade.miningPowerBonus || 0;
+        stats.cargoCapacity += upgrade.cargoCapacityBonus || 0;
+        return stats;
+      },
+      {
+        miningPower: GAME_DATA.ship.miningPower,
+        cargoCapacity: GAME_DATA.ship.cargoCapacity,
+      }
+    );
+  }
+
+  function applyPurchasedUpgrades(state) {
+    const stats = purchasedUpgradeStats(state.upgrades.purchased);
+    state.ship.miningPower = round(stats.miningPower, 2);
+    state.cargo.capacity = stats.cargoCapacity;
+    if (state.cargo.ore > state.cargo.capacity) {
+      state.cargo.ore = state.cargo.capacity;
+    }
+    return state;
+  }
+
   function createInitialState(options = {}) {
     const seed = options.seed === undefined ? DEFAULT_SEED : options.seed;
+    const purchasedUpgrades = Array.isArray(options.upgrades) ? options.upgrades.slice() : [];
     const asteroids = createAsteroidNodes(seed);
     const ship = {
       name: GAME_DATA.ship.name,
@@ -250,6 +309,7 @@ const VoidProspector = (() => {
       maxHull: GAME_DATA.ship.hullMax,
       maxFuel: GAME_DATA.ship.fuelMax,
       maxSpeed: GAME_DATA.ship.maxSpeed,
+      miningPower: GAME_DATA.ship.miningPower,
     };
     const state = {
       seed,
@@ -266,10 +326,13 @@ const VoidProspector = (() => {
         value: 0,
         capacity: GAME_DATA.ship.cargoCapacity,
       },
-      credits: 0,
+      credits: options.credits === undefined ? 0 : options.credits,
       asteroids,
       station: {
         ...clone(GAME_DATA.station),
+        docked: false,
+        lastSale: 0,
+        lastService: "undocked",
         proximity: {
           distance: 0,
           bearing: 0,
@@ -279,6 +342,8 @@ const VoidProspector = (() => {
       contract: {
         ...clone(GAME_DATA.contract),
         progress: 0,
+        deliveredOre: 0,
+        completedAt: null,
       },
       target: {
         kind: "asteroid",
@@ -292,21 +357,42 @@ const VoidProspector = (() => {
         state: "dormant",
         encounterState: "distant",
         pressure: 0,
+        attackCooldown: 0,
         velocity: vector(),
+      },
+      mining: {
+        active: false,
+        targetId: null,
+        status: "idle",
+        range: GAME_DATA.asteroidField.miningRange,
+        lastYield: 0,
+      },
+      upgrades: {
+        purchased: purchasedUpgrades,
+        lastPurchase: null,
+      },
+      stats: {
+        oreMined: 0,
+        oreSold: 0,
+        oreLost: 0,
+        sorties: options.runCount || 1,
       },
       run: {
         status: "launch",
         objective: GAME_DATA.contract.objective,
         failureReason: null,
+        count: options.runCount || 1,
       },
       input: {
         thrust: false,
         brake: false,
         turnLeft: false,
         turnRight: false,
+        mine: false,
       },
-      log: [{ tick: 0, message: "Prospector shell online." }],
+      log: [{ tick: 0, message: "Prospector sortie online." }],
     };
+    applyPurchasedUpgrades(state);
     return syncDerivedState(state);
   }
 
@@ -337,6 +423,25 @@ const VoidProspector = (() => {
     return null;
   }
 
+  function objectiveText(state) {
+    if (state.run.failureReason) {
+      return `${state.run.failureReason} Press R to restart.`;
+    }
+    if (state.contract.status === "complete") {
+      return `${state.contract.title} complete. Restart for a stronger sortie.`;
+    }
+    if (state.station.proximity.dockable && state.cargo.ore > 0) {
+      return "Dock at Frontier Spoke to sell ore, repair, refuel, and log charter progress.";
+    }
+    if (state.cargo.ore >= state.cargo.capacity) {
+      return "Cargo full. Return to Frontier Spoke before the pirate closes.";
+    }
+    if (state.pirate.encounterState === "close") {
+      return "Pirate in attack range. Break away or dock for repairs.";
+    }
+    return GAME_DATA.contract.objective;
+  }
+
   function syncDerivedState(state) {
     const stationDistance = distance(state.ship.position, state.station.position);
     const stationBearing = bearingDegrees(state.ship.position, state.ship.heading, state.station.position);
@@ -345,6 +450,9 @@ const VoidProspector = (() => {
       bearing: stationBearing,
       dockable: stationDistance <= state.station.dockingRadius,
     };
+    if (!state.station.proximity.dockable) {
+      state.station.docked = false;
+    }
 
     const selected = findTarget(state);
     if (selected) {
@@ -352,12 +460,31 @@ const VoidProspector = (() => {
       state.target.bearing = bearingDegrees(state.ship.position, state.ship.heading, selected.position);
     }
 
-    state.contract.progress = round(Math.min(1, state.cargo.ore / state.contract.requiredOre), 3);
-    if (state.ship.fuel <= 0 && length(state.ship.velocity) < 0.2) {
+    state.contract.progress = round(Math.min(1, state.contract.deliveredOre / state.contract.requiredOre), 3);
+    if (state.ship.hull <= 0) {
+      state.ship.hull = 0;
+      state.run.status = "failed";
+      state.run.failureReason = state.run.failureReason || "Hull breached under pirate pressure.";
+    } else if (state.contract.status === "complete") {
+      state.run.status = "complete";
+      state.run.failureReason = null;
+    } else if (state.ship.fuel <= 0 && length(state.ship.velocity) < 0.2) {
       state.run.status = "drifting";
+      state.run.failureReason = "Fuel exhausted. Drift beacon fired.";
+    } else if (state.station.proximity.dockable) {
+      state.run.status = state.station.docked ? "docked" : "dock range";
+      state.run.failureReason = null;
+    } else if (state.pirate.encounterState === "close") {
+      state.run.status = "evading";
+      state.run.failureReason = null;
+    } else if (state.cargo.ore >= state.cargo.capacity) {
+      state.run.status = "cargo full";
+      state.run.failureReason = null;
     } else if (state.run.status === "launch") {
       state.run.status = "surveying";
+      state.run.failureReason = null;
     }
+    state.run.objective = objectiveText(state);
     state.camera = updateCameraState(state);
     return state;
   }
@@ -417,9 +544,191 @@ const VoidProspector = (() => {
 
     next.input.turnLeft = Boolean(input.turnLeft);
     next.input.turnRight = Boolean(input.turnRight);
+    next.input.mine = Boolean(input.mine);
     next.ship.velocity = limitVelocity(velocity, GAME_DATA.ship.maxSpeed);
     next.ship.position = add(next.ship.position, scale(next.ship.velocity, dt));
     next.ship.position.y = Math.max(-6, Math.min(6, next.ship.position.y));
+    const sectorDistance = length(vector(next.ship.position.x, 0, next.ship.position.z));
+    if (sectorDistance > GAME_DATA.sector.radius) {
+      const clamped = scale(normalize(vector(next.ship.position.x, 0, next.ship.position.z)), GAME_DATA.sector.radius);
+      next.ship.position.x = clamped.x;
+      next.ship.position.z = clamped.z;
+      next.ship.velocity = scale(next.ship.velocity, 0.35);
+      next.ship.hull = Math.max(0, next.ship.hull - 3 * dt);
+      next.log.unshift({ tick: next.tick, message: "Outer grid shear clipped the hull." });
+    }
+    return syncDerivedState(next);
+  }
+
+  function coolMiningState(state, deltaSeconds) {
+    const next = state;
+    next.mining.active = false;
+    next.mining.targetId = null;
+    next.mining.lastYield = 0;
+    next.asteroids.forEach((asteroid) => {
+      const mineState = asteroid.mineState;
+      if (mineState.depleted) {
+        mineState.status = "depleted";
+        mineState.beamHeat = 0;
+        return;
+      }
+      mineState.beamHeat = clamp(mineState.beamHeat - deltaSeconds * 32, 0, 100);
+      if (mineState.status === "mining" && mineState.beamHeat < 70) {
+        mineState.status = "cooldown";
+      }
+      if ((mineState.status === "cooldown" || mineState.status === "mining") && mineState.beamHeat <= 0) {
+        mineState.status = "ready";
+      }
+    });
+    return next;
+  }
+
+  function mineTarget(state, deltaSeconds = 1) {
+    const dt = Math.max(0, Math.min(deltaSeconds, 2));
+    const next = clone(state);
+    if (next.run.status === "failed" || next.run.status === "complete") {
+      next.mining.status = "run closed";
+      return syncDerivedState(next);
+    }
+
+    const target = findTarget(next);
+    if (!target || next.target.kind !== "asteroid") {
+      next.mining.status = "no asteroid lock";
+      return syncDerivedState(next);
+    }
+
+    const range = distance(next.ship.position, target.position);
+    if (range > next.mining.range + target.radius) {
+      next.mining.status = "out of range";
+      return syncDerivedState(next);
+    }
+
+    if (next.cargo.ore >= next.cargo.capacity) {
+      next.mining.status = "cargo full";
+      return syncDerivedState(next);
+    }
+
+    if (target.mineState.depleted || target.oreRemaining <= 0) {
+      target.mineState.status = "depleted";
+      target.mineState.depleted = true;
+      next.mining.status = "depleted";
+      return syncDerivedState(next);
+    }
+
+    let extracted = 0;
+    target.mineState.status = "mining";
+    target.mineState.beamHeat = clamp(target.mineState.beamHeat + 42 * dt, 0, 100);
+    target.mineState.progress += next.ship.miningPower * dt;
+    while (
+      target.mineState.progress >= 1 &&
+      target.oreRemaining > 0 &&
+      next.cargo.ore < next.cargo.capacity
+    ) {
+      target.mineState.progress -= 1;
+      target.oreRemaining -= 1;
+      next.cargo.ore += 1;
+      next.cargo.value += target.oreValue;
+      next.stats.oreMined += 1;
+      extracted += 1;
+    }
+
+    if (target.oreRemaining <= 0) {
+      target.oreRemaining = 0;
+      target.mineState.status = "depleted";
+      target.mineState.depleted = true;
+      target.mineState.progress = 0;
+    }
+
+    next.mining.active = extracted > 0 || target.mineState.status === "mining";
+    next.mining.targetId = target.id;
+    next.mining.lastYield = extracted;
+    next.mining.status = extracted > 0 ? `extracted ${extracted}` : "cutting";
+    target.mineState.lastMinedTick = next.tick;
+    if (extracted > 0) {
+      next.log.unshift({ tick: next.tick, message: `${target.name} yielded ${extracted} ore.` });
+    }
+    return syncDerivedState(next);
+  }
+
+  function dockAtStation(state) {
+    const next = syncDerivedState(clone(state));
+    if (!next.station.proximity.dockable) {
+      next.station.docked = false;
+      next.station.lastService = "approach vector";
+      next.log.unshift({ tick: next.tick, message: "Frontier Spoke outside docking radius." });
+      return syncDerivedState(next);
+    }
+
+    const soldOre = next.cargo.ore;
+    const saleCredits = next.cargo.value;
+    next.station.docked = true;
+    next.station.lastSale = saleCredits;
+    next.station.lastService = "sold cargo / repaired / refueled";
+    next.credits += saleCredits;
+    next.stats.oreSold += soldOre;
+    next.contract.deliveredOre += soldOre;
+    next.cargo.ore = 0;
+    next.cargo.value = 0;
+    next.ship.hull = next.ship.maxHull;
+    next.ship.fuel = next.ship.maxFuel;
+
+    if (soldOre > 0) {
+      next.log.unshift({ tick: next.tick, message: `Sold ${soldOre} ore for ${saleCredits} credits.` });
+    } else {
+      next.log.unshift({ tick: next.tick, message: "Docking clamps serviced hull and tanks." });
+    }
+
+    if (next.contract.status === "active" && next.contract.deliveredOre >= next.contract.requiredOre) {
+      next.contract.status = "complete";
+      next.contract.completedAt = next.tick;
+      next.credits += next.contract.rewardCredits;
+      next.run.status = "complete";
+      next.log.unshift({
+        tick: next.tick,
+        message: `${next.contract.title} complete. ${next.contract.rewardCredits} credit charter paid.`,
+      });
+    }
+
+    return syncDerivedState(next);
+  }
+
+  function purchaseUpgrade(state, upgradeId = "refined-beam") {
+    const next = syncDerivedState(clone(state));
+    const upgrade = upgradeById(upgradeId);
+    if (!upgrade) {
+      next.upgrades.lastPurchase = "unknown upgrade";
+      return syncDerivedState(next);
+    }
+    if (!next.station.proximity.dockable) {
+      next.upgrades.lastPurchase = "dock required";
+      return syncDerivedState(next);
+    }
+    if (next.upgrades.purchased.includes(upgradeId)) {
+      next.upgrades.lastPurchase = `${upgrade.name} installed`;
+      return syncDerivedState(next);
+    }
+    if (next.credits < upgrade.cost) {
+      next.upgrades.lastPurchase = `${upgrade.cost - next.credits} credits short`;
+      return syncDerivedState(next);
+    }
+    next.credits -= upgrade.cost;
+    next.upgrades.purchased.push(upgradeId);
+    next.upgrades.lastPurchase = `${upgrade.name} installed`;
+    applyPurchasedUpgrades(next);
+    next.log.unshift({ tick: next.tick, message: `${upgrade.name} installed.` });
+    return syncDerivedState(next);
+  }
+
+  function resetRun(state, options = {}) {
+    const seed = options.seed === undefined ? state.seed + 1 : options.seed;
+    const credits = options.credits === undefined ? state.credits : options.credits;
+    const next = createInitialState({
+      seed,
+      credits,
+      upgrades: state.upgrades.purchased,
+      runCount: (state.run.count || 1) + 1,
+    });
+    next.log.unshift({ tick: 0, message: `Sortie ${next.run.count} reset with installed upgrades.` });
     return syncDerivedState(next);
   }
 
@@ -436,9 +745,19 @@ const VoidProspector = (() => {
       const desired = range < next.pirate.attackRadius ? scale(normalize(toShip), -1) : normalize(toShip);
       next.pirate.velocity = scale(desired, next.pirate.driftSpeed);
       next.pirate.position = add(next.pirate.position, scale(next.pirate.velocity, deltaSeconds));
+      next.pirate.attackCooldown = Math.max(0, next.pirate.attackCooldown - deltaSeconds);
       if (range <= next.pirate.attackRadius) {
         next.pirate.encounterState = "close";
         next.pirate.pressure = Math.min(100, next.pirate.pressure + next.pirate.pressureRate * deltaSeconds * 4);
+        next.ship.hull = Math.max(0, next.ship.hull - next.pirate.hullDamagePerSecond * deltaSeconds);
+        if (next.cargo.ore > 0 && next.pirate.attackCooldown <= 0) {
+          const averageValue = next.cargo.ore > 0 ? Math.ceil(next.cargo.value / next.cargo.ore) : 0;
+          next.cargo.ore -= 1;
+          next.cargo.value = Math.max(0, next.cargo.value - averageValue);
+          next.stats.oreLost += 1;
+          next.pirate.attackCooldown = next.pirate.stealCooldown;
+          next.log.unshift({ tick: next.tick, message: "Pirate wake cut one ore crate loose." });
+        }
       } else if (range <= next.pirate.pressureRadius) {
         next.pirate.encounterState = "shadow";
         next.pirate.pressure = Math.min(100, next.pirate.pressure + next.pirate.pressureRate * deltaSeconds);
@@ -452,10 +771,23 @@ const VoidProspector = (() => {
 
   function stepSpaceflight(state, input = {}, deltaSeconds = 1) {
     const dt = Math.max(0, Math.min(deltaSeconds, 2));
+    if (input.reset) {
+      return resetRun(state);
+    }
     let next = applyFlightInput(state, input, dt);
     next.tick = round(next.tick + dt, 3);
     next.elapsed = round(next.elapsed + dt, 3);
     next = updatePirateState(next, dt);
+    next = coolMiningState(next, dt);
+    if (input.mine) {
+      next = mineTarget(next, dt);
+    }
+    if (input.interact) {
+      next = dockAtStation(next);
+    }
+    if (input.upgrade) {
+      next = purchaseUpgrade(next);
+    }
     return syncDerivedState(next);
   }
 
@@ -500,7 +832,30 @@ const VoidProspector = (() => {
       distance: state.station.proximity.distance,
       bearing: state.station.proximity.bearing,
       dockable: state.station.proximity.dockable,
+      docked: state.station.docked,
+      lastSale: state.station.lastSale,
+      lastService: state.station.lastService,
       services: state.station.services.slice(),
+    };
+  }
+
+  function nextAffordableUpgrade(state) {
+    return GAME_DATA.upgrades.find((upgrade) => !state.upgrades.purchased.includes(upgrade.id)) || null;
+  }
+
+  function upgradeSummary(state) {
+    const nextUpgrade = nextAffordableUpgrade(state);
+    if (!nextUpgrade) {
+      return {
+        id: null,
+        text: "all installed",
+        affordable: false,
+      };
+    }
+    return {
+      id: nextUpgrade.id,
+      text: `${nextUpgrade.name} / ${nextUpgrade.cost}cr`,
+      affordable: state.credits >= nextUpgrade.cost,
     };
   }
 
@@ -517,7 +872,14 @@ const VoidProspector = (() => {
     }
     let status = "ready";
     if (state.target.kind === "asteroid") {
-      status = target.mineState.depleted ? "depleted" : target.mineState.status;
+      const oreStatus = `${target.oreRemaining} ore`;
+      if (target.mineState.depleted) {
+        status = "depleted";
+      } else if (state.mining.active && state.mining.targetId === target.id) {
+        status = `${state.mining.status} / ${Math.round(target.mineState.progress * 100)}% / ${oreStatus}`;
+      } else {
+        status = `${target.mineState.status} / ${oreStatus}`;
+      }
     } else if (state.target.kind === "station") {
       status = state.station.proximity.dockable ? "dockable" : "stand off";
     } else if (state.target.kind === "pirate") {
@@ -552,6 +914,8 @@ const VoidProspector = (() => {
     dom.cargo = document.getElementById("cargo-readout");
     dom.credits = document.getElementById("credits-readout");
     dom.pressure = document.getElementById("pressure-readout");
+    dom.contract = document.getElementById("contract-readout");
+    dom.upgrade = document.getElementById("upgrade-readout");
     dom.target = document.getElementById("target-readout");
     dom.station = document.getElementById("station-readout");
     dom.targetName = document.getElementById("target-name");
@@ -559,20 +923,27 @@ const VoidProspector = (() => {
     dom.targetBearing = document.getElementById("target-bearing");
     dom.targetRange = document.getElementById("target-range");
     dom.targetState = document.getElementById("target-state");
+    dom.mineAction = document.getElementById("mine-action");
+    dom.dockAction = document.getElementById("dock-action");
+    dom.upgradeAction = document.getElementById("upgrade-action");
+    dom.restartAction = document.getElementById("restart-action");
   }
 
   function renderHud(state) {
     const target = targetSummary(state);
     const station = dockingStatus(state);
+    const upgrade = upgradeSummary(state);
     dom.runStatus.textContent = `${state.run.status} / ${state.renderer.status}`;
     dom.objective.textContent = state.run.objective;
     dom.hull.textContent = `${Math.round(state.ship.hull)} / ${state.ship.maxHull}`;
     dom.fuel.textContent = `${Math.round(state.ship.fuel)} / ${state.ship.maxFuel}`;
-    dom.cargo.textContent = `${state.cargo.ore} / ${state.cargo.capacity}`;
+    dom.cargo.textContent = `${state.cargo.ore} / ${state.cargo.capacity} / ${state.cargo.value}cr`;
     dom.credits.textContent = String(state.credits);
     dom.pressure.textContent = `${Math.round(state.pirate.pressure)} / ${state.pirate.encounterState}`;
+    dom.contract.textContent = `${state.contract.status} / ${state.contract.deliveredOre} of ${state.contract.requiredOre}`;
+    dom.upgrade.textContent = upgrade.text;
     dom.target.textContent = `${target.kind} / ${target.name} / ${target.distance}m`;
-    dom.station.textContent = `${formatBearing(station.bearing)} / ${station.distance}m`;
+    dom.station.textContent = `${formatBearing(station.bearing)} / ${station.distance}m / ${station.dockable ? "dock" : "approach"}`;
     dom.targetName.textContent = target.name;
     dom.targetKind.textContent = target.kind;
     dom.targetBearing.textContent = `bearing ${formatBearing(target.bearing)}`;
@@ -582,6 +953,20 @@ const VoidProspector = (() => {
     dom.hull.closest(".readout").dataset.tone = cssToneForPercent(state.ship.hull);
     dom.fuel.closest(".readout").dataset.tone = cssToneForPercent(state.ship.fuel);
     dom.pressure.closest(".readout").dataset.tone = state.pirate.pressure > 60 ? "danger" : "signal";
+    dom.contract.closest(".readout").dataset.tone = state.contract.status === "complete" ? "signal" : "warn";
+    dom.upgrade.closest(".readout").dataset.tone = upgrade.affordable ? "signal" : "warn";
+    if (dom.mineAction) {
+      dom.mineAction.disabled = target.kind !== "asteroid" || state.cargo.ore >= state.cargo.capacity || state.run.status === "failed";
+    }
+    if (dom.dockAction) {
+      dom.dockAction.disabled = !station.dockable || state.run.status === "failed";
+    }
+    if (dom.upgradeAction) {
+      dom.upgradeAction.disabled = !station.dockable || !upgrade.id || state.credits < (upgradeById(upgrade.id)?.cost || 0);
+    }
+    if (dom.restartAction) {
+      dom.restartAction.disabled = false;
+    }
   }
 
   function controlNameForCode(code) {
@@ -591,6 +976,26 @@ const VoidProspector = (() => {
       }
     }
     return null;
+  }
+
+  function performAction(action) {
+    if (!currentState) {
+      return;
+    }
+    if (action === "mine") {
+      currentState = mineTarget(currentState, 1);
+    } else if (action === "interact") {
+      currentState = dockAtStation(currentState);
+    } else if (action === "upgrade") {
+      const upgrade = nextAffordableUpgrade(currentState);
+      currentState = purchaseUpgrade(currentState, upgrade ? upgrade.id : "refined-beam");
+    } else if (action === "reset") {
+      currentState = resetRun(currentState);
+    }
+    renderHud(currentState);
+    if (sceneHandle) {
+      updateScene(sceneHandle, currentState, performance.now() / 1000);
+    }
   }
 
   function bindControls() {
@@ -605,6 +1010,10 @@ const VoidProspector = (() => {
         renderHud(currentState);
         return;
       }
+      if (["interact", "upgrade", "reset"].includes(control) && !event.repeat) {
+        performAction(control);
+        return;
+      }
       if (control in pressedControls) {
         pressedControls[control] = true;
       }
@@ -615,6 +1024,18 @@ const VoidProspector = (() => {
         pressedControls[control] = false;
       }
     });
+    if (dom.mineAction) {
+      dom.mineAction.addEventListener("click", () => performAction("mine"));
+    }
+    if (dom.dockAction) {
+      dom.dockAction.addEventListener("click", () => performAction("interact"));
+    }
+    if (dom.upgradeAction) {
+      dom.upgradeAction.addEventListener("click", () => performAction("upgrade"));
+    }
+    if (dom.restartAction) {
+      dom.restartAction.addEventListener("click", () => performAction("reset"));
+    }
   }
 
   function createShipMesh(THREE) {
@@ -728,6 +1149,18 @@ const VoidProspector = (() => {
     return ring;
   }
 
+  function createMiningBeam(THREE) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const material = new THREE.LineBasicMaterial({
+      color: 0x4bd6c0,
+      transparent: true,
+      opacity: 0.84,
+    });
+    const beam = new THREE.Line(geometry, material);
+    beam.visible = false;
+    return beam;
+  }
+
   function createStarField(THREE) {
     const geometry = new THREE.BufferGeometry();
     const points = [];
@@ -794,6 +1227,9 @@ const VoidProspector = (() => {
     const targetRing = createTargetRing(THREE);
     scene.add(targetRing);
 
+    const miningBeam = createMiningBeam(THREE);
+    scene.add(miningBeam);
+
     return {
       THREE,
       scene,
@@ -805,6 +1241,7 @@ const VoidProspector = (() => {
         asteroidMeshes,
         pirate,
         targetRing,
+        miningBeam,
       },
     };
   }
@@ -834,6 +1271,13 @@ const VoidProspector = (() => {
       const mesh = handle.objects.asteroidMeshes.get(asteroid.id);
       if (mesh) {
         mesh.rotation.set(timeSeconds * 0.05 + asteroid.spin, timeSeconds * 0.07 + asteroid.spin, 0);
+        mesh.scale.setScalar(asteroid.mineState.depleted ? 0.56 : 1);
+        mesh.traverse((child) => {
+          if (child.material) {
+            child.material.transparent = asteroid.mineState.depleted;
+            child.material.opacity = asteroid.mineState.depleted ? 0.38 : 1;
+          }
+        });
       }
     });
 
@@ -845,6 +1289,21 @@ const VoidProspector = (() => {
       handle.objects.targetRing.visible = true;
     } else {
       handle.objects.targetRing.visible = false;
+    }
+
+    if (state.mining.active && state.mining.targetId) {
+      const asteroid = state.asteroids.find((node) => node.id === state.mining.targetId);
+      if (asteroid) {
+        handle.objects.miningBeam.geometry.setFromPoints([
+          new THREE.Vector3(state.ship.position.x, state.ship.position.y, state.ship.position.z),
+          new THREE.Vector3(asteroid.position.x, asteroid.position.y, asteroid.position.z),
+        ]);
+        handle.objects.miningBeam.visible = true;
+      } else {
+        handle.objects.miningBeam.visible = false;
+      }
+    } else {
+      handle.objects.miningBeam.visible = false;
     }
 
     handle.camera.position.copy(new THREE.Vector3(state.camera.position.x, state.camera.position.y, state.camera.position.z));
@@ -898,10 +1357,15 @@ const VoidProspector = (() => {
     createAsteroidNodes,
     applyFlightInput,
     stepSpaceflight,
+    mineTarget,
+    dockAtStation,
+    purchaseUpgrade,
+    resetRun,
     retarget,
     setTarget,
     updateCameraState,
     dockingStatus,
+    upgradeSummary,
     targetSummary,
     bearingTo,
     bearingDegrees,
