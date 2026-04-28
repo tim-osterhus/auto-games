@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "assets": [
+    {
+      "id": "rig.mantis_motion_strip",
+      "path": "games/corebound/assets/rig/mantis-rig-motion-strip.png",
+      "role": "sprite-strip",
+      "description": "Four-frame transparent motion strip for the compact Mantis-01 mining pod with drill, treads, skids, antenna mast, and subtle strut motion.",
+      "width": 320,
+      "height": 80,
+      "intended_use": "Rig player sprite animation, four horizontal 80x80 frames.",
+      "notes": "Generated with built-in image generation on chroma key, then locally keyed to alpha and packed into exact frame cells."
+    },
+    {
+      "id": "surface.facilities_panel",
+      "path": "games/corebound/assets/surface/surface-facilities-panel.png",
+      "role": "background",
+      "description": "Wide surface facilities plate with refinery, rig bay, assay desk, survey relay, and launch gantry in a restrained industrial style.",
+      "width": 640,
+      "height": 160,
+      "intended_use": "Static surface base panel or top-of-run context art.",
+      "notes": "Generated with built-in image generation and cropped/resized to exact 640x160 dimensions."
+    },
+    {
+      "id": "surface.launch_shaft_context",
+      "path": "games/corebound/assets/surface/launch-shaft-context.png",
+      "role": "background",
+      "description": "Square launch context plate showing a vertical shaft collar descending from surface base structures into layered strata.",
+      "width": 320,
+      "height": 320,
+      "intended_use": "Launch shaft context scene or menu/state panel art.",
+      "notes": "Generated with built-in image generation and resized to exact 320x320 dimensions."
+    },
+    {
+      "id": "terrain.loam_gritstone_tile",
+      "path": "games/corebound/assets/terrain/loam-gritstone-tile.png",
+      "role": "texture",
+      "description": "Upper loam and gritstone strata tile with subdued dark mineral plates and grid-readable edges.",
+      "width": 128,
+      "height": 128,
+      "intended_use": "Repeating terrain tile for upper mining strata.",
+      "notes": "Generated with built-in image generation, downsampled, sharpened, and edge-blended for tile use."
+    },
+    {
+      "id": "terrain.basalt_core_tile",
+      "path": "games/corebound/assets/terrain/basalt-core-tile.png",
+      "role": "texture",
+      "description": "Deep basalt and core rind strata tile, darker and denser with restrained teal seam accents.",
+      "width": 128,
+      "height": 128,
+      "intended_use": "Repeating terrain tile for deeper mining strata.",
+      "notes": "Generated with built-in image generation, downsampled, sharpened, and edge-blended for tile use."
+    },
+    {
+      "id": "terrain.pressure_glass_tile",
+      "path": "games/corebound/assets/terrain/pressure-glass-tile.png",
+      "role": "texture",
+      "description": "Pressure glass and choir slate tile with smoky dark glass facets and faint luminous fractures.",
+      "width": 128,
+      "height": 128,
+      "intended_use": "Repeating terrain tile for pressure glass or choir slate strata.",
+      "notes": "Generated with built-in image generation, downsampled, sharpened, and edge-blended for tile use."
+    },
+    {
+      "id": "readables.ore_hazard_atlas",
+      "path": "games/corebound/assets/readables/ore-hazard-atlas.png",
+      "role": "icon",
+      "description": "Transparent six-cell ore and hazard atlas: copper seed, saltglass, cobalt thread, heat fissure, gas vent, and magnetic bloom.",
+      "width": 384,
+      "height": 128,
+      "intended_use": "Six centered 64x64 readables/icons in a 384x128 atlas.",
+      "notes": "Generated with built-in image generation on chroma key, then locally keyed to alpha and packed into six cells."
+    },
+    {
+      "id": "hud.icon_atlas",
+      "path": "games/corebound/assets/hud/hud-icon-atlas.png",
+      "role": "icon",
+      "description": "Transparent five-cell HUD icon atlas for hull, energy, heat, cargo, and depth.",
+      "width": 320,
+      "height": 64,
+      "intended_use": "Five centered 64x64 HUD icons in a 320x64 atlas.",
+      "notes": "Generated with built-in image generation on chroma key, then locally keyed to alpha and packed into five cells."
+    },
+    {
+      "id": "upgrades.research_atlas",
+      "path": "games/corebound/assets/upgrades/upgrade-research-atlas.png",
+      "role": "icon",
+      "description": "Transparent eight-cell upgrade and research atlas: drill, cargo, scanner, hazard sheath, refinery loop, anchor recall, coolant dump, and archive relay.",
+      "width": 512,
+      "height": 128,
+      "intended_use": "Eight centered 64x64 upgrade icons in a 512x128 atlas.",
+      "notes": "Generated with built-in image generation on chroma key, then locally keyed to alpha and packed into eight cells."
+    }
+  ],
+  "notes": "Original Corebound bitmap asset pack generated with Codex built-in image generation only; final project-consumed PNGs were saved under games/corebound/assets."
+}

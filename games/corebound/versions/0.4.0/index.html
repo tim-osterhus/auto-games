@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#070a0c" />
+  <title>Corebound</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="corebound.css" />
+</head>
+<body>
+  <main class="corebound-shell">
+    <header class="topline">
+      <a class="backlink" href="../../">Millrace Arcade</a>
+      <div class="identity">
+        <span class="eyebrow">Surface loop</span>
+        <h1>Corebound</h1>
+      </div>
+      <div class="run-state" id="run-state">surface lock</div>
+    </header>
+
+    <section class="playfield" aria-label="Corebound playable game">
+      <div class="viewport-frame">
+        <canvas id="corebound-canvas" width="960" height="640" aria-label="Corebound mine grid"></canvas>
+      </div>
+
+      <aside class="hud" aria-label="Rig telemetry">
+        <div class="meter-grid">
+          <div class="readout">
+            <span class="meter-label"><i class="hud-icon hud-icon-depth" aria-hidden="true"></i>Depth</span>
+            <strong id="depth-readout">0 m</strong>
+          </div>
+          <div class="readout">
+            <span class="meter-label"><i class="hud-icon hud-icon-cargo" aria-hidden="true"></i>Cargo</span>
+            <strong id="cargo-readout">0 / 12</strong>
+          </div>
+          <div class="readout">
+            <span class="meter-label"><i class="hud-icon hud-icon-hull" aria-hidden="true"></i>Hull</span>
+            <strong id="hull-readout">100%</strong>
+          </div>
+          <div class="readout">
+            <span class="meter-label"><i class="hud-icon hud-icon-energy" aria-hidden="true"></i>Energy</span>
+            <strong id="energy-readout">100%</strong>
+          </div>
+          <div class="readout">
+            <span class="meter-label"><i class="hud-icon hud-icon-heat" aria-hidden="true"></i>Heat</span>
+            <strong id="heat-readout">0 / 100</strong>
+          </div>
+          <div class="readout">
+            <span>Pressure</span>
+            <strong id="pressure-readout">clear</strong>
+          </div>
+        </div>
+
+        <div class="resource-ledger">
+          <div class="ledger-head">
+            <span>Hold</span>
+            <strong id="banked-readout">credits 0</strong>
+          </div>
+          <div class="resource-bank" aria-label="Banked resources">
+            <span id="alloy-readout">alloy 0</span>
+            <span id="research-readout">research 0</span>
+            <span id="relic-readout">relic 0</span>
+          </div>
+          <ol id="ore-list"></ol>
+        </div>
+
+        <div class="contract-panel" aria-label="Run contracts">
+          <div class="panel-head">
+            <span>Contract</span>
+            <strong id="contract-status">unassigned</strong>
+          </div>
+          <p id="contract-progress" class="objective-progress">Select a commission before launch.</p>
+          <ol id="contract-list"></ol>
+        </div>
+
+        <div class="charter-panel" aria-label="Deep Charter expeditions">
+          <div class="panel-head">
+            <span>Deep Charter</span>
+            <strong id="charter-status">open</strong>
+          </div>
+          <p id="charter-progress" class="objective-progress">Choose an expedition charter before launch.</p>
+          <ol id="charter-list"></ol>
+        </div>
+
+        <div class="route-panel" aria-label="Late-run route choices">
+          <div class="panel-head">
+            <span>Late Route</span>
+            <strong id="route-status">selected</strong>
+          </div>
+          <p id="route-progress" class="objective-progress">Choose a late-run line before launch.</p>
+          <ol id="route-list"></ol>
+        </div>
+
+        <div class="archive-panel" aria-label="Relic archive">
+          <div class="panel-head">
+            <span>Archive</span>
+            <strong id="archive-status">0 / 0</strong>
+          </div>
+          <ol id="archive-list"></ol>
+        </div>
+
+        <div class="facility-panel" aria-label="Facility reputation and utilities">
+          <div class="panel-head">
+            <span>Relay</span>
+            <strong id="facility-status">candidate</strong>
+          </div>
+          <p id="facility-progress" class="objective-progress">File contracts to arm route support.</p>
+          <ol id="utility-list"></ol>
+        </div>
+
+        <div class="surface-panel" aria-label="Surface services">
+          <div class="surface-scene" aria-hidden="true">
+            <img src="assets/surface/surface-facilities-panel.png" alt="" />
+          </div>
+          <div class="surface-actions">
+            <button type="button" id="sell-cargo">sell</button>
+            <button type="button" id="refine-cargo">refine</button>
+            <button type="button" id="repair-rig">repair</button>
+            <button type="button" id="launch-run">launch</button>
+          </div>
+          <div class="surface-lists">
+            <ol id="upgrade-list"></ol>
+            <ol id="research-list"></ol>
+          </div>
+        </div>
+
+        <div class="signal-log" id="signal-log" aria-live="polite">
+          Surface dock ready. Launch when the hold is clear.
+        </div>
+
+        <div class="control-pad" aria-label="Directional controls">
+          <button type="button" data-dir="0,-1" aria-label="Move north">^</button>
+          <button type="button" data-dir="-1,0" aria-label="Move west">&lt;</button>
+          <button type="button" data-dir="0,1" aria-label="Move south">v</button>
+          <button type="button" data-dir="1,0" aria-label="Move east">&gt;</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="corebound-data.js"></script>
+  <script src="corebound.js"></script>
+</body>
+</html>

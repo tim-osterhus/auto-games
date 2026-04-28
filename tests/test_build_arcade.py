@@ -115,16 +115,16 @@ class BuildArcadeTests(unittest.TestCase):
                     {
                         "slug": "corebound",
                         "title": "Corebound",
-                        "version": "0.3.0",
+                        "version": "0.4.0",
                         "status": "playable",
-                        "summary": "Sign Deep Charters, open late routes, and anchor recall home.",
+                        "summary": "Pilot Mantis-01 with held-input motion and generated asset-backed strata.",
                         "release": {
-                            "label": "v0.3.0 Deep Charter",
-                            "copy": "Deep Charters open charter-gated late routes and anchor recall extraction.",
+                            "label": "v0.4.0 Natural Motion",
+                            "copy": "Held input drives continuous rig motion through generated bitmap strata and visible upgrade icons.",
                         },
                         "snapshot": {
                             "status": "deferred",
-                            "version": "0.3.0",
+                            "version": "0.4.0",
                             "reason": "Working-tree content is not commit-backed yet.",
                         },
                         "path": "games/corebound/",
@@ -135,11 +135,11 @@ class BuildArcadeTests(unittest.TestCase):
 
         self.assertIn("Corebound is live.", rendered)
         self.assertIn("games <strong>1 game</strong>", rendered)
-        self.assertIn("playable / v0.3.0", rendered)
+        self.assertIn("playable / v0.4.0", rendered)
         self.assertIn("Corebound is playable.", rendered)
-        self.assertIn("Sign Deep Charters, open late routes, and anchor recall home.", rendered)
-        self.assertIn("v0.3.0 Deep Charter", rendered)
-        self.assertIn("Deep Charters open charter-gated late routes", rendered)
+        self.assertIn("Pilot Mantis-01 with held-input motion and generated asset-backed strata.", rendered)
+        self.assertIn("v0.4.0 Natural Motion", rendered)
+        self.assertIn("Held input drives continuous rig motion", rendered)
         self.assertIn("Snapshot deferred", rendered)
         self.assertIn("Working-tree content is not commit-backed yet.", rendered)
         self.assertIn('href="games/corebound/"', rendered)
