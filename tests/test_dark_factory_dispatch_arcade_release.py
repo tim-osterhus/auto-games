@@ -63,7 +63,8 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertIn("v0.0.1 Dispatch Floor", html)
         self.assertIn("Snapshots", html)
         self.assertIn('href="games/dark-factory-dispatch/versions/0.0.1/"', html)
-        self.assertIn("Snapshot deferred", html)
+        self.assertIn('href="games/void-prospector/versions/0.0.1/"', html)
+        self.assertNotIn("Snapshot deferred", html)
 
     def test_snapshot_directory_preserves_playable_static_release(self) -> None:
         snapshot_dir = ROOT / "games" / "dark-factory-dispatch" / "versions" / "0.0.1"

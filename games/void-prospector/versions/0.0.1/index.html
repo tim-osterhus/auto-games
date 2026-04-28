@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050706" />
+  <title>Void Prospector</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="void-prospector.css" />
+</head>
+<body>
+  <main class="prospector-shell" id="void-prospector" tabindex="-1">
+    <canvas id="void-prospector-scene" class="scene-canvas" aria-label="Void Prospector 3D flight scene"></canvas>
+    <div class="scene-vignette" aria-hidden="true"></div>
+
+    <header class="topline">
+      <a class="backlink" href="../../">Millrace Arcade</a>
+      <div class="identity">
+        <span class="eyebrow">First sortie</span>
+        <h1>Void Prospector</h1>
+      </div>
+      <div class="run-chip" id="run-status">launch / stable</div>
+    </header>
+
+    <section class="hud-grid" id="prospector-hud" aria-label="Prospector telemetry">
+      <article class="readout readout-wide">
+        <span>Objective</span>
+        <strong id="objective-readout">Mine charter ore and return to Frontier Spoke.</strong>
+      </article>
+      <article class="readout">
+        <span>Hull</span>
+        <strong id="hull-readout">100</strong>
+      </article>
+      <article class="readout">
+        <span>Fuel</span>
+        <strong id="fuel-readout">100</strong>
+      </article>
+      <article class="readout">
+        <span>Cargo</span>
+        <strong id="cargo-readout">0 / 6</strong>
+      </article>
+      <article class="readout">
+        <span>Credits</span>
+        <strong id="credits-readout">0</strong>
+      </article>
+      <article class="readout">
+        <span>Pressure</span>
+        <strong id="pressure-readout">0</strong>
+      </article>
+      <article class="readout">
+        <span>Contract</span>
+        <strong id="contract-readout">active / 0 of 8</strong>
+      </article>
+      <article class="readout">
+        <span>Upgrade</span>
+        <strong id="upgrade-readout">beam rig / 90cr</strong>
+      </article>
+      <article class="readout readout-wide">
+        <span>Target</span>
+        <strong id="target-readout">asteroid / 0m</strong>
+      </article>
+      <article class="readout readout-wide">
+        <span>Station</span>
+        <strong id="station-readout">bearing 000 / 0m</strong>
+      </article>
+    </section>
+
+    <footer class="control-strip" aria-label="Flight controls">
+      <span>W/Up thrust</span>
+      <span>S/Down brake</span>
+      <span>A/D steer</span>
+      <span>Tab/E target</span>
+      <span>Space/M mine</span>
+      <span>F/Enter dock</span>
+      <span>U upgrade</span>
+      <span>R restart</span>
+    </footer>
+
+    <aside class="target-panel" aria-label="Selected target">
+      <img class="title-card-band" src="assets/arcade-title-card.png" alt="" />
+      <div class="panel-head">
+        <span>Target seam</span>
+        <strong id="target-name">Cinder Node</strong>
+      </div>
+      <div class="target-data">
+        <span id="target-kind">asteroid</span>
+        <span id="target-bearing">bearing 000</span>
+        <span id="target-range">0m</span>
+        <span id="target-state">ready</span>
+      </div>
+      <div class="action-panel" aria-label="Action controls">
+        <button type="button" id="mine-action">Mine</button>
+        <button type="button" id="dock-action">Dock</button>
+        <button type="button" id="upgrade-action">Upgrade</button>
+        <button type="button" id="restart-action">Restart</button>
+      </div>
+    </aside>
+  </main>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="void-prospector.js"></script>
+</body>
+</html>

@@ -103,11 +103,16 @@
         "label": "v0.0.1 First Sortie",
         "copy": "First Sortie publishes the local Three.js flight shell, connected mining, docking, charter, upgrade, and pirate-pressure loop, plus original project-local ship, asteroid, station, hostile-marker, and title-card art."
       },
-      "snapshot": {
-        "status": "deferred",
-        "version": "0.0.1",
-        "reason": "Commit-backed Void Prospector snapshot will be stamped by release continuity after this asset-pack pass is validated."
-      }
+      "versions": [
+        {
+          "version": "0.0.1",
+          "path": "games/void-prospector/versions/0.0.1/",
+          "releasedAt": "2026-04-28",
+          "label": "v0.0.1 First Sortie",
+          "summary": "Local Three.js flight shell with connected mining, docking, charter, upgrade, pirate-pressure loop, and original project-local ship, asteroid, station, hostile-marker, and title-card art.",
+          "commit": "0e11ee1760f67f8fc21d6b3817cb0b1ac8de3d70"
+        }
+      ]
     }
   ]
 }
