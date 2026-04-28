@@ -1035,6 +1035,75 @@ const DarkFactoryDispatch = (() => {
     }));
   }
 
+  function nextEmergencyShift(campaign) {
+    return GAME_DATA.campaign.shifts.find((shift) => (
+      shift.shift > campaign.shift && shift.emergencyContractId
+    )) || null;
+  }
+
+  function formatShiftNumber(shift) {
+    return String(shift).padStart(2, "0");
+  }
+
+  function campaignSurfaceState(state) {
+    const campaign = state.campaign;
+    const policy = byId(GAME_DATA.campaign.queuePolicies, campaign.queuePolicy) || GAME_DATA.campaign.queuePolicies[0];
+    const emergencyContract = state.contracts.find((contract) => contract.emergency) || null;
+    const nextEmergency = nextEmergencyShift(campaign);
+    let emergencyTitle = "Emergency quiet";
+    let emergencyDetail = nextEmergency
+      ? `next shift ${formatShiftNumber(nextEmergency.shift)} arms t${nextEmergency.emergencyTick}`
+      : "no queued emergency order";
+
+    if (emergencyContract) {
+      emergencyTitle = emergencyContract.name;
+      if (emergencyContract.status === "pending") {
+        emergencyDetail = `pending / arms t${emergencyContract.activationTick} / ${emergencyContract.deadline} ticks`;
+      } else if (emergencyContract.status === "active") {
+        emergencyDetail = `active / ${emergencyContract.timeRemaining} ticks / ${formatBundle(emergencyContract.requirement)}`;
+      } else {
+        emergencyDetail = `${emergencyContract.status} / ${formatBundle(emergencyContract.requirement)}`;
+      }
+    }
+
+    const ledger = Array.isArray(campaign.ledger) ? campaign.ledger : [];
+    const lastLedger = ledger.length ? ledger[ledger.length - 1] : null;
+    const ledgerSummary = lastLedger
+      ? `shift ${formatShiftNumber(lastLedger.shift)} ${lastLedger.completedContracts}c/${lastLedger.failedContracts}f / emergency ${lastLedger.emergencyStatus}`
+      : "no prior shift ledger";
+
+    return {
+      release: campaign.release,
+      shift: campaign.shift,
+      phase: campaign.phase,
+      demand: campaign.demand,
+      deadlineDelta: campaign.deadlineDelta,
+      runStatus: state.run.status,
+      tick: state.tick,
+      queuePolicy: {
+        id: policy.id,
+        name: policy.name,
+        description: policy.description,
+      },
+      emergency: {
+        status: emergencyContract ? emergencyContract.status : campaign.emergency.status,
+        title: emergencyTitle,
+        detail: emergencyDetail,
+        contractId: emergencyContract ? emergencyContract.id : null,
+      },
+      progression: {
+        run: state.restart.run,
+        ledgerCount: ledger.length,
+        latest: ledgerSummary,
+      },
+      choices: {
+        queuePolicyChanges: campaign.choices.queuePolicyChanges,
+        laneOverdrives: campaign.choices.laneOverdrives,
+        activeOverdrives: state.lanes.filter((lane) => lane.overdrive && lane.overdrive.active).length,
+      },
+    };
+  }
+
   function campaignForRestart(state) {
     if (!state || !state.campaign) {
       return null;
@@ -1061,6 +1130,7 @@ const DarkFactoryDispatch = (() => {
     Object.assign(dom, {
       runChip: document.getElementById("run-chip"),
       resources: document.getElementById("resource-readouts"),
+      escalation: document.getElementById("escalation-surface"),
       lanes: document.getElementById("lane-board"),
       queue: document.getElementById("queue-list"),
       contracts: document.getElementById("contract-board"),
@@ -1068,6 +1138,7 @@ const DarkFactoryDispatch = (() => {
       jobs: document.getElementById("job-catalog"),
       log: document.getElementById("operator-log"),
       jobSelect: document.getElementById("job-type-select"),
+      queuePolicySelect: document.getElementById("queue-policy-select"),
       enqueue: document.getElementById("enqueue-job"),
       assignNext: document.getElementById("assign-next-job"),
       startAll: document.getElementById("start-all-lanes"),
@@ -1091,11 +1162,18 @@ const DarkFactoryDispatch = (() => {
     dom.jobSelect.innerHTML = GAME_DATA.jobTypes
       .map((jobType) => `<option value="${jobType.id}">${jobType.name}</option>`)
       .join("");
+    dom.queuePolicySelect.innerHTML = GAME_DATA.campaign.queuePolicies
+      .map((policy) => `<option value="${policy.id}">${policy.name}</option>`)
+      .join("");
   }
 
   function bindControls() {
     dom.enqueue.addEventListener("click", () => {
       currentState = enqueueJob(currentState, dom.jobSelect.value);
+      render(currentState);
+    });
+    dom.queuePolicySelect.addEventListener("change", () => {
+      currentState = setQueuePolicy(currentState, dom.queuePolicySelect.value);
       render(currentState);
     });
     dom.assignNext.addEventListener("click", () => {
@@ -1134,6 +1212,13 @@ const DarkFactoryDispatch = (() => {
       }
       if (button.dataset.action === "recover") {
         currentState = recoverLane(currentState, button.dataset.lane);
+      }
+      if (button.dataset.action === "overdrive") {
+        currentState = toggleLaneOverdrive(
+          currentState,
+          button.dataset.lane,
+          button.dataset.overdriveActive !== "true"
+        );
       }
       render(currentState);
     });
@@ -1175,6 +1260,7 @@ const DarkFactoryDispatch = (() => {
   function render(state) {
     dom.runChip.textContent = `shift ${String(state.restart.run).padStart(2, "0")} / d${state.campaign.demand} / ${state.run.status} / t${state.tick}`;
     renderResources(state);
+    renderEscalationSurface(state);
     renderLanes(state);
     renderQueue(state);
     renderContracts(state);
@@ -1190,6 +1276,34 @@ const DarkFactoryDispatch = (() => {
     }).join("");
   }
 
+  function renderEscalationSurface(state) {
+    const surface = campaignSurfaceState(state);
+    dom.queuePolicySelect.value = surface.queuePolicy.id;
+    dom.escalation.innerHTML = `
+      <article class="escalation-card" data-surface="campaign">
+        <span>Campaign</span>
+        <strong>${surface.release}</strong>
+        <p>shift ${formatShiftNumber(surface.shift)} / ${surface.phase} / demand x${surface.demand}</p>
+        <p>deadline ${surface.deadlineDelta} / ${surface.runStatus} / t${surface.tick}</p>
+      </article>
+      <article class="escalation-card" data-surface="emergency" data-alert="${surface.emergency.status}">
+        <span>Emergency</span>
+        <strong>${surface.emergency.title}</strong>
+        <p>${surface.emergency.detail}</p>
+      </article>
+      <article class="escalation-card" data-surface="progression">
+        <span>Progression</span>
+        <strong>run ${formatShiftNumber(surface.progression.run)} / ledger ${surface.progression.ledgerCount}</strong>
+        <p>${surface.progression.latest}</p>
+      </article>
+      <article class="escalation-card" data-surface="choices">
+        <span>Operator choices</span>
+        <strong>${surface.queuePolicy.name}</strong>
+        <p>${surface.choices.activeOverdrives} overdrive active / ${surface.choices.laneOverdrives} engaged</p>
+      </article>
+    `;
+  }
+
   function renderLanes(state) {
     dom.lanes.innerHTML = state.lanes.map((lane) => {
       const jobType = lane.currentJob ? byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId) : null;
@@ -1201,9 +1315,15 @@ const DarkFactoryDispatch = (() => {
         ? `${lane.fault.name} / ${lane.fault.phase} / ${lane.fault.decision} / ${formatBundle(lane.fault.recovery)}`
         : "clear";
       const statusText = lane.status === "idle" ? "ready" : lane.status;
-      const overdriveText = lane.overdrive && lane.overdrive.active ? "overdrive" : "normal";
+      const overdriveActive = lane.overdrive && lane.overdrive.active;
+      const overdriveText = overdriveActive ? "overdrive" : "normal";
+      const overdriveCost = GAME_DATA.campaign.laneOverdrive;
+      const overdriveDisabled = !overdriveActive && !canPay(state.resources, {
+        power: overdriveCost.powerCost,
+        stability: overdriveCost.stabilityCost,
+      });
       return `
-        <article class="lane-card" data-status="${lane.status}">
+        <article class="lane-card" data-status="${lane.status}" data-overdrive="${overdriveActive ? "true" : "false"}">
           <div class="lane-title">
             <span class="asset-title">${laneIcon}<strong>${lane.name}</strong></span>
             <span class="status-pill">${statusText}</span>
@@ -1222,6 +1342,7 @@ const DarkFactoryDispatch = (() => {
             <button type="button" data-action="assign" data-lane="${lane.id}">assign</button>
             <button type="button" data-action="start" data-lane="${lane.id}">start</button>
             <button type="button" data-action="recover" data-lane="${lane.id}">recover</button>
+            <button type="button" data-action="overdrive" data-lane="${lane.id}" data-overdrive-active="${overdriveActive ? "true" : "false"}" ${overdriveDisabled ? "disabled" : ""}>${overdriveActive ? "release" : "overdrive"}</button>
           </div>
         </article>
       `;
@@ -1237,7 +1358,7 @@ const DarkFactoryDispatch = (() => {
       const jobType = byId(GAME_DATA.jobTypes, entry.jobTypeId);
       const statusText = entry.status === "held" ? "held" : `p${entry.priority}`;
       return `
-        <li class="queue-item">
+        <li class="queue-item" data-emergency="${entry.emergency ? "true" : "false"}">
           <div class="queue-title">
             <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[entry.jobTypeId], "asset-icon queue-icon")}<strong>${jobType.name}</strong></span>
             <span class="status-pill">${statusText}</span>
@@ -1266,7 +1387,7 @@ const DarkFactoryDispatch = (() => {
         ? `arms t${contract.activationTick} / ${contract.deadline} ticks`
         : contract.status === "open" ? `opens next / ${contract.deadline} ticks` : `${contract.timeRemaining} ticks left`;
       return `
-        <article class="contract-card" data-status="${contract.status}">
+        <article class="contract-card" data-status="${contract.status}" data-emergency="${contract.emergency ? "true" : "false"}">
           <div class="contract-title">
             <strong>${contract.name}</strong>
             <span class="status-pill">${contract.status}</span>
@@ -1305,7 +1426,7 @@ const DarkFactoryDispatch = (() => {
 
   function renderJobs() {
     dom.jobs.innerHTML = GAME_DATA.jobTypes.map((jobType) => `
-      <article class="job-card">
+      <article class="job-card" data-family="${jobType.family || "standard"}">
         <div class="job-title">
           <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[jobType.id], "asset-icon job-icon")}<strong>${jobType.name}</strong></span>
           <span class="status-pill">${jobType.duration} ticks</span>
@@ -1346,6 +1467,7 @@ const DarkFactoryDispatch = (() => {
     canPay,
     applyBundle,
     contractProgress,
+    campaignSurfaceState,
   };
 
   if (typeof window !== "undefined") {

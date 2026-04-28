@@ -136,6 +136,13 @@ select {
   padding: 16px 0;
 }
 
+.escalation-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 0 14px;
+}
+
 .title-card-band {
   height: clamp(118px, 17vw, 210px);
   margin: 0 0 14px;
@@ -161,6 +168,22 @@ select {
   box-shadow: 0 12px 36px var(--shadow);
 }
 
+.escalation-card {
+  min-width: 0;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(13, 18, 16, 0.96);
+  box-shadow: 0 12px 36px var(--shadow);
+}
+
+.escalation-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
 .readout strong {
   display: block;
   margin-top: 4px;
@@ -169,11 +192,47 @@ select {
   line-height: 1;
 }
 
+.escalation-card strong {
+  display: block;
+  margin: 5px 0 7px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.escalation-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.escalation-card p + p {
+  margin-top: 4px;
+}
+
+.escalation-card[data-alert="active"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.07);
+}
+
+.escalation-card[data-alert="pending"],
+.escalation-card[data-alert="armed"] {
+  border-color: rgba(215, 184, 103, 0.72);
+}
+
 .factory-grid {
   display: grid;
   grid-template-columns: minmax(360px, 1.6fr) minmax(280px, 0.85fr) minmax(300px, 0.9fr);
   gap: 12px;
   align-items: start;
+}
+
+.factory-grid > * {
+  min-width: 0;
 }
 
 .panel {
@@ -243,6 +302,13 @@ select {
   gap: 10px;
   min-height: 170px;
   padding: 12px;
+}
+
+.lane-card[data-overdrive="true"] {
+  border-color: rgba(75, 214, 192, 0.68);
+  background:
+    linear-gradient(90deg, rgba(75, 214, 192, 0.08), rgba(16, 20, 18, 0) 46%),
+    var(--panel);
 }
 
 .lane-title,
@@ -332,6 +398,10 @@ select {
   color: var(--line-hot);
 }
 
+.contract-card[data-emergency="true"] {
+  border-color: rgba(215, 184, 103, 0.64);
+}
+
 .lane-card[data-status="assigned"] .status-pill {
   border-color: rgba(156, 167, 255, 0.65);
   color: var(--cool);
@@ -383,6 +453,7 @@ select {
   padding: 3px 6px;
   border: 1px solid rgba(133, 145, 139, 0.3);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .progress-track {
@@ -399,7 +470,12 @@ select {
   background: linear-gradient(90deg, var(--line-hot), var(--warn));
 }
 
-.lane-actions,
+.lane-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .queue-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -422,6 +498,12 @@ select {
   display: grid;
   gap: 8px;
   padding: 10px;
+}
+
+.queue-item[data-emergency="true"],
+.job-card[data-family="emergency"] {
+  border-color: rgba(215, 184, 103, 0.68);
+  background: rgba(215, 184, 103, 0.055);
 }
 
 .empty-note {
@@ -491,6 +573,12 @@ select {
   text-transform: uppercase;
 }
 
+.control-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .button-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -528,6 +616,10 @@ select {
   .resource-strip {
     grid-template-columns: repeat(4, minmax(82px, 1fr));
   }
+
+  .escalation-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -550,6 +642,11 @@ select {
 
   .resource-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .escalation-strip,
+  .control-selects {
+    grid-template-columns: 1fr;
   }
 
   .button-grid,

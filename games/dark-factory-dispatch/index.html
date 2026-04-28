@@ -21,6 +21,8 @@
 
     <section class="resource-strip" id="resource-readouts" aria-label="Factory resources"></section>
 
+    <section class="escalation-strip" id="escalation-surface" aria-label="Escalation Shift status"></section>
+
     <section class="title-card-band" aria-label="Factory title art">
       <img src="assets/arcade-title-card.png" alt="" />
     </section>
@@ -72,10 +74,16 @@
           <strong>Dispatch console</strong>
         </div>
         <div class="control-stack">
-          <label class="select-line" for="job-type-select">
-            <span>Job type</span>
-            <select id="job-type-select"></select>
-          </label>
+          <div class="control-selects">
+            <label class="select-line" for="job-type-select">
+              <span>Job type</span>
+              <select id="job-type-select"></select>
+            </label>
+            <label class="select-line" for="queue-policy-select">
+              <span>Queue policy</span>
+              <select id="queue-policy-select"></select>
+            </label>
+          </div>
           <div class="button-grid">
             <button type="button" id="enqueue-job">enqueue</button>
             <button type="button" id="assign-next-job">assign</button>
