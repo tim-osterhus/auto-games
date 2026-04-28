@@ -115,16 +115,16 @@ class BuildArcadeTests(unittest.TestCase):
                     {
                         "slug": "corebound",
                         "title": "Corebound",
-                        "version": "0.2.0",
+                        "version": "0.3.0",
                         "status": "playable",
-                        "summary": "Descend, file contracts, open archives, and route home.",
+                        "summary": "Sign Deep Charters, open late routes, and anchor recall home.",
                         "release": {
-                            "label": "v0.2.0 continuity",
-                            "copy": "Contracts, archive sigils, relay reputation, scanner sweeps, route beacons, and coolant support extend progression beyond ore profit.",
+                            "label": "v0.3.0 Deep Charter",
+                            "copy": "Deep Charters open charter-gated late routes and anchor recall extraction.",
                         },
                         "snapshot": {
                             "status": "deferred",
-                            "version": "0.2.0",
+                            "version": "0.3.0",
                             "reason": "Working-tree content is not commit-backed yet.",
                         },
                         "path": "games/corebound/",
@@ -135,11 +135,11 @@ class BuildArcadeTests(unittest.TestCase):
 
         self.assertIn("Corebound is live.", rendered)
         self.assertIn("games <strong>1 game</strong>", rendered)
-        self.assertIn("playable / v0.2.0", rendered)
+        self.assertIn("playable / v0.3.0", rendered)
         self.assertIn("Corebound is playable.", rendered)
-        self.assertIn("Descend, file contracts, open archives, and route home.", rendered)
-        self.assertIn("v0.2.0 continuity", rendered)
-        self.assertIn("Contracts, archive sigils, relay reputation", rendered)
+        self.assertIn("Sign Deep Charters, open late routes, and anchor recall home.", rendered)
+        self.assertIn("v0.3.0 Deep Charter", rendered)
+        self.assertIn("Deep Charters open charter-gated late routes", rendered)
         self.assertIn("Snapshot deferred", rendered)
         self.assertIn("Working-tree content is not commit-backed yet.", rendered)
         self.assertIn('href="games/corebound/"', rendered)

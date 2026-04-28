@@ -3,21 +3,29 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.2.0 continuation release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.3.0 Deep Charter expansion."
   },
   "games": [
     {
       "slug": "corebound",
       "title": "Corebound",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "status": "playable",
-      "summary": "Descend through five depth bands while contracts, archive sets, Survey relay reputation, scanner sweeps, route beacons, and coolant bursts open non-cash progression beyond ore profit.",
+      "summary": "Sign Deep Charters, route through late-run choir trench branches, and extract with anchor recall while contracts, archive sets, Survey relay upgrades, scanner sweeps, route beacons, and coolant bursts push progression beyond ore profit.",
       "path": "games/corebound/",
       "release": {
-        "label": "v0.2.0 continuity",
-        "copy": "Contracts, archive sigils, relay reputation, scanner sweeps, route beacons, and coolant support now connect the mine run to visible long-term progression."
+        "label": "v0.3.0 Deep Charter",
+        "copy": "Deep Charters now bind run constraints to relay rewards, opening charter-gated late routes, choir trench recovery targets, route value bonuses, and anchor recall extraction on top of the contract/archive foundation."
       },
       "versions": [
+        {
+          "version": "0.3.0",
+          "path": "games/corebound/versions/0.3.0/",
+          "releasedAt": "2026-04-27",
+          "label": "v0.3.0 Deep Charter",
+          "summary": "Deep Charters, late routes, choir trench rewards, and anchor recall extend the Corebound run beyond the v0.2.0 contract/archive foundation.",
+          "commit": "28155c6686be6408f3ba9418b35549d37cbb95fe"
+        },
         {
           "version": "0.2.0",
           "path": "games/corebound/versions/0.2.0/",
