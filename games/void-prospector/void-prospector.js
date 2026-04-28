@@ -60,7 +60,17 @@ const VoidProspector = (() => {
       name: "Frontier Spoke",
       position: { x: 24, y: 0, z: -12 },
       dockingRadius: 8,
-      services: ["sell cargo", "repair hull", "refuel", "contract board", "upgrade rig", "survey probes", "decoy burst"],
+      services: [
+        "sell cargo",
+        "repair hull",
+        "refuel",
+        "contract board",
+        "upgrade rig",
+        "survey probes",
+        "decoy burst",
+        "salvage rig",
+        "recovery drones",
+      ],
     },
     contract: {
       id: "charter-ore-spoke",
@@ -88,6 +98,20 @@ const VoidProspector = (() => {
           cost: 60,
           countermeasureCharges: 1,
         },
+        {
+          id: "salvage-rig",
+          name: "Salvage Rig",
+          cost: 80,
+          salvagePowerBonus: 0.55,
+          salvageConfidenceBonus: 0.12,
+        },
+        {
+          id: "recovery-drones",
+          name: "Recovery Drones",
+          cost: 95,
+          salvagePowerBonus: 0.25,
+          salvageRiskMitigation: 0.32,
+        },
       ],
       sectors: [
         {
@@ -99,8 +123,11 @@ const VoidProspector = (() => {
           objective: "Mine 8 ore, dock at Frontier Spoke, and keep the pirate wake off the hold.",
           requiredOre: 8,
           requiredScans: 0,
+          requiredSalvageValue: 0,
+          requiredRelics: 0,
           rewardCredits: 160,
           surveyReward: 20,
+          salvageReward: 10,
           oreValueBonus: 0,
           oreReserveBonus: 0,
           hazard: {
@@ -127,6 +154,29 @@ const VoidProspector = (() => {
               chartsHazard: false,
             },
           ],
+          salvageSites: [
+            {
+              id: "salvage-spoke-relay",
+              name: "Spoke Relay Cache",
+              type: "relay-cache",
+              family: "manifest",
+              position: { x: -12, y: -1, z: -44 },
+              radius: 3.4,
+              scanDifficulty: 1.8,
+              confidenceThreshold: 0.55,
+              extractionDifficulty: 1.6,
+              remainingSalvage: 2,
+              rewardValue: 28,
+              valueVariance: 5,
+              relicReward: 0,
+              volatility: 0.08,
+              failureThreshold: 1.05,
+              piratePressure: 4,
+              hazardExposure: 0.2,
+              failureHullDamage: 3,
+              scanValue: 8,
+            },
+          ],
           unlocks: ["rift-shelf"],
         },
         {
@@ -135,11 +185,14 @@ const VoidProspector = (() => {
           tier: 2,
           condition: "Charged dust lanes",
           charterTitle: "Rift Shelf Survey",
-          objective: "Scan one anomaly, mine 10 ore, and return through charged dust before Knife Wake tightens.",
+          objective: "Scan one anomaly, mine 10 ore, and choose whether to salvage derelicts before Knife Wake tightens.",
           requiredOre: 10,
           requiredScans: 1,
+          requiredSalvageValue: 0,
+          requiredRelics: 0,
           rewardCredits: 230,
           surveyReward: 45,
+          salvageReward: 20,
           oreValueBonus: 6,
           oreReserveBonus: 1,
           hazard: {
@@ -175,6 +228,50 @@ const VoidProspector = (() => {
               chartsHazard: false,
             },
           ],
+          salvageSites: [
+            {
+              id: "salvage-rift-hulk",
+              name: "Rift-Torn Crew Hulk",
+              type: "derelict-hull",
+              family: "relic",
+              position: { x: -14, y: 0, z: -58 },
+              radius: 5.4,
+              scanDifficulty: 2.7,
+              confidenceThreshold: 0.68,
+              extractionDifficulty: 2.3,
+              remainingSalvage: 3,
+              rewardValue: 48,
+              valueVariance: 10,
+              relicReward: 1,
+              volatility: 0.34,
+              failureThreshold: 1.1,
+              piratePressure: 9,
+              hazardExposure: 1.1,
+              failureHullDamage: 8,
+              scanValue: 18,
+            },
+            {
+              id: "salvage-rift-volatile",
+              name: "Volatile Engine Grave",
+              type: "volatile-wreck",
+              family: "hazard",
+              position: { x: 34, y: -2, z: -48 },
+              radius: 4.8,
+              scanDifficulty: 3.3,
+              confidenceThreshold: 0.78,
+              extractionDifficulty: 2.8,
+              remainingSalvage: 2,
+              rewardValue: 64,
+              valueVariance: 14,
+              relicReward: 0,
+              volatility: 0.74,
+              failureThreshold: 1.0,
+              piratePressure: 18,
+              hazardExposure: 2.6,
+              failureHullDamage: 13,
+              scanValue: 24,
+            },
+          ],
           unlocks: ["umbra-trench"],
         },
         {
@@ -183,11 +280,14 @@ const VoidProspector = (() => {
           tier: 3,
           condition: "Pirate-marked hazard shelf",
           charterTitle: "Umbra Ladder Charter",
-          objective: "Scan two anomalies, pull 12 ore, and decide when to spend decoys before the trench closes.",
+          objective: "Scan two anomalies, pull 12 ore, recover a derelict relic, and decide when to spend decoys before the trench closes.",
           requiredOre: 12,
           requiredScans: 2,
+          requiredSalvageValue: 90,
+          requiredRelics: 1,
           rewardCredits: 320,
           surveyReward: 80,
+          salvageReward: 45,
           oreValueBonus: 11,
           oreReserveBonus: 2,
           hazard: {
@@ -232,9 +332,63 @@ const VoidProspector = (() => {
               chartsHazard: false,
             },
           ],
+          salvageSites: [
+            {
+              id: "salvage-umbra-vault",
+              name: "Umbra Vault Spine",
+              type: "derelict-hull",
+              family: "relic",
+              position: { x: -28, y: 1, z: -62 },
+              radius: 5.8,
+              scanDifficulty: 3,
+              confidenceThreshold: 0.72,
+              extractionDifficulty: 2.5,
+              remainingSalvage: 3,
+              rewardValue: 72,
+              valueVariance: 16,
+              relicReward: 1,
+              volatility: 0.46,
+              failureThreshold: 1.05,
+              piratePressure: 15,
+              hazardExposure: 1.9,
+              failureHullDamage: 10,
+              scanValue: 30,
+            },
+            {
+              id: "salvage-umbra-blackbox",
+              name: "Knife Wake Blackbox",
+              type: "relay-cache",
+              family: "manifest",
+              position: { x: 30, y: 3, z: -24 },
+              radius: 3.8,
+              scanDifficulty: 2.6,
+              confidenceThreshold: 0.62,
+              extractionDifficulty: 2.1,
+              remainingSalvage: 2,
+              rewardValue: 58,
+              valueVariance: 12,
+              relicReward: 0,
+              volatility: 0.28,
+              failureThreshold: 1.15,
+              piratePressure: 22,
+              hazardExposure: 0.8,
+              failureHullDamage: 6,
+              scanValue: 22,
+            },
+          ],
           unlocks: [],
         },
       ],
+    },
+    salvage: {
+      version: "0.2.0",
+      releaseLabel: "Derelict Salvage",
+      extractionRange: 10.5,
+      scanRange: 16,
+      baseExtractionPower: 1,
+      confidencePerScan: 1,
+      blindExtractionPenalty: 0.28,
+      pressureRiskThreshold: 0.45,
     },
     asteroidField: {
       miningRange: 9,
@@ -455,6 +609,8 @@ const VoidProspector = (() => {
       recommendedSectorId: base.recommendedSectorId || nextIncompleteSectorId({ ...base, unlockedSectorIds, completedSectorIds, currentSectorId }),
       surveyScore: base.surveyScore || 0,
       anomalyScans: base.anomalyScans || 0,
+      salvageScore: base.salvageScore || 0,
+      relicsRecovered: base.relicsRecovered || 0,
       hazardCharts: { ...(base.hazardCharts || {}) },
       lastChoice: base.lastChoice || "spoke-approach",
       lastCompletedSectorId: base.lastCompletedSectorId || null,
@@ -469,6 +625,9 @@ const VoidProspector = (() => {
       scanPowerBonus: base.scanPowerBonus || 0,
       hazardMitigation: base.hazardMitigation || 0,
       countermeasureCharges: base.countermeasureCharges || 0,
+      salvagePowerBonus: base.salvagePowerBonus || 0,
+      salvageConfidenceBonus: base.salvageConfidenceBonus || 0,
+      salvageRiskMitigation: base.salvageRiskMitigation || 0,
       lastService: base.lastService || "none",
       countermeasureStatus: base.countermeasureStatus || "idle",
     };
@@ -479,6 +638,9 @@ const VoidProspector = (() => {
       }
       state.scanPowerBonus = Math.max(state.scanPowerBonus, service.scanPowerBonus || 0);
       state.hazardMitigation = Math.max(state.hazardMitigation, service.hazardMitigation || 0);
+      state.salvagePowerBonus = Math.max(state.salvagePowerBonus, service.salvagePowerBonus || 0);
+      state.salvageConfidenceBonus = Math.max(state.salvageConfidenceBonus, service.salvageConfidenceBonus || 0);
+      state.salvageRiskMitigation = Math.max(state.salvageRiskMitigation, service.salvageRiskMitigation || 0);
     });
     return state;
   }
@@ -499,6 +661,64 @@ const VoidProspector = (() => {
     }));
   }
 
+  function createSalvageSites(seed = DEFAULT_SEED, sectorInput = GAME_DATA.surveyLadder.defaultSectorId) {
+    const sector = typeof sectorInput === "string" ? sectorById(sectorInput) : sectorInput;
+    const random = createRng(seed + sector.tier * 12239 + 5003);
+    return (sector.salvageSites || []).map((site, index) => {
+      const valueVariance = site.valueVariance ? Math.floor(random() * site.valueVariance) : 0;
+      const riskPhase = round(random(), 4);
+      const remainingSalvage = site.remainingSalvage || 1;
+      return {
+        ...clone(site),
+        rewardValue: (site.rewardValue || 0) + valueVariance,
+        scanSignature: `salvage-${sector.id}-${seed}-${index + 1}`,
+        riskPhase,
+        salvageState: {
+          status: "unscanned",
+          lockProgress: 0,
+          scanConfidence: 0,
+          targetLocked: false,
+          extractionProgress: 0,
+          remainingSalvage,
+          recoveredValue: 0,
+          recoveredRelics: 0,
+          failed: false,
+          failure: null,
+          lastTouchedTick: null,
+        },
+      };
+    });
+  }
+
+  function createSalvageState(options = {}, stationServices = createStationServiceState(), salvageSites = []) {
+    const base = options.salvage || {};
+    const recommendedSite =
+      base.recommendedSiteId ||
+      (salvageSites.find((site) => site.type === "derelict-hull") || salvageSites[0] || {}).id ||
+      null;
+    return {
+      version: GAME_DATA.salvage.version,
+      releaseLabel: GAME_DATA.salvage.releaseLabel,
+      range: GAME_DATA.salvage.extractionRange,
+      scanRange: GAME_DATA.salvage.scanRange,
+      extractionPower: round(GAME_DATA.salvage.baseExtractionPower + (stationServices.salvagePowerBonus || 0), 2),
+      confidenceBonus: stationServices.salvageConfidenceBonus || 0,
+      riskMitigation: stationServices.salvageRiskMitigation || 0,
+      holdValue: base.holdValue || 0,
+      relicsInHold: base.relicsInHold || 0,
+      recoveredValue: base.recoveredValue || 0,
+      bankedValue: base.bankedValue || 0,
+      relicsRecovered: base.relicsRecovered || 0,
+      failures: base.failures || 0,
+      abandoned: base.abandoned || 0,
+      active: false,
+      targetId: null,
+      status: base.status || "idle",
+      lastOutcome: base.lastOutcome || "none",
+      recommendedSiteId: recommendedSite,
+    };
+  }
+
   function createSectorContract(sector) {
     return {
       id: `charter-${sector.id}`,
@@ -506,6 +726,8 @@ const VoidProspector = (() => {
       objective: sector.objective,
       requiredOre: sector.requiredOre,
       requiredScans: sector.requiredScans,
+      requiredSalvageValue: sector.requiredSalvageValue || 0,
+      requiredRelics: sector.requiredRelics || 0,
       rewardCredits: sector.rewardCredits,
       status: "active",
       sectorId: sector.id,
@@ -513,6 +735,8 @@ const VoidProspector = (() => {
       progress: 0,
       deliveredOre: 0,
       deliveredScans: 0,
+      deliveredSalvageValue: 0,
+      deliveredRelics: 0,
       completedAt: null,
     };
   }
@@ -611,6 +835,7 @@ const VoidProspector = (() => {
     const stationServices = createStationServiceState({ stationServices: options.stationServices });
     const asteroids = createAsteroidNodes(seed, sector);
     const anomalies = createAnomalyNodes(seed, sector);
+    const salvageSites = createSalvageSites(seed, sector);
     const ship = {
       name: GAME_DATA.ship.name,
       position: clone(GAME_DATA.ship.startPosition),
@@ -642,6 +867,8 @@ const VoidProspector = (() => {
       ladder,
       asteroids,
       anomalies,
+      salvageSites,
+      salvage: createSalvageState(options, stationServices, salvageSites),
       station: {
         ...clone(GAME_DATA.station),
         docked: false,
@@ -696,6 +923,11 @@ const VoidProspector = (() => {
         oreSold: 0,
         oreLost: 0,
         anomaliesScanned: 0,
+        salvageSitesLocked: 0,
+        salvageUnitsRecovered: 0,
+        salvageValueRecovered: 0,
+        relicsRecovered: 0,
+        salvageFailures: 0,
         countermeasuresDeployed: 0,
         sorties: options.runCount || 1,
       },
@@ -726,8 +958,12 @@ const VoidProspector = (() => {
     const anomalyTargets = (state.anomalies || [])
       .filter((anomaly) => !anomaly.scanState.scanned)
       .map((anomaly) => ({ kind: "anomaly", id: anomaly.id, position: anomaly.position, name: anomaly.name }));
+    const salvageTargets = (state.salvageSites || [])
+      .filter((site) => !["depleted", "failed", "abandoned"].includes(site.salvageState.status))
+      .map((site) => ({ kind: "salvage", id: site.id, position: site.position, name: site.name }));
     return [
       ...asteroidTargets,
+      ...salvageTargets,
       ...anomalyTargets,
       { kind: "station", id: state.station.id, position: state.station.position, name: state.station.name },
       { kind: "pirate", id: state.pirate.id, position: state.pirate.position, name: state.pirate.name },
@@ -743,6 +979,9 @@ const VoidProspector = (() => {
     }
     if (target.kind === "anomaly") {
       return (state.anomalies || []).find((anomaly) => anomaly.id === target.id) || null;
+    }
+    if (target.kind === "salvage") {
+      return (state.salvageSites || []).find((site) => site.id === target.id) || null;
     }
     if (target.kind === "station") {
       return state.station;
@@ -763,6 +1002,22 @@ const VoidProspector = (() => {
     if (state.contract.requiredScans > state.contract.deliveredScans) {
       const remaining = state.contract.requiredScans - state.contract.deliveredScans;
       return `Scan ${remaining} anomaly signal${remaining === 1 ? "" : "s"} in ${sectorById(state.ladder.currentSectorId).name}, then finish the ore charter.`;
+    }
+    if ((state.contract.requiredSalvageValue || 0) > (state.contract.deliveredSalvageValue || 0)) {
+      const remaining = Math.max(0, state.contract.requiredSalvageValue - (state.contract.deliveredSalvageValue || 0));
+      if (state.salvage.holdValue > 0 || state.salvage.relicsInHold > 0) {
+        return "Dock at Frontier Spoke to log recovered salvage and relics into the charter.";
+      }
+      return `Recover ${remaining}cr salvage value from ${sectorById(state.ladder.currentSectorId).name}.`;
+    }
+    if ((state.contract.requiredRelics || 0) > (state.contract.deliveredRelics || 0)) {
+      if (state.salvage.relicsInHold > 0) {
+        return "Dock at Frontier Spoke to secure the recovered relic.";
+      }
+      return `Recover ${state.contract.requiredRelics - (state.contract.deliveredRelics || 0)} derelict relic.`;
+    }
+    if ((state.salvage.holdValue > 0 || state.salvage.relicsInHold > 0) && state.station.proximity.dockable) {
+      return "Dock at Frontier Spoke to bank salvage value and relic manifests.";
     }
     if (state.station.proximity.dockable && state.cargo.ore > 0) {
       return "Dock at Frontier Spoke to sell ore, repair, refuel, and log charter progress.";
@@ -798,11 +1053,38 @@ const VoidProspector = (() => {
       state.scanning.power = 1 + (state.stationServices.scanPowerBonus || 0);
       state.hazard.mitigation = state.stationServices.hazardMitigation || 0;
     }
+    if (state.stationServices && state.salvage) {
+      state.salvage.extractionPower = round(
+        GAME_DATA.salvage.baseExtractionPower + (state.stationServices.salvagePowerBonus || 0),
+        2
+      );
+      state.salvage.confidenceBonus = state.stationServices.salvageConfidenceBonus || 0;
+      state.salvage.riskMitigation = state.stationServices.salvageRiskMitigation || 0;
+    }
 
     const oreProgress = Math.min(1, state.contract.deliveredOre / state.contract.requiredOre);
     const scanProgress =
       state.contract.requiredScans > 0 ? Math.min(1, state.contract.deliveredScans / state.contract.requiredScans) : 1;
-    state.contract.progress = round(state.contract.requiredScans > 0 ? (oreProgress + scanProgress) / 2 : oreProgress, 3);
+    const salvageProgress =
+      state.contract.requiredSalvageValue > 0
+        ? Math.min(1, (state.contract.deliveredSalvageValue || 0) / state.contract.requiredSalvageValue)
+        : 1;
+    const relicProgress =
+      state.contract.requiredRelics > 0 ? Math.min(1, (state.contract.deliveredRelics || 0) / state.contract.requiredRelics) : 1;
+    const progressParts = [oreProgress];
+    if (state.contract.requiredScans > 0) {
+      progressParts.push(scanProgress);
+    }
+    if (state.contract.requiredSalvageValue > 0) {
+      progressParts.push(salvageProgress);
+    }
+    if (state.contract.requiredRelics > 0) {
+      progressParts.push(relicProgress);
+    }
+    state.contract.progress = round(
+      progressParts.reduce((total, progress) => total + progress, 0) / progressParts.length,
+      3
+    );
     if (state.ship.hull <= 0) {
       state.ship.hull = 0;
       state.run.status = "failed";
@@ -950,6 +1232,24 @@ const VoidProspector = (() => {
     return next;
   }
 
+  function coolSalvageState(state) {
+    const next = state;
+    if (!next.salvage) {
+      return next;
+    }
+    next.salvage.active = false;
+    next.salvage.targetId = null;
+    (next.salvageSites || []).forEach((site) => {
+      if (site.salvageState.status === "extracting") {
+        site.salvageState.status = site.salvageState.targetLocked ? "locked" : "unscanned";
+      }
+      if (site.salvageState.status === "partial") {
+        site.salvageState.status = site.salvageState.targetLocked ? "locked" : "unscanned";
+      }
+    });
+    return next;
+  }
+
   function mineTarget(state, deltaSeconds = 1) {
     const dt = Math.max(0, Math.min(deltaSeconds, 2));
     const next = clone(state);
@@ -1073,11 +1373,222 @@ const VoidProspector = (() => {
     return syncDerivedState(next);
   }
 
+  function salvageRisk(site, state) {
+    const confidenceGap = Math.max(0, (site.confidenceThreshold || 0.65) - site.salvageState.scanConfidence);
+    const phaseRisk = (site.riskPhase || 0) * 0.08;
+    return round(clamp((site.volatility || 0) + confidenceGap + phaseRisk - (state.salvage.riskMitigation || 0), 0, 1.5), 3);
+  }
+
+  function scanSalvageTarget(state, deltaSeconds = 1) {
+    const dt = Math.max(0, Math.min(deltaSeconds, 2));
+    const next = clone(state);
+    if (next.run.status === "failed" || next.run.status === "complete") {
+      next.salvage.status = "run closed";
+      return syncDerivedState(next);
+    }
+
+    const target = findTarget(next);
+    if (!target || next.target.kind !== "salvage") {
+      next.salvage.status = "no salvage lock";
+      return syncDerivedState(next);
+    }
+
+    const range = distance(next.ship.position, target.position);
+    if (range > next.salvage.scanRange + target.radius) {
+      next.salvage.status = "out of scan range";
+      return syncDerivedState(next);
+    }
+
+    if (["failed", "depleted", "abandoned"].includes(target.salvageState.status)) {
+      next.salvage.status = target.salvageState.status;
+      return syncDerivedState(next);
+    }
+
+    const wasLocked = target.salvageState.targetLocked;
+    target.salvageState.status = "scanning";
+    target.salvageState.lockProgress +=
+      (next.scanning.power * GAME_DATA.salvage.confidencePerScan + (next.salvage.confidenceBonus || 0)) * dt;
+    target.salvageState.scanConfidence = round(
+      clamp(target.salvageState.lockProgress / target.scanDifficulty + (next.salvage.confidenceBonus || 0), 0, 1),
+      3
+    );
+    target.salvageState.targetLocked = target.salvageState.scanConfidence >= (target.confidenceThreshold || 0.65);
+    target.salvageState.lastTouchedTick = next.tick;
+
+    next.scanning.active = true;
+    next.scanning.targetId = target.id;
+    next.scanning.lastScan = target.salvageState.scanConfidence;
+    next.scanning.status = `salvage confidence ${Math.round(target.salvageState.scanConfidence * 100)}%`;
+    next.salvage.active = true;
+    next.salvage.targetId = target.id;
+    next.salvage.status = next.scanning.status;
+
+    if (target.salvageState.targetLocked) {
+      target.salvageState.status = target.salvageState.scanConfidence >= 1 ? "mapped" : "locked";
+      next.salvage.status = `${target.name} ${target.salvageState.status}`;
+      if (!wasLocked) {
+        next.stats.salvageSitesLocked += 1;
+        next.ladder.salvageScore += target.scanValue || 0;
+        next.log.unshift({ tick: next.tick, message: `${target.name} salvage lock resolved.` });
+      }
+    }
+
+    return syncDerivedState(next);
+  }
+
+  function applySalvagePressure(state, site, risk, failed = false) {
+    const next = state;
+    if (risk < GAME_DATA.salvage.pressureRiskThreshold && !failed) {
+      return next;
+    }
+    const pressureScale = failed ? 1 : 0.45;
+    next.hazard.exposure = round(next.hazard.exposure + (site.hazardExposure || 0) * risk * pressureScale, 3);
+    next.pirate.pressure = Math.min(100, round(next.pirate.pressure + (site.piratePressure || 0) * risk * pressureScale, 2));
+    if (next.pirate.state === "dormant" && (site.piratePressure || 0) > 0) {
+      next.pirate.state = "shadowing";
+      next.pirate.encounterState = "contact";
+    }
+    return next;
+  }
+
+  function failSalvageSite(state, site, reason) {
+    const next = state;
+    site.salvageState.status = "failed";
+    site.salvageState.failed = true;
+    site.salvageState.failure = reason;
+    site.salvageState.remainingSalvage = 0;
+    site.salvageState.extractionProgress = 0;
+    site.salvageState.lastTouchedTick = next.tick;
+    const hullDamage = Math.max(0, (site.failureHullDamage || 0) - (next.salvage.riskMitigation || 0) * 10);
+    next.ship.hull = Math.max(0, round(next.ship.hull - hullDamage, 2));
+    applySalvagePressure(next, site, Math.max(site.failureThreshold || 1, salvageRisk(site, next)), true);
+    next.salvage.failures += 1;
+    next.salvage.active = false;
+    next.salvage.targetId = site.id;
+    next.salvage.status = `failed ${site.name}`;
+    next.salvage.lastOutcome = reason;
+    next.stats.salvageFailures += 1;
+    next.log.unshift({ tick: next.tick, message: `${site.name} failed: ${reason}.` });
+    return next;
+  }
+
+  function extractSalvageTarget(state, deltaSeconds = 1) {
+    const dt = Math.max(0, Math.min(deltaSeconds, 2));
+    const next = clone(state);
+    if (next.run.status === "failed" || next.run.status === "complete") {
+      next.salvage.status = "run closed";
+      return syncDerivedState(next);
+    }
+
+    const target = findTarget(next);
+    if (!target || next.target.kind !== "salvage") {
+      next.salvage.status = "no salvage lock";
+      return syncDerivedState(next);
+    }
+
+    const range = distance(next.ship.position, target.position);
+    if (range > next.salvage.range + target.radius) {
+      next.salvage.status = "out of extraction range";
+      return syncDerivedState(next);
+    }
+
+    if (["failed", "depleted", "abandoned"].includes(target.salvageState.status)) {
+      next.salvage.status = target.salvageState.status;
+      return syncDerivedState(next);
+    }
+
+    const risk = salvageRisk(target, next);
+    if (risk >= (target.failureThreshold || 1.1)) {
+      failSalvageSite(next, target, "volatile blind extraction");
+      return syncDerivedState(next);
+    }
+
+    const confidenceFactor = clamp(
+      1 - GAME_DATA.salvage.blindExtractionPenalty + target.salvageState.scanConfidence * 0.42,
+      0.55,
+      1.18
+    );
+    let recoveredUnits = 0;
+    let recoveredValue = 0;
+    let recoveredRelics = 0;
+    target.salvageState.status = "extracting";
+    target.salvageState.extractionProgress += next.salvage.extractionPower * confidenceFactor * dt;
+
+    while (
+      target.salvageState.extractionProgress >= target.extractionDifficulty &&
+      target.salvageState.remainingSalvage > 0
+    ) {
+      target.salvageState.extractionProgress -= target.extractionDifficulty;
+      target.salvageState.remainingSalvage -= 1;
+      recoveredUnits += 1;
+      const unitValue = Math.round((target.rewardValue || 0) * (target.salvageState.targetLocked ? 1.08 : 1));
+      recoveredValue += unitValue;
+      if ((target.relicReward || 0) > target.salvageState.recoveredRelics) {
+        recoveredRelics += 1;
+        target.salvageState.recoveredRelics += 1;
+      }
+    }
+
+    if (recoveredUnits > 0) {
+      target.salvageState.recoveredValue += recoveredValue;
+      next.salvage.holdValue += recoveredValue;
+      next.salvage.relicsInHold += recoveredRelics;
+      next.salvage.recoveredValue += recoveredValue;
+      next.salvage.relicsRecovered += recoveredRelics;
+      next.ladder.salvageScore += Math.ceil(recoveredValue / 5) + recoveredRelics * 25;
+      next.ladder.relicsRecovered += recoveredRelics;
+      next.stats.salvageUnitsRecovered += recoveredUnits;
+      next.stats.salvageValueRecovered += recoveredValue;
+      next.stats.relicsRecovered += recoveredRelics;
+      next.salvage.lastOutcome =
+        recoveredRelics > 0 ? `${recoveredValue}cr / ${recoveredRelics} relic` : `${recoveredValue}cr salvage`;
+      next.log.unshift({
+        tick: next.tick,
+        message: `${target.name} yielded ${recoveredValue}cr salvage${recoveredRelics ? ` and ${recoveredRelics} relic` : ""}.`,
+      });
+    }
+
+    if (target.salvageState.remainingSalvage <= 0) {
+      target.salvageState.remainingSalvage = 0;
+      target.salvageState.extractionProgress = 0;
+      target.salvageState.status = "depleted";
+    } else if (recoveredUnits > 0) {
+      target.salvageState.status = "partial";
+    }
+
+    target.salvageState.lastTouchedTick = next.tick;
+    next.salvage.active = true;
+    next.salvage.targetId = target.id;
+    next.salvage.status = recoveredUnits > 0 ? `recovered ${recoveredUnits}` : "extracting";
+    applySalvagePressure(next, target, risk, false);
+    return syncDerivedState(next);
+  }
+
+  function abandonSalvageTarget(state) {
+    const next = clone(state);
+    const target = findTarget(next);
+    if (!target || next.target.kind !== "salvage") {
+      next.salvage.status = "no salvage lock";
+      return syncDerivedState(next);
+    }
+    if (!["failed", "depleted"].includes(target.salvageState.status)) {
+      target.salvageState.status = "abandoned";
+      target.salvageState.lastTouchedTick = next.tick;
+      next.salvage.abandoned += 1;
+      next.salvage.status = `abandoned ${target.name}`;
+      next.salvage.lastOutcome = "abandoned";
+      next.log.unshift({ tick: next.tick, message: `${target.name} marked abandoned for a safer route.` });
+    }
+    return syncDerivedState(next);
+  }
+
   function contractReadyForCompletion(state) {
     return (
       state.contract.status === "active" &&
       state.contract.deliveredOre >= state.contract.requiredOre &&
-      state.contract.deliveredScans >= state.contract.requiredScans
+      state.contract.deliveredScans >= state.contract.requiredScans &&
+      (state.contract.deliveredSalvageValue || 0) >= (state.contract.requiredSalvageValue || 0) &&
+      (state.contract.deliveredRelics || 0) >= (state.contract.requiredRelics || 0)
     );
   }
 
@@ -1089,6 +1600,9 @@ const VoidProspector = (() => {
       next.ladder.completedSectorIds = uniqueList([...next.ladder.completedSectorIds, sector.id]);
       next.ladder.unlockedSectorIds = uniqueList([...next.ladder.unlockedSectorIds, ...(sector.unlocks || [])]);
       next.ladder.surveyScore += sector.surveyReward || 0;
+      if ((sector.requiredSalvageValue || 0) > 0 && (next.contract.deliveredSalvageValue || 0) >= sector.requiredSalvageValue) {
+        next.ladder.salvageScore += sector.salvageReward || 0;
+      }
       next.ladder.lastCompletedSectorId = sector.id;
     }
     next.ladder.recommendedSectorId = nextIncompleteSectorId(next.ladder) || sector.id;
@@ -1107,19 +1621,32 @@ const VoidProspector = (() => {
 
     const soldOre = next.cargo.ore;
     const saleCredits = next.cargo.value;
+    const salvagedValue = next.salvage ? next.salvage.holdValue : 0;
+    const salvagedRelics = next.salvage ? next.salvage.relicsInHold : 0;
     next.station.docked = true;
     next.station.lastSale = saleCredits;
     next.station.lastService = "sold cargo / repaired / refueled";
-    next.credits += saleCredits;
+    next.credits += saleCredits + salvagedValue;
     next.stats.oreSold += soldOre;
     next.contract.deliveredOre += soldOre;
     next.cargo.ore = 0;
     next.cargo.value = 0;
+    if (next.salvage) {
+      next.contract.deliveredSalvageValue = (next.contract.deliveredSalvageValue || 0) + salvagedValue;
+      next.contract.deliveredRelics = (next.contract.deliveredRelics || 0) + salvagedRelics;
+      next.salvage.bankedValue += salvagedValue;
+      next.salvage.holdValue = 0;
+      next.salvage.relicsInHold = 0;
+    }
     next.ship.hull = next.ship.maxHull;
     next.ship.fuel = next.ship.maxFuel;
 
-    if (soldOre > 0) {
-      next.log.unshift({ tick: next.tick, message: `Sold ${soldOre} ore for ${saleCredits} credits.` });
+    if (soldOre > 0 || salvagedValue > 0 || salvagedRelics > 0) {
+      const salvageText =
+        salvagedValue > 0 || salvagedRelics > 0
+          ? ` and logged ${salvagedValue}cr salvage${salvagedRelics ? ` / ${salvagedRelics} relic` : ""}`
+          : "";
+      next.log.unshift({ tick: next.tick, message: `Sold ${soldOre} ore for ${saleCredits} credits${salvageText}.` });
     } else {
       next.log.unshift({ tick: next.tick, message: "Docking clamps serviced hull and tanks." });
     }
@@ -1191,6 +1718,9 @@ const VoidProspector = (() => {
     next.stationServices.scanPowerBonus += service.scanPowerBonus || 0;
     next.stationServices.hazardMitigation += service.hazardMitigation || 0;
     next.stationServices.countermeasureCharges += service.countermeasureCharges || 0;
+    next.stationServices.salvagePowerBonus += service.salvagePowerBonus || 0;
+    next.stationServices.salvageConfidenceBonus += service.salvageConfidenceBonus || 0;
+    next.stationServices.salvageRiskMitigation += service.salvageRiskMitigation || 0;
     next.stationServices.lastService = `${service.name} purchased`;
     next.log.unshift({ tick: next.tick, message: `${service.name} purchased for the next survey push.` });
     return syncDerivedState(next);
@@ -1224,7 +1754,11 @@ const VoidProspector = (() => {
       state.contract.deliveredOre === 0 &&
       state.contract.deliveredScans === 0 &&
       state.stats.oreMined === 0 &&
-      state.stats.anomaliesScanned === 0
+      state.stats.anomaliesScanned === 0 &&
+      state.stats.salvageUnitsRecovered === 0 &&
+      state.stats.salvageSitesLocked === 0 &&
+      state.salvage.holdValue === 0 &&
+      state.salvage.relicsInHold === 0
     );
   }
 
@@ -1247,6 +1781,13 @@ const VoidProspector = (() => {
       runCount: current.run.count,
       ladder: { ...current.ladder, currentSectorId: sector.id, recommendedSectorId: sector.id },
       stationServices: current.stationServices,
+      salvage: {
+        bankedValue: current.salvage.bankedValue,
+        recoveredValue: current.salvage.recoveredValue,
+        relicsRecovered: current.salvage.relicsRecovered,
+        failures: current.salvage.failures,
+        abandoned: current.salvage.abandoned,
+      },
       sectorId: sector.id,
     });
     next.ladder.lastChoice = `sector ${sector.name}`;
@@ -1265,6 +1806,13 @@ const VoidProspector = (() => {
       runCount: (state.run.count || 1) + 1,
       ladder: state.ladder,
       stationServices: state.stationServices,
+      salvage: {
+        bankedValue: state.salvage.bankedValue,
+        recoveredValue: state.salvage.recoveredValue,
+        relicsRecovered: state.salvage.relicsRecovered,
+        failures: state.salvage.failures,
+        abandoned: state.salvage.abandoned,
+      },
       sectorId,
     });
     next.log.unshift({
@@ -1347,11 +1895,12 @@ const VoidProspector = (() => {
     next = updateHazardState(next, dt);
     next = coolMiningState(next, dt);
     next = coolScanningState(next, dt);
+    next = coolSalvageState(next, dt);
     if (input.mine) {
-      next = mineTarget(next, dt);
+      next = next.target.kind === "salvage" ? extractSalvageTarget(next, dt) : mineTarget(next, dt);
     }
     if (input.scan) {
-      next = scanTarget(next, dt);
+      next = next.target.kind === "salvage" ? scanSalvageTarget(next, dt) : scanTarget(next, dt);
     }
     if (input.interact) {
       next = dockAtStation(next);
@@ -1458,6 +2007,54 @@ const VoidProspector = (() => {
         surveyed: state.hazard.surveyed,
         warningThreshold: state.hazard.warningThreshold,
       },
+      salvage: {
+        version: state.salvage.version,
+        releaseLabel: state.salvage.releaseLabel,
+        holdValue: state.salvage.holdValue,
+        relicsInHold: state.salvage.relicsInHold,
+        bankedValue: state.salvage.bankedValue,
+        relicsRecovered: state.salvage.relicsRecovered,
+        salvageScore: state.ladder.salvageScore,
+      },
+    };
+  }
+
+  function salvageSummary(state) {
+    return {
+      version: state.salvage.version,
+      releaseLabel: state.salvage.releaseLabel,
+      status: state.salvage.status,
+      extractionPower: state.salvage.extractionPower,
+      confidenceBonus: state.salvage.confidenceBonus,
+      riskMitigation: state.salvage.riskMitigation,
+      holdValue: state.salvage.holdValue,
+      relicsInHold: state.salvage.relicsInHold,
+      bankedValue: state.salvage.bankedValue,
+      recoveredValue: state.salvage.recoveredValue,
+      relicsRecovered: state.salvage.relicsRecovered,
+      failures: state.salvage.failures,
+      abandoned: state.salvage.abandoned,
+      recommendedSiteId: state.salvage.recommendedSiteId,
+      contract: {
+        requiredSalvageValue: state.contract.requiredSalvageValue,
+        deliveredSalvageValue: state.contract.deliveredSalvageValue,
+        requiredRelics: state.contract.requiredRelics,
+        deliveredRelics: state.contract.deliveredRelics,
+      },
+      sites: (state.salvageSites || []).map((site) => ({
+        id: site.id,
+        name: site.name,
+        type: site.type,
+        family: site.family,
+        remainingSalvage: site.salvageState.remainingSalvage,
+        rewardValue: site.rewardValue,
+        relicReward: site.relicReward || 0,
+        scanConfidence: site.salvageState.scanConfidence,
+        targetLocked: site.salvageState.targetLocked,
+        extractionProgress: round(site.salvageState.extractionProgress, 3),
+        status: site.salvageState.status,
+        risk: salvageRisk(site, state),
+      })),
     };
   }
 
@@ -1502,6 +2099,7 @@ const VoidProspector = (() => {
 
   function surveyCockpitSurface(state) {
     const summary = surveySummary(state);
+    const salvage = salvageSummary(state);
     const completedCount = summary.completedSectorIds.length;
     const totalSectors = GAME_DATA.surveyLadder.sectors.length;
     const target = targetSummary(state);
@@ -1550,6 +2148,7 @@ const VoidProspector = (() => {
       objectiveProgressText: `${state.contract.title}: ${summary.contract.ore} ore / ${summary.contract.scans} scans`,
       hazardText: `${summary.hazard.status} / exposure ${round(summary.hazard.exposure, 1)} / eff ${round(summary.hazard.effectiveIntensity, 1)}`,
       scanText: `${scanGoal} / ${state.scanning.status}`,
+      salvageText: `${salvage.releaseLabel} / hold ${salvage.holdValue}cr / relics ${salvage.relicsInHold} / ${state.salvage.status}`,
       serviceText:
         serviceNames.length > 0
           ? `${serviceNames.join(" + ")} / ${state.stationServices.countermeasureCharges} burst`
@@ -1560,6 +2159,8 @@ const VoidProspector = (() => {
       services,
       actions: {
         canScan: canAct && target.kind === "anomaly",
+        canScanSalvage: canAct && target.kind === "salvage",
+        canExtractSalvage: canAct && target.kind === "salvage",
         canSetSector: canAct && sectorChoiceOpen(state),
         countermeasureReady,
         countermeasureText:
@@ -1599,6 +2200,15 @@ const VoidProspector = (() => {
         status = `${state.scanning.status} / ${Math.round((target.scanState.progress / target.scanDifficulty) * 100)}%`;
       } else {
         status = `${target.scanState.status} / difficulty ${target.scanDifficulty}`;
+      }
+    } else if (state.target.kind === "salvage") {
+      const confidence = Math.round(target.salvageState.scanConfidence * 100);
+      const progress = Math.round((target.salvageState.extractionProgress / target.extractionDifficulty) * 100);
+      const risk = salvageRisk(target, state);
+      if (target.salvageState.failed) {
+        status = `failed / ${target.salvageState.failure}`;
+      } else {
+        status = `${target.salvageState.status} / confidence ${confidence}% / extraction ${progress}% / ${target.salvageState.remainingSalvage} left / risk ${risk}`;
       }
     } else if (state.target.kind === "station") {
       status = state.station.proximity.dockable ? "dockable" : "stand off";
@@ -1800,10 +2410,12 @@ const VoidProspector = (() => {
     dom.service.closest(".readout").dataset.tone =
       state.stationServices.countermeasureCharges > 0 || state.stationServices.purchased.length > 0 ? "signal" : "warn";
     if (dom.mineAction) {
-      dom.mineAction.disabled = target.kind !== "asteroid" || state.cargo.ore >= state.cargo.capacity || state.run.status === "failed";
+      const cargoBlocked = target.kind === "asteroid" && state.cargo.ore >= state.cargo.capacity;
+      dom.mineAction.disabled =
+        !["asteroid", "salvage"].includes(target.kind) || cargoBlocked || state.run.status === "failed";
     }
     if (dom.scanAction) {
-      dom.scanAction.disabled = !surface.actions.canScan;
+      dom.scanAction.disabled = !(surface.actions.canScan || surface.actions.canScanSalvage);
     }
     if (dom.dockAction) {
       dom.dockAction.disabled = !station.dockable || state.run.status === "failed";
@@ -1831,9 +2443,11 @@ const VoidProspector = (() => {
       return;
     }
     if (action === "mine") {
-      currentState = mineTarget(currentState, 1);
+      currentState =
+        currentState.target.kind === "salvage" ? extractSalvageTarget(currentState, 1) : mineTarget(currentState, 1);
     } else if (action === "scan") {
-      currentState = scanTarget(currentState, 1);
+      currentState =
+        currentState.target.kind === "salvage" ? scanSalvageTarget(currentState, 1) : scanTarget(currentState, 1);
     } else if (action === "interact") {
       currentState = dockAtStation(currentState);
     } else if (action === "upgrade") {
@@ -2304,11 +2918,16 @@ const VoidProspector = (() => {
     createInitialState,
     createAsteroidNodes,
     createAnomalyNodes,
+    createSalvageSites,
     createSurveyLadderState,
     applyFlightInput,
     stepSpaceflight,
     mineTarget,
     scanTarget,
+    scanSalvageTarget,
+    extractSalvageTarget,
+    abandonSalvageTarget,
+    salvageRisk,
     dockAtStation,
     purchaseUpgrade,
     purchaseStationService,
@@ -2323,6 +2942,7 @@ const VoidProspector = (() => {
     dockingStatus,
     upgradeSummary,
     surveySummary,
+    salvageSummary,
     surveyCockpitSurface,
     stationServiceSummary,
     targetSummary,
