@@ -24,8 +24,14 @@ class VoidProspectorSurveySurfaceTests(unittest.TestCase):
             "sector-readout",
             "hazard-readout",
             "scan-readout",
+            "salvage-readout",
             "service-readout",
             "scan-action",
+            "abandon-action",
+            "salvage-target-family",
+            "salvage-lock-state",
+            "salvage-extraction-state",
+            "salvage-risk-reward",
             "survey-panel",
             "ladder-title",
             "ladder-status-surface",
@@ -34,14 +40,18 @@ class VoidProspectorSurveySurfaceTests(unittest.TestCase):
             "sector-action",
             "service-probes-action",
             "service-decoy-action",
+            "service-salvage-rig-action",
+            "service-recovery-drones-action",
             "countermeasure-action",
             "event-log",
         ):
             self.assertIn(hook, html)
 
-        self.assertIn("v0.1.0 Survey Ladder", html)
-        self.assertIn("C scan", html)
+        self.assertIn("v0.2.0 Derelict Salvage", html)
+        self.assertIn("C scan or lock", html)
+        self.assertIn("Space/M mine or extract", html)
         self.assertIn('aria-label="Survey Ladder controls"', html)
+        self.assertIn('aria-label="Selected salvage target state"', html)
 
     def test_survey_surface_css_keeps_desktop_and_narrow_layout_contracts(self) -> None:
         css = read_game_file("void-prospector.css")
@@ -52,16 +62,21 @@ class VoidProspectorSurveySurfaceTests(unittest.TestCase):
             ".sector-row",
             ".choice-row",
             ".service-panel",
+            ".salvage-target-data",
             ".event-log",
-            "max-height: min(280px, max(210px, calc(100vh - 410px)))",
+            "max-height: min(170px, max(150px, calc(100vh - 550px)))",
             "overflow: auto",
+            "grid-template-columns: repeat(auto-fit, minmax(96px, 1fr))",
+            "@media (max-height: 700px) and (min-width: 981px)",
             "@media (max-width: 980px)",
             "@media (max-width: 640px)",
         ):
             self.assertIn(token, css)
 
         self.assertRegex(css, r"\.survey-panel\s*\{[^}]*position: fixed")
+        self.assertRegex(css, r"@media \(max-height: 700px\) and \(min-width: 981px\)[\s\S]*?\.survey-panel\s*\{[^}]*position: relative")
         self.assertRegex(css, r"@media \(max-width: 980px\)[\s\S]*?\.survey-panel\s*\{[^}]*position: relative")
+        self.assertRegex(css, r"@media \(max-width: 980px\)[\s\S]*?\.target-panel\s*\{[^}]*position: relative")
         self.assertIn("width: calc(100vw - 24px)", css)
         self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr))", css)
         self.assertNotIn("border-radius: 12px", css)
@@ -111,6 +126,58 @@ class VoidProspectorSurveySurfaceTests(unittest.TestCase):
         self.assertIn("10 ore", result["chosenObjective"])
         self.assertTrue(result["canScanAnomaly"])
         self.assertIn("0/1 scans", result["anomalyScanText"])
+
+    def test_derelict_salvage_surface_exposes_target_contract_and_recovery_support(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/void-prospector/void-prospector.js");
+            const ladder = {
+              currentSectorId: "umbra-trench",
+              recommendedSectorId: "umbra-trench",
+              unlockedSectorIds: ["spoke-approach", "rift-shelf", "umbra-trench"],
+              completedSectorIds: ["spoke-approach", "rift-shelf"],
+            };
+            let state = game.createInitialState({ seed: 52, sectorId: "umbra-trench", ladder, credits: 220 });
+            state.ship.position = { ...state.station.position };
+            state = game.dockAtStation(state);
+            const dockSurface = game.surveyCockpitSurface(state);
+            const vault = state.salvageSites.find((site) => site.id === "salvage-umbra-vault");
+            state = game.setTarget(state, "salvage", vault.id);
+            const targetSurface = game.surveyCockpitSurface(state);
+            state.ship.position = { ...vault.position };
+            state = game.scanSalvageTarget(state, 2);
+            state = game.scanSalvageTarget(state, 1);
+            const lockedSurface = game.surveyCockpitSurface(state);
+            console.log(JSON.stringify({
+              titleText: targetSurface.titleText,
+              objectiveProgressText: targetSurface.objectiveProgressText,
+              salvageText: targetSurface.salvageText,
+              salvageTarget: targetSurface.salvageTarget,
+              lockedTarget: lockedSurface.salvageTarget,
+              target: game.targetSummary(state),
+              services: dockSurface.services.map((service) => [service.id, service.status, service.enabled]),
+              actions: targetSurface.actions,
+            }));
+            """
+        )
+
+        self.assertIn("Derelict Salvage v0.2.0", result["titleText"])
+        self.assertIn("0/90cr salvage", result["objectiveProgressText"])
+        self.assertIn("0/1 relic", result["objectiveProgressText"])
+        self.assertIn("Derelict Salvage", result["salvageText"])
+        self.assertIn("derelict-hull / relic / 3 units", result["salvageTarget"]["familyText"])
+        self.assertIn("risk", result["salvageTarget"]["riskRewardText"])
+        self.assertIn("cr", result["salvageTarget"]["riskRewardText"])
+        self.assertIn("0/90cr contract", result["salvageTarget"]["contractText"])
+        self.assertIn("0/1 relic", result["salvageTarget"]["contractText"])
+        self.assertIn("lock 100% / locked", result["lockedTarget"]["lockText"])
+        self.assertEqual("salvage", result["target"]["kind"])
+        self.assertEqual("derelict-hull", result["target"]["type"])
+        self.assertTrue(result["actions"]["canScanSalvage"])
+        self.assertTrue(result["actions"]["canExtractSalvage"])
+        self.assertTrue(result["actions"]["canAbandonSalvage"])
+        self.assertIn(["salvage-rig", "80cr ready", True], result["services"])
+        self.assertIn(["recovery-drones", "95cr ready", True], result["services"])
 
     def test_station_service_surface_shows_consequences_and_decoy_readiness(self) -> None:
         result = self.run_node(

@@ -16,7 +16,7 @@
     <header class="topline">
       <a class="backlink" href="../../">Millrace Arcade</a>
       <div class="identity">
-        <span class="eyebrow">v0.1.0 Survey Ladder</span>
+        <span class="eyebrow">v0.2.0 Derelict Salvage</span>
         <h1>Void Prospector</h1>
       </div>
       <div class="run-chip" id="run-status">launch / stable</div>
@@ -67,6 +67,10 @@
         <span>Scan</span>
         <strong id="scan-readout">0 / 0</strong>
       </article>
+      <article class="readout readout-wide">
+        <span>Salvage</span>
+        <strong id="salvage-readout">Derelict Salvage / hold 0cr / lock 0</strong>
+      </article>
       <article class="readout">
         <span>Upgrade</span>
         <strong id="upgrade-readout">beam rig / 90cr</strong>
@@ -90,8 +94,8 @@
       <span>S/Down brake</span>
       <span>A/D steer</span>
       <span>Tab/E target</span>
-      <span>Space/M mine</span>
-      <span>C scan</span>
+      <span>Space/M mine or extract</span>
+      <span>C scan or lock</span>
       <span>F/Enter dock</span>
       <span>U upgrade</span>
       <span>R restart</span>
@@ -109,9 +113,16 @@
         <span id="target-range">0m</span>
         <span id="target-state">ready</span>
       </div>
+      <div class="salvage-target-data" aria-label="Selected salvage target state">
+        <span id="salvage-target-family">site none</span>
+        <span id="salvage-lock-state">lock 0%</span>
+        <span id="salvage-extraction-state">extract 0%</span>
+        <span id="salvage-risk-reward">risk 0 / reward 0cr</span>
+      </div>
       <div class="action-panel" aria-label="Action controls">
         <button type="button" id="mine-action">Mine</button>
         <button type="button" id="scan-action">Scan</button>
+        <button type="button" id="abandon-action">Abandon</button>
         <button type="button" id="dock-action">Dock</button>
         <button type="button" id="upgrade-action">Upgrade</button>
         <button type="button" id="restart-action">Restart</button>
@@ -135,6 +146,8 @@
       <div class="service-panel" aria-label="Station service decisions">
         <button type="button" id="service-probes-action">Probes</button>
         <button type="button" id="service-decoy-action">Decoy</button>
+        <button type="button" id="service-salvage-rig-action">Rig</button>
+        <button type="button" id="service-recovery-drones-action">Drones</button>
         <button type="button" id="countermeasure-action">Burst</button>
       </div>
       <ol class="event-log" id="event-log" aria-label="Recent survey events"></ol>

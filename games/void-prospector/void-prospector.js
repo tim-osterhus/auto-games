@@ -1571,7 +1571,7 @@ const VoidProspector = (() => {
       next.salvage.status = "no salvage lock";
       return syncDerivedState(next);
     }
-    if (!["failed", "depleted"].includes(target.salvageState.status)) {
+    if (!["failed", "depleted", "abandoned"].includes(target.salvageState.status)) {
       target.salvageState.status = "abandoned";
       target.salvageState.lastTouchedTick = next.tick;
       next.salvage.abandoned += 1;
@@ -2046,6 +2046,8 @@ const VoidProspector = (() => {
         name: site.name,
         type: site.type,
         family: site.family,
+        extractionDifficulty: site.extractionDifficulty,
+        confidenceThreshold: site.confidenceThreshold,
         remainingSalvage: site.salvageState.remainingSalvage,
         rewardValue: site.rewardValue,
         relicReward: site.relicReward || 0,
@@ -2140,15 +2142,64 @@ const VoidProspector = (() => {
         : `${state.anomalies.filter((anomaly) => anomaly.scanState.scanned).length}/${state.anomalies.length} optional`;
     const countermeasureReady =
       canAct && state.stationServices.countermeasureCharges > 0 && state.pirate.state !== "dormant";
+    const selectedSalvage =
+      target.kind === "salvage" ? salvage.sites.find((site) => site.id === state.target.id) || null : null;
+    const recommendedSalvage =
+      selectedSalvage ||
+      salvage.sites.find((site) => site.id === salvage.recommendedSiteId) ||
+      salvage.sites.find((site) => site.remainingSalvage > 0) ||
+      null;
+    const lockedSalvageCount = salvage.sites.filter((site) => site.targetLocked).length;
+    const salvageProgress =
+      selectedSalvage && selectedSalvage.extractionDifficulty
+        ? Math.round((selectedSalvage.extractionProgress / selectedSalvage.extractionDifficulty) * 100)
+        : 0;
+    const salvageContractParts = [];
+    if (state.contract.requiredSalvageValue > 0) {
+      salvageContractParts.push(
+        `${state.contract.deliveredSalvageValue}/${state.contract.requiredSalvageValue}cr contract`
+      );
+    }
+    if (state.contract.requiredRelics > 0) {
+      salvageContractParts.push(`${state.contract.deliveredRelics}/${state.contract.requiredRelics} relic`);
+    }
+    const objectiveParts = [`${state.contract.title}: ${summary.contract.ore} ore`];
+    if (state.contract.requiredScans > 0) {
+      objectiveParts.push(`${summary.contract.scans} scans`);
+    }
+    if (state.contract.requiredSalvageValue > 0) {
+      objectiveParts.push(`${state.contract.deliveredSalvageValue}/${state.contract.requiredSalvageValue}cr salvage`);
+    }
+    if (state.contract.requiredRelics > 0) {
+      objectiveParts.push(`${state.contract.deliveredRelics}/${state.contract.requiredRelics} relic`);
+    }
 
     return {
-      titleText: `${summary.releaseLabel} v${summary.version} / tier ${summary.tier}`,
+      titleText: `${summary.releaseLabel} v${summary.version} + ${salvage.releaseLabel} v${salvage.version} / tier ${summary.tier}`,
       ladderText: `tier ${summary.tier} / ${completedCount}/${totalSectors} charted`,
       sectorText: `${summary.sectorName} / ${summary.condition}`,
-      objectiveProgressText: `${state.contract.title}: ${summary.contract.ore} ore / ${summary.contract.scans} scans`,
+      objectiveProgressText: objectiveParts.join(" / "),
       hazardText: `${summary.hazard.status} / exposure ${round(summary.hazard.exposure, 1)} / eff ${round(summary.hazard.effectiveIntensity, 1)}`,
       scanText: `${scanGoal} / ${state.scanning.status}`,
-      salvageText: `${salvage.releaseLabel} / hold ${salvage.holdValue}cr / relics ${salvage.relicsInHold} / ${state.salvage.status}`,
+      salvageText: `${salvage.releaseLabel} / hold ${salvage.holdValue}cr / relics ${salvage.relicsInHold} / locks ${lockedSalvageCount}/${salvage.sites.length}`,
+      salvageTarget: {
+        name: recommendedSalvage ? recommendedSalvage.name : "No salvage site",
+        familyText: recommendedSalvage
+          ? `${recommendedSalvage.type} / ${recommendedSalvage.family} / ${recommendedSalvage.remainingSalvage} units`
+          : "site none",
+        lockText: selectedSalvage
+          ? `lock ${Math.round(selectedSalvage.scanConfidence * 100)}% / ${
+              selectedSalvage.targetLocked ? "locked" : "unlocked"
+            }`
+          : "select salvage target",
+        extractionText: selectedSalvage ? `extract ${salvageProgress}% / ${selectedSalvage.status}` : "extract idle",
+        riskRewardText: recommendedSalvage
+          ? `risk ${recommendedSalvage.risk} / ${recommendedSalvage.rewardValue}cr${
+              recommendedSalvage.relicReward ? ` / ${recommendedSalvage.relicReward} relic` : ""
+            }`
+          : "risk none",
+        contractText: salvageContractParts.length ? salvageContractParts.join(" / ") : "optional recovery",
+      },
       serviceText:
         serviceNames.length > 0
           ? `${serviceNames.join(" + ")} / ${state.stationServices.countermeasureCharges} burst`
@@ -2161,6 +2212,11 @@ const VoidProspector = (() => {
         canScan: canAct && target.kind === "anomaly",
         canScanSalvage: canAct && target.kind === "salvage",
         canExtractSalvage: canAct && target.kind === "salvage",
+        canAbandonSalvage:
+          canAct &&
+          target.kind === "salvage" &&
+          selectedSalvage &&
+          !["failed", "depleted", "abandoned"].includes(selectedSalvage.status),
         canSetSector: canAct && sectorChoiceOpen(state),
         countermeasureReady,
         countermeasureText:
@@ -2176,6 +2232,7 @@ const VoidProspector = (() => {
     const target = findTarget(state);
     if (!target) {
       return {
+        id: null,
         name: "No target",
         kind: "none",
         status: "none",
@@ -2215,13 +2272,28 @@ const VoidProspector = (() => {
     } else if (state.target.kind === "pirate") {
       status = state.pirate.encounterState;
     }
-    return {
+    const summary = {
+      id: state.target.id,
       name: target.name,
       kind: state.target.kind,
       status,
       distance: state.target.distance,
       bearing: state.target.bearing,
     };
+    if (state.target.kind === "salvage") {
+      summary.type = target.type;
+      summary.family = target.family;
+      summary.scanConfidence = target.salvageState.scanConfidence;
+      summary.targetLocked = target.salvageState.targetLocked;
+      summary.extractionProgress = target.salvageState.extractionProgress;
+      summary.extractionDifficulty = target.extractionDifficulty;
+      summary.extractionPercent = Math.round((target.salvageState.extractionProgress / target.extractionDifficulty) * 100);
+      summary.remainingSalvage = target.salvageState.remainingSalvage;
+      summary.rewardValue = target.rewardValue;
+      summary.relicReward = target.relicReward || 0;
+      summary.risk = salvageRisk(target, state);
+    }
+    return summary;
   }
 
   function cssToneForPercent(value) {
@@ -2249,6 +2321,7 @@ const VoidProspector = (() => {
     dom.hazard = document.getElementById("hazard-readout");
     dom.contract = document.getElementById("contract-readout");
     dom.scan = document.getElementById("scan-readout");
+    dom.salvage = document.getElementById("salvage-readout");
     dom.upgrade = document.getElementById("upgrade-readout");
     dom.service = document.getElementById("service-readout");
     dom.target = document.getElementById("target-readout");
@@ -2258,8 +2331,13 @@ const VoidProspector = (() => {
     dom.targetBearing = document.getElementById("target-bearing");
     dom.targetRange = document.getElementById("target-range");
     dom.targetState = document.getElementById("target-state");
+    dom.salvageTargetFamily = document.getElementById("salvage-target-family");
+    dom.salvageLockState = document.getElementById("salvage-lock-state");
+    dom.salvageExtractionState = document.getElementById("salvage-extraction-state");
+    dom.salvageRiskReward = document.getElementById("salvage-risk-reward");
     dom.mineAction = document.getElementById("mine-action");
     dom.scanAction = document.getElementById("scan-action");
+    dom.abandonAction = document.getElementById("abandon-action");
     dom.dockAction = document.getElementById("dock-action");
     dom.upgradeAction = document.getElementById("upgrade-action");
     dom.restartAction = document.getElementById("restart-action");
@@ -2270,6 +2348,8 @@ const VoidProspector = (() => {
     dom.sectorAction = document.getElementById("sector-action");
     dom.serviceProbesAction = document.getElementById("service-probes-action");
     dom.serviceDecoyAction = document.getElementById("service-decoy-action");
+    dom.serviceSalvageRigAction = document.getElementById("service-salvage-rig-action");
+    dom.serviceRecoveryDronesAction = document.getElementById("service-recovery-drones-action");
     dom.countermeasureAction = document.getElementById("countermeasure-action");
     dom.eventLog = document.getElementById("event-log");
   }
@@ -2337,6 +2417,15 @@ const VoidProspector = (() => {
     });
   }
 
+  function renderServiceButton(button, surface, serviceId, label) {
+    if (!button) {
+      return;
+    }
+    const service = surface.services.find((candidate) => candidate.id === serviceId);
+    button.disabled = !service || !service.enabled;
+    button.textContent = service ? `${label} ${service.status}` : label;
+  }
+
   function renderSurveyPanel(state, surface) {
     if (dom.ladderTitle) {
       dom.ladderTitle.textContent = surface.titleText;
@@ -2351,20 +2440,28 @@ const VoidProspector = (() => {
     if (dom.sectorAction) {
       dom.sectorAction.disabled = !surface.actions.canSetSector;
     }
-    if (dom.serviceProbesAction) {
-      const service = surface.services.find((candidate) => candidate.id === "survey-probes");
-      dom.serviceProbesAction.disabled = !service || !service.enabled;
-      dom.serviceProbesAction.textContent = service ? `Probes ${service.status}` : "Probes";
-    }
-    if (dom.serviceDecoyAction) {
-      const service = surface.services.find((candidate) => candidate.id === "decoy-burst");
-      dom.serviceDecoyAction.disabled = !service || !service.enabled;
-      dom.serviceDecoyAction.textContent = service ? `Decoy ${service.status}` : "Decoy";
-    }
+    renderServiceButton(dom.serviceProbesAction, surface, "survey-probes", "Probes");
+    renderServiceButton(dom.serviceDecoyAction, surface, "decoy-burst", "Decoy");
+    renderServiceButton(dom.serviceSalvageRigAction, surface, "salvage-rig", "Rig");
+    renderServiceButton(dom.serviceRecoveryDronesAction, surface, "recovery-drones", "Drones");
     if (dom.countermeasureAction) {
       dom.countermeasureAction.disabled = !surface.actions.countermeasureReady;
       dom.countermeasureAction.textContent = `Burst ${surface.actions.countermeasureText}`;
     }
+  }
+
+  function contractReadoutText(state) {
+    const parts = [`${state.contract.status}`, `${state.contract.deliveredOre}/${state.contract.requiredOre} ore`];
+    if (state.contract.requiredScans > 0) {
+      parts.push(`${state.contract.deliveredScans}/${state.contract.requiredScans} scans`);
+    }
+    if (state.contract.requiredSalvageValue > 0) {
+      parts.push(`${state.contract.deliveredSalvageValue}/${state.contract.requiredSalvageValue}cr salvage`);
+    }
+    if (state.contract.requiredRelics > 0) {
+      parts.push(`${state.contract.deliveredRelics}/${state.contract.requiredRelics} relic`);
+    }
+    return parts.join(" / ");
   }
 
   function renderHud(state) {
@@ -2382,11 +2479,9 @@ const VoidProspector = (() => {
     dom.credits.textContent = String(state.credits);
     dom.pressure.textContent = `${Math.round(state.pirate.pressure)} / ${state.pirate.encounterState}`;
     dom.hazard.textContent = surface.hazardText;
-    dom.contract.textContent =
-      state.contract.requiredScans > 0
-        ? `${state.contract.status} / ${state.contract.deliveredOre}/${state.contract.requiredOre} ore / ${state.contract.deliveredScans}/${state.contract.requiredScans} scans`
-        : `${state.contract.status} / ${state.contract.deliveredOre} of ${state.contract.requiredOre}`;
+    dom.contract.textContent = contractReadoutText(state);
     dom.scan.textContent = surface.scanText;
+    dom.salvage.textContent = surface.salvageText;
     dom.upgrade.textContent = upgrade.text;
     dom.service.textContent = surface.serviceText;
     dom.target.textContent = `${target.kind} / ${target.name} / ${target.distance}m`;
@@ -2396,6 +2491,10 @@ const VoidProspector = (() => {
     dom.targetBearing.textContent = `bearing ${formatBearing(target.bearing)}`;
     dom.targetRange.textContent = `${target.distance}m`;
     dom.targetState.textContent = target.status;
+    dom.salvageTargetFamily.textContent = surface.salvageTarget.familyText;
+    dom.salvageLockState.textContent = surface.salvageTarget.lockText;
+    dom.salvageExtractionState.textContent = surface.salvageTarget.extractionText;
+    dom.salvageRiskReward.textContent = surface.salvageTarget.riskRewardText;
 
     dom.hull.closest(".readout").dataset.tone = cssToneForPercent(state.ship.hull);
     dom.fuel.closest(".readout").dataset.tone = cssToneForPercent(state.ship.fuel);
@@ -2407,15 +2506,22 @@ const VoidProspector = (() => {
     dom.hazard.closest(".readout").dataset.tone = state.hazard.effectiveIntensity > 1 ? "danger" : state.hazard.intensity > 0 ? "warn" : "signal";
     dom.scan.closest(".readout").dataset.tone =
       state.contract.requiredScans > state.contract.deliveredScans ? "warn" : "signal";
+    dom.salvage.closest(".readout").dataset.tone =
+      state.salvage.failures > 0 ? "danger" : state.salvage.holdValue > 0 || state.salvage.relicsInHold > 0 ? "signal" : "warn";
     dom.service.closest(".readout").dataset.tone =
       state.stationServices.countermeasureCharges > 0 || state.stationServices.purchased.length > 0 ? "signal" : "warn";
     if (dom.mineAction) {
       const cargoBlocked = target.kind === "asteroid" && state.cargo.ore >= state.cargo.capacity;
+      dom.mineAction.textContent = target.kind === "salvage" ? "Extract" : "Mine";
       dom.mineAction.disabled =
         !["asteroid", "salvage"].includes(target.kind) || cargoBlocked || state.run.status === "failed";
     }
     if (dom.scanAction) {
+      dom.scanAction.textContent = target.kind === "salvage" ? "Signal Lock" : "Scan";
       dom.scanAction.disabled = !(surface.actions.canScan || surface.actions.canScanSalvage);
+    }
+    if (dom.abandonAction) {
+      dom.abandonAction.disabled = !surface.actions.canAbandonSalvage;
     }
     if (dom.dockAction) {
       dom.dockAction.disabled = !station.dockable || state.run.status === "failed";
@@ -2448,6 +2554,8 @@ const VoidProspector = (() => {
     } else if (action === "scan") {
       currentState =
         currentState.target.kind === "salvage" ? scanSalvageTarget(currentState, 1) : scanTarget(currentState, 1);
+    } else if (action === "abandon-salvage") {
+      currentState = abandonSalvageTarget(currentState);
     } else if (action === "interact") {
       currentState = dockAtStation(currentState);
     } else if (action === "upgrade") {
@@ -2457,6 +2565,10 @@ const VoidProspector = (() => {
       currentState = purchaseStationService(currentState, "survey-probes");
     } else if (action === "service-decoy") {
       currentState = purchaseStationService(currentState, "decoy-burst");
+    } else if (action === "service-salvage-rig") {
+      currentState = purchaseStationService(currentState, "salvage-rig");
+    } else if (action === "service-recovery-drones") {
+      currentState = purchaseStationService(currentState, "recovery-drones");
     } else if (action === "countermeasure") {
       currentState = deployCountermeasure(currentState);
     } else if (action === "sector") {
@@ -2503,6 +2615,9 @@ const VoidProspector = (() => {
     if (dom.scanAction) {
       dom.scanAction.addEventListener("click", () => performAction("scan"));
     }
+    if (dom.abandonAction) {
+      dom.abandonAction.addEventListener("click", () => performAction("abandon-salvage"));
+    }
     if (dom.dockAction) {
       dom.dockAction.addEventListener("click", () => performAction("interact"));
     }
@@ -2520,6 +2635,12 @@ const VoidProspector = (() => {
     }
     if (dom.serviceDecoyAction) {
       dom.serviceDecoyAction.addEventListener("click", () => performAction("service-decoy"));
+    }
+    if (dom.serviceSalvageRigAction) {
+      dom.serviceSalvageRigAction.addEventListener("click", () => performAction("service-salvage-rig"));
+    }
+    if (dom.serviceRecoveryDronesAction) {
+      dom.serviceRecoveryDronesAction.addEventListener("click", () => performAction("service-recovery-drones"));
     }
     if (dom.countermeasureAction) {
       dom.countermeasureAction.addEventListener("click", () => performAction("countermeasure"));
@@ -2662,6 +2783,86 @@ const VoidProspector = (() => {
     return group;
   }
 
+  function createSalvageMesh(THREE, site) {
+    const group = new THREE.Group();
+    group.userData.salvageId = site.id;
+    const isVolatile = site.type === "volatile-wreck";
+    const isRelay = site.type === "relay-cache";
+    const hullMaterial = new THREE.MeshStandardMaterial({
+      color: isVolatile ? 0x6f4e45 : isRelay ? 0x5f6b66 : 0x6c746f,
+      roughness: 0.82,
+      metalness: 0.42,
+      emissive: isVolatile ? 0x2c0f0a : 0x0b2421,
+      emissiveIntensity: isVolatile ? 0.28 : 0.18,
+    });
+    const signalMaterial = new THREE.MeshBasicMaterial({
+      color: isVolatile ? 0xd46857 : 0x4bd6c0,
+      transparent: true,
+      opacity: isVolatile ? 0.74 : 0.64,
+    });
+    const amberMaterial = new THREE.MeshBasicMaterial({
+      color: 0xd0b36a,
+      transparent: true,
+      opacity: 0.62,
+    });
+
+    const core = new THREE.Mesh(
+      isRelay ? new THREE.BoxGeometry(site.radius * 0.92, site.radius * 0.44, site.radius * 0.92) : new THREE.BoxGeometry(site.radius * 1.65, site.radius * 0.34, site.radius * 0.68),
+      hullMaterial
+    );
+    core.rotation.set(0.18, site.riskPhase * TWO_PI, isVolatile ? 0.42 : -0.16);
+    group.add(core);
+
+    if (isRelay) {
+      const loop = new THREE.Mesh(new THREE.TorusGeometry(site.radius * 0.76, 0.05, 6, 36), signalMaterial);
+      loop.rotation.x = Math.PI / 2;
+      group.add(loop);
+      const cache = new THREE.Mesh(new THREE.OctahedronGeometry(site.radius * 0.32, 0), amberMaterial);
+      cache.position.y = site.radius * 0.18;
+      group.add(cache);
+    } else {
+      for (let ribIndex = 0; ribIndex < 3; ribIndex += 1) {
+        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.1, site.radius * 0.95, 0.12), signalMaterial);
+        rib.position.x = (ribIndex - 1) * site.radius * 0.52;
+        rib.rotation.z = 0.25 + ribIndex * 0.12;
+        group.add(rib);
+      }
+      const spine = new THREE.Mesh(new THREE.ConeGeometry(site.radius * 0.2, site.radius * 1.2, 4), amberMaterial);
+      spine.rotation.z = Math.PI / 2;
+      spine.position.x = site.radius * 0.78;
+      group.add(spine);
+    }
+
+    if (isVolatile) {
+      const hazard = new THREE.Mesh(new THREE.TetrahedronGeometry(site.radius * 0.38, 0), signalMaterial);
+      hazard.position.set(site.radius * -0.36, site.radius * 0.26, site.radius * 0.2);
+      group.add(hazard);
+    }
+
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), signalMaterial);
+    beacon.position.y = site.radius * 0.7;
+    group.add(beacon);
+    return group;
+  }
+
+  function syncSalvageMeshes(handle, state) {
+    const { THREE } = handle;
+    const activeIds = new Set((state.salvageSites || []).map((site) => site.id));
+    handle.objects.salvageMeshes.forEach((mesh, siteId) => {
+      if (!activeIds.has(siteId)) {
+        handle.scene.remove(mesh);
+        handle.objects.salvageMeshes.delete(siteId);
+      }
+    });
+    (state.salvageSites || []).forEach((site) => {
+      if (!handle.objects.salvageMeshes.has(site.id)) {
+        const mesh = createSalvageMesh(THREE, site);
+        handle.objects.salvageMeshes.set(site.id, mesh);
+        handle.scene.add(mesh);
+      }
+    });
+  }
+
   function createPirateMesh(THREE, assets = {}) {
     const group = new THREE.Group();
     const material = new THREE.MeshStandardMaterial({
@@ -2781,6 +2982,14 @@ const VoidProspector = (() => {
       scene.add(mesh);
     });
 
+    const salvageMeshes = new Map();
+    (state.salvageSites || []).forEach((site) => {
+      const mesh = createSalvageMesh(THREE, site);
+      mesh.position.set(site.position.x, site.position.y, site.position.z);
+      salvageMeshes.set(site.id, mesh);
+      scene.add(mesh);
+    });
+
     const pirate = createPirateMesh(THREE, sceneAssets);
     scene.add(pirate);
 
@@ -2799,6 +3008,7 @@ const VoidProspector = (() => {
         ship,
         station,
         asteroidMeshes,
+        salvageMeshes,
         pirate,
         targetRing,
         miningBeam,
@@ -2842,27 +3052,50 @@ const VoidProspector = (() => {
       }
     });
 
+    syncSalvageMeshes(handle, state);
+    (state.salvageSites || []).forEach((site) => {
+      const mesh = handle.objects.salvageMeshes.get(site.id);
+      if (!mesh) {
+        return;
+      }
+      const salvageState = site.salvageState;
+      mesh.position.set(site.position.x, site.position.y, site.position.z);
+      mesh.rotation.y = site.riskPhase * TWO_PI + timeSeconds * (site.type === "relay-cache" ? 0.18 : 0.08);
+      mesh.rotation.x = Math.sin(timeSeconds * 0.7 + site.riskPhase * TWO_PI) * 0.04;
+      mesh.scale.setScalar(salvageState.status === "depleted" ? 0.54 : salvageState.status === "failed" ? 0.72 : 1);
+      mesh.visible = salvageState.status !== "abandoned";
+      mesh.traverse((child) => {
+        if (child.material) {
+          child.material.transparent = true;
+          child.material.opacity = salvageState.status === "depleted" ? 0.28 : salvageState.targetLocked ? 0.94 : 0.68;
+        }
+      });
+    });
+
     const target = findTarget(state);
     if (target) {
       const radius = target.radius ? target.radius + 1.2 : 6;
       handle.objects.targetRing.position.set(target.position.x, target.position.y, target.position.z);
       handle.objects.targetRing.scale.setScalar(radius / 3.8);
+      handle.objects.targetRing.material.color.setHex(state.target.kind === "salvage" ? 0xd0b36a : 0x4bd6c0);
       handle.objects.targetRing.visible = true;
     } else {
       handle.objects.targetRing.visible = false;
     }
 
-    if (state.mining.active && state.mining.targetId) {
-      const asteroid = state.asteroids.find((node) => node.id === state.mining.targetId);
-      if (asteroid) {
-        handle.objects.miningBeam.geometry.setFromPoints([
-          new THREE.Vector3(state.ship.position.x, state.ship.position.y, state.ship.position.z),
-          new THREE.Vector3(asteroid.position.x, asteroid.position.y, asteroid.position.z),
-        ]);
-        handle.objects.miningBeam.visible = true;
-      } else {
-        handle.objects.miningBeam.visible = false;
-      }
+    const beamTarget =
+      state.mining.active && state.mining.targetId
+        ? state.asteroids.find((node) => node.id === state.mining.targetId)
+        : state.salvage.active && state.salvage.targetId
+          ? (state.salvageSites || []).find((site) => site.id === state.salvage.targetId)
+          : null;
+    if (beamTarget) {
+      handle.objects.miningBeam.material.color.setHex(state.salvage.active ? 0xd0b36a : 0x4bd6c0);
+      handle.objects.miningBeam.geometry.setFromPoints([
+        new THREE.Vector3(state.ship.position.x, state.ship.position.y, state.ship.position.z),
+        new THREE.Vector3(beamTarget.position.x, beamTarget.position.y, beamTarget.position.z),
+      ]);
+      handle.objects.miningBeam.visible = true;
     } else {
       handle.objects.miningBeam.visible = false;
     }

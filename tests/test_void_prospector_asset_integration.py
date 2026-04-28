@@ -64,15 +64,44 @@ class VoidProspectorAssetIntegrationTests(unittest.TestCase):
         for token in (".title-card-band", "object-fit: cover"):
             self.assertIn(token, css)
 
+    def test_derelict_salvage_visuals_are_procedural_and_keep_raster_manifest_local(self) -> None:
+        script = source_text("void-prospector.js")
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+        for token in (
+            "createSalvageMesh",
+            "syncSalvageMeshes",
+            "salvageMeshes",
+            "new THREE.BoxGeometry",
+            "new THREE.TorusGeometry",
+            "new THREE.TetrahedronGeometry",
+            "state.target.kind === \"salvage\" ? 0xd0b36a : 0x4bd6c0",
+        ):
+            self.assertIn(token, script)
+
+        self.assertEqual("complete", manifest["status"])
+        self.assertEqual("assets/asset-manifest.json", json.loads(self.run_node("game.GAME_DATA.assets"))["sourceManifest"])
+        self.assertNotRegex(script, r'assets/[^"\'\)\s]*salvage[^"\'\)\s]*\.png')
+
     def test_game_data_exposes_asset_manifest_paths_for_state_checks(self) -> None:
+        assets = json.loads(self.run_node("game.GAME_DATA.assets"))
+
+        self.assertEqual("assets/asset-manifest.json", assets["sourceManifest"])
+        self.assertEqual("assets/ship-decal.png", assets["shipDecal"])
+        self.assertEqual("assets/asteroid-ore-glow.png", assets["asteroidOreGlow"])
+        self.assertEqual("assets/station-dock-panel.png", assets["stationDockPanel"])
+        self.assertEqual("assets/pirate-marker.png", assets["pirateMarker"])
+        self.assertEqual("assets/arcade-title-card.png", assets["arcadeTitleCard"])
+
+    def run_node(self, expression: str) -> str:
         result = subprocess.run(
             [
                 "node",
                 "-e",
                 textwrap.dedent(
-                    """
+                    f"""
                     const game = require("./games/void-prospector/void-prospector.js");
-                    console.log(JSON.stringify(game.GAME_DATA.assets));
+                    console.log(JSON.stringify({expression}));
                     """
                 ),
             ],
@@ -81,14 +110,7 @@ class VoidProspectorAssetIntegrationTests(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        assets = json.loads(result.stdout)
-
-        self.assertEqual("assets/asset-manifest.json", assets["sourceManifest"])
-        self.assertEqual("assets/ship-decal.png", assets["shipDecal"])
-        self.assertEqual("assets/asteroid-ore-glow.png", assets["asteroidOreGlow"])
-        self.assertEqual("assets/station-dock-panel.png", assets["stationDockPanel"])
-        self.assertEqual("assets/pirate-marker.png", assets["pirateMarker"])
-        self.assertEqual("assets/arcade-title-card.png", assets["arcadeTitleCard"])
+        return result.stdout
 
 
 if __name__ == "__main__":
