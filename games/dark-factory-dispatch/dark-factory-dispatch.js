@@ -85,6 +85,9 @@ const DarkFactoryDispatch = (() => {
         name: "Perimeter Grid",
         requirement: { defenses: 2, drones: 2 },
         reward: { reputation: 2, scrap: 5 },
+        penalty: { stability: -14, reputation: -1 },
+        deadline: 20,
+        pressure: "deliver drones and defenses before the yard blackout",
         status: "active",
       },
       {
@@ -92,6 +95,9 @@ const DarkFactoryDispatch = (() => {
         name: "Relay Refit",
         requirement: { modules: 4, circuits: 4 },
         reward: { reputation: 1, power: 2 },
+        penalty: { stability: -10, scrap: -3 },
+        deadline: 16,
+        pressure: "refit the relay before the next dispatch window",
         status: "open",
       },
     ],
@@ -100,11 +106,40 @@ const DarkFactoryDispatch = (() => {
         id: "material-jam",
         name: "Material Jam",
         recovery: { scrap: 1, power: 1 },
+        recoveryTicks: 2,
+        penalty: { stability: -2 },
+        decision: "purge the feed chute",
       },
       {
         id: "logic-drift",
         name: "Logic Drift",
         recovery: { circuits: 1 },
+        recoveryTicks: 3,
+        penalty: { stability: -1 },
+        decision: "reseed lane logic",
+      },
+    ],
+    upgrades: [
+      {
+        id: "lane-overclock",
+        name: "Lane Overclock",
+        cost: { reputation: 1, circuits: 2 },
+        description: "All lanes gain throughput for later dispatches.",
+        effect: { throughputBonus: 0.2 },
+      },
+      {
+        id: "fault-guards",
+        name: "Fault Guards",
+        cost: { reputation: 1, modules: 1 },
+        description: "Lane jam risk drops and recovery is less punishing.",
+        effect: { jamResistance: 0.03, recoveryTicksBonus: -1 },
+      },
+      {
+        id: "buffer-cache",
+        name: "Buffer Cache",
+        cost: { scrap: 6, circuits: 1 },
+        description: "Future shifts start with deeper scrap and power buffers.",
+        effect: { startResources: { scrap: 8, power: 2 } },
       },
     ],
     initialQueue: [
@@ -139,6 +174,48 @@ const DarkFactoryDispatch = (() => {
     return keys.map((key) => `${key} ${bundle[key]}`).join(" / ");
   }
 
+  function roundTenth(value) {
+    return Math.round(value * 10) / 10;
+  }
+
+  function purchasedUpgradeIds(upgrades) {
+    if (!upgrades) {
+      return [];
+    }
+    if (Array.isArray(upgrades)) {
+      return upgrades.slice();
+    }
+    return (upgrades.purchased || []).slice();
+  }
+
+  function aggregateUpgradeEffects(upgrades) {
+    const effects = {
+      throughputBonus: 0,
+      jamResistance: 0,
+      recoveryTicksBonus: 0,
+      startResources: {},
+    };
+    purchasedUpgradeIds(upgrades).forEach((upgradeId) => {
+      const upgrade = byId(GAME_DATA.upgrades, upgradeId);
+      if (!upgrade) {
+        return;
+      }
+      const effect = upgrade.effect || {};
+      effects.throughputBonus += effect.throughputBonus || 0;
+      effects.jamResistance += effect.jamResistance || 0;
+      effects.recoveryTicksBonus += effect.recoveryTicksBonus || 0;
+      Object.entries(effect.startResources || {}).forEach(([resource, amount]) => {
+        effects.startResources[resource] = (effects.startResources[resource] || 0) + amount;
+      });
+    });
+    return effects;
+  }
+
+  function advanceSeed(state) {
+    state.seed = (Math.imul(state.seed, 1664525) + 1013904223) >>> 0;
+    return state.seed / 4294967296;
+  }
+
   function baseResources() {
     const resources = {};
     Object.entries(GAME_DATA.resources).forEach(([id, info]) => {
@@ -162,22 +239,29 @@ const DarkFactoryDispatch = (() => {
   function createInitialState(options = {}) {
     const run = options.run || 1;
     const seed = options.seed || 7103;
+    const purchased = purchasedUpgradeIds(options.upgrades);
+    const upgradeEffects = aggregateUpgradeEffects(purchased);
+    const resources = baseResources();
+    applyBundle(resources, upgradeEffects.startResources, 1);
     const state = {
       tick: 0,
       seed,
       nextQueueId: 1,
-      resources: baseResources(),
+      resources,
       produced: {},
       queue: [],
       lanes: GAME_DATA.lanes.map((lane) => ({
         id: lane.id,
         name: lane.name,
         trait: lane.trait,
-        throughput: lane.throughput,
-        jamRisk: lane.jamRisk,
+        baseThroughput: lane.throughput,
+        throughput: roundTenth(lane.throughput + upgradeEffects.throughputBonus),
+        baseJamRisk: lane.jamRisk,
+        jamRisk: Math.max(0.01, roundTenth((lane.jamRisk - upgradeEffects.jamResistance) * 100) / 100),
         status: "idle",
         progress: 0,
         runRemaining: 0,
+        recoveryRemaining: 0,
         currentJob: null,
         fault: null,
         completedJobs: 0,
@@ -188,13 +272,29 @@ const DarkFactoryDispatch = (() => {
         name: contract.name,
         requirement: clone(contract.requirement),
         reward: clone(contract.reward),
+        penalty: clone(contract.penalty),
+        deadline: contract.deadline,
+        timeRemaining: contract.deadline,
+        pressure: contract.pressure,
         status: index === 0 ? "active" : contract.status,
+        startedAtTick: index === 0 ? 0 : null,
         completedAtTick: null,
+        failedAtTick: null,
       })),
       faults: {
-        enabled: false,
+        enabled: options.faultsEnabled !== false,
+        graceTicks: options.faultGraceTicks === undefined ? 4 : options.faultGraceTicks,
         definitions: clone(GAME_DATA.faultTypes),
         history: [],
+      },
+      upgrades: {
+        purchased,
+        effects: upgradeEffects,
+      },
+      run: {
+        status: "active",
+        completedContracts: 0,
+        failedContracts: 0,
       },
       restart: {
         run,
@@ -227,6 +327,41 @@ const DarkFactoryDispatch = (() => {
     Object.entries(bundle || {}).forEach(([resource, amount]) => {
       resources[resource] = (resources[resource] || 0) + amount * direction;
     });
+  }
+
+  function refreshUpgradeEffects(state) {
+    state.upgrades.effects = aggregateUpgradeEffects(state.upgrades.purchased);
+    state.lanes.forEach((lane) => {
+      const source = byId(GAME_DATA.lanes, lane.id);
+      lane.baseThroughput = source.throughput;
+      lane.baseJamRisk = source.jamRisk;
+      lane.throughput = roundTenth(source.throughput + state.upgrades.effects.throughputBonus);
+      lane.jamRisk = Math.max(
+        0.01,
+        roundTenth((source.jamRisk - state.upgrades.effects.jamResistance) * 100) / 100
+      );
+    });
+  }
+
+  function purchaseUpgrade(state, upgradeId) {
+    const upgrade = byId(GAME_DATA.upgrades, upgradeId);
+    if (!upgrade) {
+      return withLog(state, "Unknown upgrade selection.");
+    }
+    const next = clone(state);
+    if (next.upgrades.purchased.includes(upgradeId)) {
+      return withLog(next, `${upgrade.name} already installed.`);
+    }
+    if (!canPay(next.resources, upgrade.cost)) {
+      return withLog(next, `${upgrade.name} lacks ${formatBundle(upgrade.cost)}.`);
+    }
+    applyBundle(next.resources, upgrade.cost, -1);
+    next.upgrades.purchased.push(upgradeId);
+    if (upgrade.effect && upgrade.effect.startResources) {
+      applyBundle(next.resources, upgrade.effect.startResources, 1);
+    }
+    refreshUpgradeEffects(next);
+    return withLog(next, `${upgrade.name} installed for later shifts.`);
   }
 
   function enqueueJob(state, jobTypeId) {
@@ -303,6 +438,14 @@ const DarkFactoryDispatch = (() => {
     if (!lane || !lane.currentJob) {
       return withLog(next, "Lane has no assigned job.");
     }
+    if (lane.fault) {
+      lane.status = "blocked";
+      lane.currentJob.status = "blocked";
+      return withLog(next, `${lane.name} requires recovery before restart.`);
+    }
+    if (lane.status === "recovering") {
+      return withLog(next, `${lane.name} is still recovering.`);
+    }
     const jobType = byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId);
     if (!canPay(next.resources, jobType.inputs)) {
       lane.status = "blocked";
@@ -346,12 +489,72 @@ const DarkFactoryDispatch = (() => {
     evaluateContracts(state);
   }
 
+  function applyFaultToLane(state, lane, faultType) {
+    applyBundle(state.resources, faultType.penalty, 1);
+    const recoveryTicks = Math.max(1, faultType.recoveryTicks + state.upgrades.effects.recoveryTicksBonus);
+    lane.status = "blocked";
+    lane.recoveryRemaining = 0;
+    lane.fault = {
+      id: faultType.id,
+      name: faultType.name,
+      recovery: clone(faultType.recovery),
+      recoveryTicks,
+      decision: faultType.decision,
+      phase: "blocked",
+      tick: state.tick,
+    };
+    if (lane.currentJob) {
+      lane.currentJob.status = "blocked";
+    }
+    state.faults.history.unshift({ laneId: lane.id, faultTypeId: faultType.id, tick: state.tick });
+    state.log.unshift({ tick: state.tick, message: `${lane.name} blocked by ${faultType.name}; ${faultType.decision}.` });
+  }
+
+  function maybeTriggerFault(state, lane) {
+    if (!state.faults.enabled || state.tick <= state.faults.graceTicks || lane.fault || !lane.currentJob) {
+      return false;
+    }
+    const roll = advanceSeed(state);
+    if (roll >= lane.jamRisk) {
+      return false;
+    }
+    const faultIndex = Math.floor(advanceSeed(state) * GAME_DATA.faultTypes.length) % GAME_DATA.faultTypes.length;
+    applyFaultToLane(state, lane, GAME_DATA.faultTypes[faultIndex]);
+    return true;
+  }
+
+  function advanceLaneRecovery(state, lane) {
+    if (lane.status !== "recovering" || !lane.fault) {
+      return;
+    }
+    lane.recoveryRemaining = Math.max(0, lane.recoveryRemaining - 1);
+    if (lane.recoveryRemaining > 0) {
+      return;
+    }
+    const recoveredJob = lane.currentJob;
+    const faultName = lane.fault.name;
+    lane.fault = null;
+    lane.status = recoveredJob ? "assigned" : "idle";
+    lane.progress = recoveredJob ? lane.progress : 0;
+    if (recoveredJob) {
+      lane.currentJob.status = "assigned";
+    }
+    state.log.unshift({ tick: state.tick, message: `${lane.name} cleared ${faultName}; restart required.` });
+  }
+
   function stepFactory(state, ticks = 1) {
     const next = clone(state);
     for (let i = 0; i < ticks; i += 1) {
+      if (next.run.status !== "active") {
+        break;
+      }
       next.tick += 1;
       next.lanes.forEach((lane) => {
+        advanceLaneRecovery(next, lane);
         if (lane.status !== "running" || !lane.currentJob) {
+          return;
+        }
+        if (maybeTriggerFault(next, lane)) {
           return;
         }
         lane.currentJob.remaining = Math.max(0, lane.currentJob.remaining - 1);
@@ -361,24 +564,72 @@ const DarkFactoryDispatch = (() => {
           completeLaneJob(next, lane);
         }
       });
+      evaluateContracts(next);
     }
     next.log = next.log.slice(0, 8);
     return next;
   }
 
+  function activateNextContract(state) {
+    const nextContract = state.contracts.find((contract) => contract.status === "open");
+    if (!nextContract) {
+      return;
+    }
+    nextContract.status = "active";
+    nextContract.startedAtTick = state.tick;
+    nextContract.timeRemaining = nextContract.deadline;
+    state.log.unshift({ tick: state.tick, message: `${nextContract.name} contract now active.` });
+  }
+
+  function updateContractClock(contract, state) {
+    if (contract.status !== "active") {
+      return;
+    }
+    contract.timeRemaining = Math.max(0, contract.deadline - (state.tick - contract.startedAtTick));
+  }
+
+  function contractSatisfied(contract, state) {
+    return Object.entries(contract.requirement).every(([resource, amount]) => (state.produced[resource] || 0) >= amount);
+  }
+
+  function evaluateRunOutcome(state) {
+    const openOrActive = state.contracts.some((contract) => contract.status === "open" || contract.status === "active");
+    const completeCount = state.contracts.filter((contract) => contract.status === "complete").length;
+    const failedCount = state.contracts.filter((contract) => contract.status === "failed").length;
+    state.run.completedContracts = completeCount;
+    state.run.failedContracts = failedCount;
+    if (completeCount === state.contracts.length && state.run.status !== "success") {
+      state.run.status = "success";
+      state.log.unshift({ tick: state.tick, message: "All contracts cleared. Install upgrades or restart." });
+    } else if (!openOrActive && failedCount > 0 && state.run.status !== "failed") {
+      state.run.status = "failed";
+      state.log.unshift({ tick: state.tick, message: "Dispatch window failed. Restart to replay." });
+    }
+  }
+
   function evaluateContracts(state) {
     state.contracts.forEach((contract) => {
-      if (contract.status === "complete") {
+      if (contract.status !== "active") {
         return;
       }
-      const complete = Object.entries(contract.requirement).every(([resource, amount]) => (state.produced[resource] || 0) >= amount);
-      if (complete) {
+      updateContractClock(contract, state);
+      if (contractSatisfied(contract, state)) {
         contract.status = "complete";
         contract.completedAtTick = state.tick;
         applyBundle(state.resources, contract.reward, 1);
         state.log.unshift({ tick: state.tick, message: `${contract.name} contract complete.` });
+        activateNextContract(state);
+        return;
+      }
+      if (contract.timeRemaining === 0) {
+        contract.status = "failed";
+        contract.failedAtTick = state.tick;
+        applyBundle(state.resources, contract.penalty, 1);
+        state.log.unshift({ tick: state.tick, message: `${contract.name} contract failed; penalty applied.` });
+        activateNextContract(state);
       }
     });
+    evaluateRunOutcome(state);
   }
 
   function injectLaneFault(state, laneId, faultTypeId = "material-jam") {
@@ -388,10 +639,9 @@ const DarkFactoryDispatch = (() => {
     if (!lane || !fault) {
       return withLog(next, "Fault signal ignored.");
     }
-    lane.status = "fault";
-    lane.fault = { id: fault.id, name: fault.name, recovery: clone(fault.recovery), tick: next.tick };
-    next.faults.history.unshift({ laneId, faultTypeId, tick: next.tick });
-    return withLog(next, `${lane.name} flagged ${fault.name}.`);
+    applyFaultToLane(next, lane, fault);
+    next.log = next.log.slice(0, 8);
+    return next;
   }
 
   function recoverLane(state, laneId) {
@@ -404,18 +654,23 @@ const DarkFactoryDispatch = (() => {
       return withLog(next, `${lane.name} recovery lacks resources.`);
     }
     applyBundle(next.resources, lane.fault.recovery, -1);
-    lane.fault = null;
-    lane.status = lane.currentJob ? "assigned" : "idle";
+    lane.status = "recovering";
+    lane.recoveryRemaining = lane.fault.recoveryTicks;
+    lane.fault.phase = "recovering";
     if (lane.currentJob) {
-      lane.currentJob.status = "assigned";
+      lane.currentJob.status = "recovering";
     }
-    return withLog(next, `${lane.name} recovered.`);
+    return withLog(next, `${lane.name} recovery started.`);
   }
 
   function resetFactoryState(state = null) {
     const nextRun = state && state.restart ? state.restart.run + 1 : 1;
     const seed = state && state.seed ? state.seed + 101 : 7103;
-    const next = createInitialState({ run: nextRun, seed });
+    const next = createInitialState({
+      run: nextRun,
+      seed,
+      upgrades: state && state.upgrades ? state.upgrades.purchased : [],
+    });
     next.restart.reason = "operator restart";
     next.restart.lastResetTick = state ? state.tick : 0;
     next.log.unshift({ tick: 0, message: `Shift ${String(nextRun).padStart(2, "0")} restarted.` });
@@ -436,6 +691,8 @@ const DarkFactoryDispatch = (() => {
       resource,
       required: amount,
       current: state.produced[resource] || 0,
+      timeRemaining: contract.timeRemaining,
+      status: contract.status,
     }));
   }
 
@@ -449,6 +706,7 @@ const DarkFactoryDispatch = (() => {
       lanes: document.getElementById("lane-board"),
       queue: document.getElementById("queue-list"),
       contracts: document.getElementById("contract-board"),
+      upgrades: document.getElementById("upgrade-board"),
       jobs: document.getElementById("job-catalog"),
       log: document.getElementById("operator-log"),
       jobSelect: document.getElementById("job-type-select"),
@@ -464,7 +722,7 @@ const DarkFactoryDispatch = (() => {
     bindControls();
     render(currentState);
     window.setInterval(() => {
-      if (currentState && currentState.lanes.some((lane) => lane.status === "running")) {
+      if (currentState && currentState.run.status === "active") {
         currentState = stepFactory(currentState, 1);
         render(currentState);
       }
@@ -546,14 +804,23 @@ const DarkFactoryDispatch = (() => {
       currentState = enqueueJob(currentState, button.dataset.job);
       render(currentState);
     });
+    dom.upgrades.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-upgrade]");
+      if (!button) {
+        return;
+      }
+      currentState = purchaseUpgrade(currentState, button.dataset.upgrade);
+      render(currentState);
+    });
   }
 
   function render(state) {
-    dom.runChip.textContent = `shift ${String(state.restart.run).padStart(2, "0")} / tick ${state.tick}`;
+    dom.runChip.textContent = `shift ${String(state.restart.run).padStart(2, "0")} / ${state.run.status} / t${state.tick}`;
     renderResources(state);
     renderLanes(state);
     renderQueue(state);
     renderContracts(state);
+    renderUpgrades(state);
     renderJobs();
     renderLog(state);
   }
@@ -569,12 +836,15 @@ const DarkFactoryDispatch = (() => {
     dom.lanes.innerHTML = state.lanes.map((lane) => {
       const jobType = lane.currentJob ? byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId) : null;
       const jobText = jobType ? jobType.name : "idle bay";
-      const faultText = lane.fault ? `${lane.fault.name} / recover ${formatBundle(lane.fault.recovery)}` : "clear";
+      const faultText = lane.fault
+        ? `${lane.fault.name} / ${lane.fault.phase} / ${lane.fault.decision} / ${formatBundle(lane.fault.recovery)}`
+        : "clear";
+      const statusText = lane.status === "idle" ? "ready" : lane.status;
       return `
         <article class="lane-card" data-status="${lane.status}">
           <div class="lane-title">
             <strong>${lane.name}</strong>
-            <span class="status-pill">${lane.status}</span>
+            <span class="status-pill">${statusText}</span>
           </div>
           <div class="lane-job"><span>Current job</span>${jobText}</div>
           <div class="progress-track" aria-label="${lane.name} progress" style="--progress: ${lane.progress}%"><span></span></div>
@@ -582,6 +852,7 @@ const DarkFactoryDispatch = (() => {
             <span>${lane.trait}</span>
             <span>rate ${lane.throughput}</span>
             <span>jam ${Math.round(lane.jamRisk * 100)}%</span>
+            <span>recover ${lane.recoveryRemaining}</span>
             <span>fault ${faultText}</span>
           </div>
           <div class="lane-actions">
@@ -626,17 +897,40 @@ const DarkFactoryDispatch = (() => {
       const progress = contractProgress(contract, state)
         .map((line) => `${line.resource} ${line.current}/${line.required}`)
         .join(" / ");
+      const timer = contract.status === "open" ? `opens next / ${contract.deadline} ticks` : `${contract.timeRemaining} ticks left`;
       return `
         <article class="contract-card" data-status="${contract.status}">
           <div class="contract-title">
             <strong>${contract.name}</strong>
             <span class="status-pill">${contract.status}</span>
           </div>
-          <div class="contract-meta"><span>${progress}</span></div>
+          <div class="contract-meta">
+            <span>${timer}</span>
+            <span>${contract.pressure}</span>
+            <span>${progress}</span>
+          </div>
           <div class="contract-reward">
             <span>requires ${formatBundle(contract.requirement)}</span>
             <span>reward ${formatBundle(contract.reward)}</span>
+            <span>penalty ${formatBundle(contract.penalty)}</span>
           </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderUpgrades(state) {
+    dom.upgrades.innerHTML = GAME_DATA.upgrades.map((upgrade) => {
+      const installed = state.upgrades.purchased.includes(upgrade.id);
+      const affordable = canPay(state.resources, upgrade.cost);
+      return `
+        <article class="upgrade-card" data-installed="${installed ? "true" : "false"}">
+          <div class="upgrade-title">
+            <strong>${upgrade.name}</strong>
+            <span class="status-pill">${installed ? "installed" : formatBundle(upgrade.cost)}</span>
+          </div>
+          <p>${upgrade.description}</p>
+          <button type="button" data-upgrade="${upgrade.id}" ${installed || !affordable ? "disabled" : ""}>install</button>
         </article>
       `;
     }).join("");
@@ -676,6 +970,8 @@ const DarkFactoryDispatch = (() => {
     stepFactory,
     injectLaneFault,
     recoverLane,
+    purchaseUpgrade,
+    evaluateContracts,
     resetFactoryState,
     canPay,
     applyBundle,

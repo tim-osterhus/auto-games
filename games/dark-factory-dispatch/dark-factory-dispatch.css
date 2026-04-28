@@ -54,6 +54,13 @@ button:focus-visible {
   box-shadow: 0 0 0 1px rgba(75, 214, 192, 0.18);
 }
 
+button:disabled {
+  border-color: rgba(89, 101, 95, 0.45);
+  color: var(--dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 select {
   width: 100%;
   min-height: 2.5rem;
@@ -181,6 +188,7 @@ select {
 }
 
 .contract-panel,
+.upgrade-panel,
 .job-panel,
 .controls-panel,
 .log-panel {
@@ -190,6 +198,7 @@ select {
 .lane-board,
 .job-catalog,
 .contract-board,
+.upgrade-board,
 .control-stack,
 .operator-log,
 .queue-list {
@@ -205,7 +214,8 @@ select {
 .lane-card,
 .queue-item,
 .job-card,
-.contract-card {
+.contract-card,
+.upgrade-card {
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--panel);
@@ -221,7 +231,8 @@ select {
 .lane-title,
 .queue-title,
 .job-title,
-.contract-title {
+.contract-title,
+.upgrade-title {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -231,7 +242,8 @@ select {
 .lane-title strong,
 .queue-title strong,
 .job-title strong,
-.contract-title strong {
+.contract-title strong,
+.upgrade-title strong {
   font-size: 1rem;
 }
 
@@ -256,10 +268,16 @@ select {
 }
 
 .lane-card[data-status="blocked"] .status-pill,
-.lane-card[data-status="fault"] .status-pill,
-.contract-card[data-status="complete"] .status-pill {
+.lane-card[data-status="recovering"] .status-pill,
+.contract-card[data-status="complete"] .status-pill,
+.upgrade-card[data-installed="true"] .status-pill {
   border-color: rgba(215, 184, 103, 0.75);
   color: var(--warn);
+}
+
+.contract-card[data-status="failed"] .status-pill {
+  border-color: rgba(214, 96, 77, 0.82);
+  color: var(--danger);
 }
 
 .lane-card[data-status="idle"] .status-pill {
@@ -344,13 +362,15 @@ select {
 }
 
 .contract-board,
-.job-catalog {
+.job-catalog,
+.upgrade-board {
   display: grid;
   gap: 10px;
 }
 
 .contract-card,
-.job-card {
+.job-card,
+.upgrade-card {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -359,10 +379,17 @@ select {
 .contract-reward,
 .job-io {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 8px;
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.contract-reward {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.job-io {
+  grid-template-columns: 1fr 1fr;
 }
 
 .job-io span,
@@ -374,6 +401,13 @@ select {
 
 .job-card button {
   width: 100%;
+}
+
+.upgrade-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .select-line {

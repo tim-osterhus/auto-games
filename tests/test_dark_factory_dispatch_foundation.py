@@ -21,6 +21,7 @@ class DarkFactoryDispatchFoundationTests(unittest.TestCase):
             "lane-board",
             "queue-list",
             "contract-board",
+            "upgrade-board",
             "job-catalog",
             "enqueue-job",
             "assign-next-job",
