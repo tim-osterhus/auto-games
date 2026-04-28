@@ -39,28 +39,31 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertIn("Three-lane factory dispatch board", snapshot["summary"])
         self.assertRegex(snapshot["commit"], r"^[0-9a-f]{40}$")
 
-    def test_manifest_preserves_corebound_while_listing_two_games(self) -> None:
+    def test_manifest_preserves_corebound_while_listing_three_games(self) -> None:
         manifest = load_manifest()
         slugs = [game["slug"] for game in manifest["games"]]
 
         self.assertIn("corebound", slugs)
         self.assertIn("dark-factory-dispatch", slugs)
-        self.assertEqual(2, len(slugs))
+        self.assertIn("void-prospector", slugs)
+        self.assertEqual(3, len(slugs))
         self.assertEqual("0.7.0", game_by_slug("corebound")["version"])
 
     def test_generated_arcade_output_lists_second_game_card_and_thumbnail(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")
 
-        self.assertIn("games <strong>2 games</strong>", html)
+        self.assertIn("games <strong>3 games</strong>", html)
         self.assertIn("Corebound", html)
         self.assertIn("Dark Factory Dispatch", html)
+        self.assertIn("Void Prospector", html)
         self.assertIn('href="games/corebound/"', html)
         self.assertIn('href="games/dark-factory-dispatch/"', html)
+        self.assertIn('href="games/void-prospector/"', html)
         self.assertIn('src="games/dark-factory-dispatch/assets/arcade-title-card.png"', html)
         self.assertIn("v0.0.1 Dispatch Floor", html)
         self.assertIn("Snapshots", html)
         self.assertIn('href="games/dark-factory-dispatch/versions/0.0.1/"', html)
-        self.assertNotIn("Snapshot deferred", html)
+        self.assertIn("Snapshot deferred", html)
 
     def test_snapshot_directory_preserves_playable_static_release(self) -> None:
         snapshot_dir = ROOT / "games" / "dark-factory-dispatch" / "versions" / "0.0.1"

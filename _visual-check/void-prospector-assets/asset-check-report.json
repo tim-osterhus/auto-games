@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "asset_count": 5,
+  "assets": [
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/ship-decal.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 74969,
+      "width": 256,
+      "height": 256,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.395263671875,
+      "content_bbox": [
+        13,
+        19,
+        243,
+        236
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/asteroid-ore-glow.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 524159,
+      "width": 512,
+      "height": 512,
+      "has_alpha_channel": false,
+      "has_transparency": false,
+      "alpha_coverage": 1.0,
+      "content_bbox": [
+        0,
+        0,
+        512,
+        512
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/station-dock-panel.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 198869,
+      "width": 512,
+      "height": 256,
+      "has_alpha_channel": false,
+      "has_transparency": false,
+      "alpha_coverage": 1.0,
+      "content_bbox": [
+        0,
+        0,
+        512,
+        256
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/pirate-marker.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 47583,
+      "width": 256,
+      "height": 256,
+      "has_alpha_channel": true,
+      "has_transparency": true,
+      "alpha_coverage": 0.2348785400390625,
+      "content_bbox": [
+        35,
+        10,
+        221,
+        245
+      ]
+    },
+    {
+      "path": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/arcade-title-card.png",
+      "ok": true,
+      "issues": [],
+      "bytes": 542383,
+      "width": 800,
+      "height": 450,
+      "has_alpha_channel": false,
+      "has_transparency": false,
+      "alpha_coverage": 1.0,
+      "content_bbox": [
+        0,
+        0,
+        800,
+        450
+      ]
+    }
+  ]
+}

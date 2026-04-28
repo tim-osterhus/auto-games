@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "assets": [
+    {
+      "id": "ship-decal",
+      "path": "games/void-prospector/assets/ship-decal.png",
+      "role": "texture",
+      "description": "Mining ship hull decal with charcoal panels, teal cockpit signal, and luminous panel lines.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "Three.js ship hull texture/decal with transparent background.",
+      "notes": "Generated with Codex built-in image generation on a flat chroma-key background, then locally converted to alpha and resized to exact dimensions."
+    },
+    {
+      "id": "asteroid-ore-glow",
+      "path": "games/void-prospector/assets/asteroid-ore-glow.png",
+      "role": "texture",
+      "description": "Charcoal asteroid rock material with teal survey seams and amber ore glints.",
+      "width": 512,
+      "height": 512,
+      "intended_use": "Asteroid surface material texture.",
+      "notes": "Generated with Codex built-in image generation and resized/cropped to exact square texture dimensions."
+    },
+    {
+      "id": "station-dock-panel",
+      "path": "games/void-prospector/assets/station-dock-panel.png",
+      "role": "texture",
+      "description": "Docking panel texture with clamp geometry, bay framing, and teal signal strips.",
+      "width": 512,
+      "height": 256,
+      "intended_use": "Station docking bay panel texture.",
+      "notes": "Generated with Codex built-in image generation in a 2:1 composition and resized to exact dimensions."
+    },
+    {
+      "id": "pirate-marker",
+      "path": "games/void-prospector/assets/pirate-marker.png",
+      "role": "sprite",
+      "description": "Angular hostile marker silhouette with red danger wake and sharp pirate-raider identity.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "Transparent hostile ship or threat marker sprite.",
+      "notes": "Generated with Codex built-in image generation on a flat chroma-key background, then locally converted to alpha and resized to exact dimensions."
+    },
+    {
+      "id": "arcade-title-card",
+      "path": "games/void-prospector/assets/arcade-title-card.png",
+      "role": "background",
+      "description": "Title-card art showing the mining ship extracting ore from asteroids near Frontier Spoke with a distant hostile marker.",
+      "width": 800,
+      "height": 450,
+      "intended_use": "Opaque 16:9 title or menu artwork with no baked text.",
+      "notes": "Generated with Codex built-in image generation and resized/cropped to exact 16:9 dimensions."
+    }
+  ],
+  "notes": "Complete original Void Prospector asset pack generated with Codex built-in image generation only; final project-consumed files are under games/void-prospector/assets."
+}

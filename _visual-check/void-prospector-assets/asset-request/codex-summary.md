@@ -1,0 +1,11 @@
+Created the Void Prospector asset pack with built-in image generation only, then locally resized/cropped and chroma-keyed the transparent assets.
+
+Files created:
+- [ship-decal.png](/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/ship-decal.png) `256x256` RGBA
+- [asteroid-ore-glow.png](/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/asteroid-ore-glow.png) `512x512` RGB
+- [station-dock-panel.png](/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/station-dock-panel.png) `512x256` RGB
+- [pirate-marker.png](/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/pirate-marker.png) `256x256` RGBA
+- [arcade-title-card.png](/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets/arcade-title-card.png) `800x450` RGB
+- [asset-request-manifest.json](/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request-manifest.json)
+
+Validation completed: manifest parses, all asset dimensions match, and `ship-decal.png` / `pirate-marker.png` have usable alpha. Visual check sheet: [_visual-check/void-prospector-assets/asset-request/final-contact-sheet.png](/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request/final-contact-sheet.png).

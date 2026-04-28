@@ -2,6 +2,14 @@
 
 const VoidProspector = (() => {
   const RENDERER_PATH = "vendor/three.min.js";
+  const ASSET_PATHS = Object.freeze({
+    sourceManifest: "assets/asset-manifest.json",
+    shipDecal: "assets/ship-decal.png",
+    asteroidOreGlow: "assets/asteroid-ore-glow.png",
+    stationDockPanel: "assets/station-dock-panel.png",
+    pirateMarker: "assets/pirate-marker.png",
+    arcadeTitleCard: "assets/arcade-title-card.png",
+  });
   const TWO_PI = Math.PI * 2;
   const DEFAULT_SEED = 41729;
 
@@ -11,6 +19,7 @@ const VoidProspector = (() => {
       path: RENDERER_PATH,
       localOnly: true,
     },
+    assets: ASSET_PATHS,
     controls: {
       thrust: ["KeyW", "ArrowUp"],
       brake: ["KeyS", "ArrowDown"],
@@ -1038,7 +1047,34 @@ const VoidProspector = (() => {
     }
   }
 
-  function createShipMesh(THREE) {
+  function configureTexture(THREE, texture, options = {}) {
+    if (!texture) {
+      return null;
+    }
+    if (THREE.SRGBColorSpace) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding) {
+      texture.encoding = THREE.sRGBEncoding;
+    }
+    if (options.repeat) {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(options.repeat[0], options.repeat[1]);
+    }
+    return texture;
+  }
+
+  function loadSceneAssets(THREE) {
+    const loader = new THREE.TextureLoader();
+    return {
+      shipDecal: configureTexture(THREE, loader.load(ASSET_PATHS.shipDecal)),
+      asteroidOreGlow: configureTexture(THREE, loader.load(ASSET_PATHS.asteroidOreGlow), { repeat: [2, 2] }),
+      stationDockPanel: configureTexture(THREE, loader.load(ASSET_PATHS.stationDockPanel)),
+      pirateMarker: configureTexture(THREE, loader.load(ASSET_PATHS.pirateMarker)),
+    };
+  }
+
+  function createShipMesh(THREE, assets = {}) {
     const group = new THREE.Group();
     const hullMaterial = new THREE.MeshStandardMaterial({
       color: 0xdce8e2,
@@ -1070,10 +1106,26 @@ const VoidProspector = (() => {
     const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8), signalMaterial);
     cockpit.position.set(0, 0.28, -0.34);
     group.add(cockpit);
+
+    if (assets.shipDecal) {
+      const decal = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.8, 1.8),
+        new THREE.MeshBasicMaterial({
+          map: assets.shipDecal,
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        })
+      );
+      decal.position.set(0, 0.34, 0.2);
+      decal.rotation.x = -Math.PI / 2;
+      group.add(decal);
+    }
     return group;
   }
 
-  function createStationMesh(THREE) {
+  function createStationMesh(THREE, assets = {}) {
     const group = new THREE.Group();
     const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0x738078,
@@ -1082,8 +1134,19 @@ const VoidProspector = (() => {
       emissive: 0x0c2522,
       emissiveIntensity: 0.28,
     });
+    const panelMaterial = assets.stationDockPanel
+      ? new THREE.MeshStandardMaterial({
+          color: 0x8f9a94,
+          map: assets.stationDockPanel,
+          roughness: 0.72,
+          metalness: 0.28,
+          emissive: 0x0c2522,
+          emissiveMap: assets.stationDockPanel,
+          emissiveIntensity: 0.12,
+        })
+      : ringMaterial;
     const dockMaterial = new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.55 });
-    const core = new THREE.Mesh(new THREE.BoxGeometry(5, 2.2, 5), ringMaterial);
+    const core = new THREE.Mesh(new THREE.BoxGeometry(5, 2.2, 5), panelMaterial);
     group.add(core);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(6, 0.12, 8, 48), dockMaterial);
     ring.rotation.x = Math.PI / 2;
@@ -1094,16 +1157,18 @@ const VoidProspector = (() => {
     return group;
   }
 
-  function createAsteroidMesh(THREE, asteroid) {
+  function createAsteroidMesh(THREE, asteroid, assets = {}) {
     const group = new THREE.Group();
     const body = new THREE.Mesh(
       new THREE.DodecahedronGeometry(asteroid.radius, 0),
       new THREE.MeshStandardMaterial({
         color: 0x4d554f,
+        map: assets.asteroidOreGlow || null,
         roughness: 0.94,
         metalness: 0.06,
-        emissive: 0x0a0f0d,
-        emissiveIntensity: 0.2,
+        emissive: 0x16342f,
+        emissiveMap: assets.asteroidOreGlow || null,
+        emissiveIntensity: assets.asteroidOreGlow ? 0.18 : 0.2,
       })
     );
     group.add(body);
@@ -1118,7 +1183,7 @@ const VoidProspector = (() => {
     return group;
   }
 
-  function createPirateMesh(THREE) {
+  function createPirateMesh(THREE, assets = {}) {
     const group = new THREE.Group();
     const material = new THREE.MeshStandardMaterial({
       color: 0x8f3f35,
@@ -1137,6 +1202,21 @@ const VoidProspector = (() => {
     wake.rotation.x = Math.PI / 2;
     wake.position.z = 1.5;
     group.add(wake);
+    if (assets.pirateMarker) {
+      const marker = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.8, 3.8),
+        new THREE.MeshBasicMaterial({
+          map: assets.pirateMarker,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        })
+      );
+      marker.position.set(0, 0.28, 0);
+      marker.rotation.x = -Math.PI / 2;
+      group.add(marker);
+    }
     return group;
   }
 
@@ -1206,22 +1286,23 @@ const VoidProspector = (() => {
     scene.add(grid);
     scene.add(createStarField(THREE));
 
-    const ship = createShipMesh(THREE);
+    const sceneAssets = loadSceneAssets(THREE);
+    const ship = createShipMesh(THREE, sceneAssets);
     scene.add(ship);
 
-    const station = createStationMesh(THREE);
+    const station = createStationMesh(THREE, sceneAssets);
     station.position.set(state.station.position.x, state.station.position.y, state.station.position.z);
     scene.add(station);
 
     const asteroidMeshes = new Map();
     state.asteroids.forEach((asteroid) => {
-      const mesh = createAsteroidMesh(THREE, asteroid);
+      const mesh = createAsteroidMesh(THREE, asteroid, sceneAssets);
       mesh.position.set(asteroid.position.x, asteroid.position.y, asteroid.position.z);
       asteroidMeshes.set(asteroid.id, mesh);
       scene.add(mesh);
     });
 
-    const pirate = createPirateMesh(THREE);
+    const pirate = createPirateMesh(THREE, sceneAssets);
     scene.add(pirate);
 
     const targetRing = createTargetRing(THREE);
@@ -1242,6 +1323,7 @@ const VoidProspector = (() => {
         pirate,
         targetRing,
         miningBeam,
+        sceneAssets,
       },
     };
   }
@@ -1353,6 +1435,7 @@ const VoidProspector = (() => {
   const api = {
     GAME_DATA,
     RENDERER_PATH,
+    ASSET_PATHS,
     createInitialState,
     createAsteroidNodes,
     applyFlightInput,

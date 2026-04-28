@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "request_manifest": "_visual-check/void-prospector-assets/asset-request-manifest.json",
+  "assets": [
+    {
+      "id": "ship-decal",
+      "path": "games/void-prospector/assets/ship-decal.png",
+      "role": "texture",
+      "description": "Mining ship hull decal with charcoal panels, teal cockpit signal, and luminous panel lines.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "Three.js ship hull decal overlay and visible player-ship treatment.",
+      "notes": "Generated with Codex built-in image generation on a chroma-key source, locally converted to alpha, cropped, and resized to 256x256 PNG."
+    },
+    {
+      "id": "asteroid-ore-glow",
+      "path": "games/void-prospector/assets/asteroid-ore-glow.png",
+      "role": "texture",
+      "description": "Charcoal asteroid rock material with teal survey seams and amber ore glints.",
+      "width": 512,
+      "height": 512,
+      "intended_use": "Asteroid surface material and emissive ore-glow texture in the 3D scene.",
+      "notes": "Generated with Codex built-in image generation and resized/cropped to exact square texture dimensions."
+    },
+    {
+      "id": "station-dock-panel",
+      "path": "games/void-prospector/assets/station-dock-panel.png",
+      "role": "texture",
+      "description": "Docking panel texture with clamp geometry, bay framing, and teal signal strips.",
+      "width": 512,
+      "height": 256,
+      "intended_use": "Frontier Spoke station core and docking bay texture.",
+      "notes": "Generated with Codex built-in image generation in a 2:1 composition and resized to exact dimensions."
+    },
+    {
+      "id": "pirate-marker",
+      "path": "games/void-prospector/assets/pirate-marker.png",
+      "role": "sprite",
+      "description": "Angular hostile marker silhouette with red danger wake and sharp pirate-raider identity.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "Transparent hostile marker sprite carried by the pirate mesh.",
+      "notes": "Generated with Codex built-in image generation on a chroma-key source, locally converted to alpha, cropped, and resized to 256x256 PNG."
+    },
+    {
+      "id": "arcade-title-card",
+      "path": "games/void-prospector/assets/arcade-title-card.png",
+      "role": "background",
+      "description": "Title-card art showing the mining ship extracting ore from asteroids near Frontier Spoke with a distant hostile marker.",
+      "width": 800,
+      "height": 450,
+      "intended_use": "Game title band and arcade thumbnail art.",
+      "notes": "Generated with Codex built-in image generation and resized/cropped to exact 16:9 dimensions."
+    }
+  ],
+  "notes": "Original Void Prospector asset pack generated through the visual-asset-pipeline Codex bridge; final project-consumed PNGs are local under games/void-prospector/assets."
+}

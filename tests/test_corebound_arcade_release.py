@@ -147,7 +147,7 @@ class CoreboundArcadeReleaseTests(unittest.TestCase):
 
         self.assertIn("Corebound is playable.", index)
         self.assertIn("playable / v0.7.0", index)
-        self.assertIn("games <strong>2 games</strong>", index)
+        self.assertIn("games <strong>3 games</strong>", index)
         self.assertIn('href="games/corebound/"', index)
         self.assertIn("v0.7.0 HUD Breakthrough", index)
         self.assertIn("compact overlay HUD", index)

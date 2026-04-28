@@ -204,6 +204,15 @@ input {
   background: var(--panel-strong);
 }
 
+.title-card-band {
+  display: block;
+  width: 100%;
+  height: 74px;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line-soft);
+  filter: saturate(0.82) contrast(1.08);
+}
+
 .panel-head strong {
   min-width: 0;
   overflow-wrap: anywhere;

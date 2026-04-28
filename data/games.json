@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release and the first Dark Factory Dispatch floor."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, the first Dark Factory Dispatch floor, and Void Prospector's asset-backed space-mining sortie."
   },
   "games": [
     {
@@ -90,6 +90,24 @@
           "commit": "1e2fa8193edbf7edc3138bcf7e88a0dc092acf75"
         }
       ]
+    },
+    {
+      "slug": "void-prospector",
+      "title": "Void Prospector",
+      "version": "0.0.1",
+      "status": "playable",
+      "summary": "Pilot the Prospector Kite through a compact 3D asteroid field, mine ore with a beam rig, dodge pirate pressure, dock at Frontier Spoke, sell cargo, complete a charter, and install upgrades for stronger future sorties.",
+      "path": "games/void-prospector/",
+      "thumbnail": "games/void-prospector/assets/arcade-title-card.png",
+      "release": {
+        "label": "v0.0.1 First Sortie",
+        "copy": "First Sortie publishes the local Three.js flight shell, connected mining, docking, charter, upgrade, and pirate-pressure loop, plus original project-local ship, asteroid, station, hostile-marker, and title-card art."
+      },
+      "snapshot": {
+        "status": "deferred",
+        "version": "0.0.1",
+        "reason": "Commit-backed Void Prospector snapshot will be stamped by release continuity after this asset-pack pass is validated."
+      }
     }
   ]
 }

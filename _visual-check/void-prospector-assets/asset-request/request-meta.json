@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "created_at": "20260428T110855Z",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "out_dir": "/mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets",
+  "manifest": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request-manifest.json",
+  "prompt_path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request/request-prompt.md",
+  "summary_path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request/codex-summary.md",
+  "references": [],
+  "command": [
+    "/home/tim/.local/bin/codex",
+    "--ask-for-approval",
+    "never",
+    "exec",
+    "--model",
+    "gpt-5.5",
+    "--sandbox",
+    "workspace-write",
+    "--skip-git-repo-check",
+    "-C",
+    "/mnt/f/_evolve/millrace-games/auto-games",
+    "-o",
+    "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request/codex-summary.md",
+    "--add-dir",
+    "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets",
+    "$imagegen\n\nYou are creating browser-game visual assets for a Millrace task.\n\nUse Codex built-in image generation/editing only. Do not use OPENAI_API_KEY, the OpenAI SDK, the Images API, or any API-key fallback. Do not read or print Codex credential files.\n\nMode: generate\nWorking directory: /mnt/f/_evolve/millrace-games/auto-games\nFinal asset destination directory: /mnt/f/_evolve/millrace-games/auto-games/games/void-prospector/assets\nManifest path to write: /mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/asset-request-manifest.json\nReference images attached or provided:\n- none\n\nAsset brief:\nCreate an original Void Prospector browser-game asset pack in the restrained Millrace arcade direction: mono-first, diagrammatic, square-framed, lightly luminous, teal as precise signal and amber/orange only for ore or danger. Final files must be project-local under games/void-prospector/assets with these exact filenames and dimensions: ship-decal.png, 256x256 transparent PNG, a mining ship hull decal/treatment with teal cockpit signal and panel lines for use as a Three.js texture; asteroid-ore-glow.png, 512x512 opaque or alpha PNG ore material texture with charcoal rock, teal survey seams, and amber ore glints for asteroid surfaces; station-dock-panel.png, 512x256 opaque PNG docking panel texture with clamp geometry, bay framing, and teal signal strips; pirate-marker.png, 256x256 transparent PNG hostile ship/marker silhouette with red danger wake and angular pirate identity; arcade-title-card.png, 800x450 opaque PNG title-card art showing the ship mining asteroids near Frontier Spoke with a distant hostile marker, no readable text or logos. Also write the manifest with id, path, role, description, width, height, intended_use, and notes for every asset. Do not use remote URLs, temporary output paths, API keys, protected game art, logos, or baked UI text.\n\nRequirements:\n- Create original assets only; do not copy protected game art, characters, names, logos, maps, or exact presentation.\n- Save every final project-consumed asset under the final asset destination directory.\n- Keep UI text, labels, scores, and controls out of raster assets unless the brief explicitly asks for baked-in text.\n- For edits, preserve the source non-destructively and write a new output file.\n- If transparency is needed, make the final file a PNG or WebP with usable alpha, or clearly report why that was not possible.\n- Prefer stable, descriptive lowercase filenames.\n- After generation or editing, write the manifest JSON exactly at the manifest path.\n\nManifest schema:\n{\n  \"schema_version\": 1,\n  \"status\": \"complete | blocked\",\n  \"mode\": \"generate\",\n  \"workdir\": \"/mnt/f/_evolve/millrace-games/auto-games\",\n  \"assets\": [\n    {\n      \"path\": \"absolute or workdir-relative path to an asset\",\n      \"role\": \"sprite | sprite-strip | icon | background | texture | concept | other\",\n      \"description\": \"short asset description\",\n      \"width\": null,\n      \"height\": null,\n      \"notes\": \"generation or editing notes\"\n    }\n  ],\n  \"notes\": \"short summary, or blocker reason when status is blocked\"\n}\n\nFinish with a concise summary of files created and any checks the caller should run.\n"
+  ],
+  "environment_redacted": {
+    "PATH": "/home/tim/.cargo/bin:/home/tim/.local/bin:/home/tim/.codex/tmp/arg0/codex-arg0DeRBOS:/home/tim/.local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path:/home/tim/.local/bin:/home/tim/.codex/tmp/arg0/codex-arg0hJofcI:/home/tim/.nvm/versions/node/v22.20.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path:/home/tim/.local/bin:/home/tim/.bun/bin:/home/tim/.opencode/bin:/home/tim/.nvm/versions/node/v22.20.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/Common Files/Oracle/Java/javapath:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/java8path:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/javapath:/mnt/c/Users/Tim/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0/LocalCache/local-packages/Python310/Scripts:/mnt/c/Python38/Scripts/:/mnt/c/Python38/:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/ProgramData/chocolatey/bin:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/Program Files/dotnet/:/mnt/c/Program Files/NVIDIA Corporation/NVIDIA app/NvDLISR:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/nodejs/:/mnt/c/Program Files/WezTerm:/mnt/c/Program Files/GitHub CLI/:/mnt/c/Program Files/Tailscale/:/Docker/host/bin:/mnt/c/Users/Tim/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0/LocalCache/local-packages/Python310/Scripts:/mnt/c/Users/Tim/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/Tim/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Users/Tim/AppData/Local/Programs/Ollama:/mnt/c/Users/Tim/AppData/Roaming/npm:/mnt/f/Anti-Gravity/Antigravity/bin:/snap/bin:/mnt/c/Program Files/WezTerm"
+  },
+  "dry_run": false
+}
