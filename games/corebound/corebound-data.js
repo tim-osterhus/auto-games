@@ -8,6 +8,11 @@
       metersPerTile: 8,
       seed: 73129
     },
+    release: {
+      version: "v0.4.0",
+      snapshot: "Natural Motion plus first-session pacing",
+      build: "request-af2f6f912454427a95352cc5d02c0ef1"
+    },
     rig: {
       name: "Mantis-01",
       cargoCapacity: 12,

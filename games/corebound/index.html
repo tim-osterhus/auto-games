@@ -16,7 +16,18 @@
         <span class="eyebrow">Surface loop</span>
         <h1>Corebound</h1>
       </div>
-      <div class="run-state" id="run-state">surface lock</div>
+      <div class="header-actions">
+        <div class="run-state" id="run-state">surface lock</div>
+        <button
+          type="button"
+          class="help-toggle"
+          id="help-toggle"
+          aria-label="Open Corebound menu and help"
+          aria-controls="help-surface"
+          aria-expanded="false"
+          title="Menu and help"
+        >?</button>
+      </div>
     </header>
 
     <section class="playfield" aria-label="Corebound playable game">
@@ -63,6 +74,16 @@
             <span id="relic-readout">relic 0</span>
           </div>
           <ol id="ore-list"></ol>
+        </div>
+
+        <div class="objective-panel" aria-label="Current objective">
+          <div class="panel-head">
+            <span>Objective</span>
+            <strong id="objective-status">first run</strong>
+          </div>
+          <strong id="objective-title">Launch from surface</strong>
+          <p id="objective-detail" class="objective-progress">Tap launch or hold down at the shaft to begin.</p>
+          <ol id="objective-list"></ol>
         </div>
 
         <div class="contract-panel" aria-label="Run contracts">
@@ -136,6 +157,39 @@
           <button type="button" data-dir="1,0" aria-label="Move east">&gt;</button>
         </div>
       </aside>
+    </section>
+
+    <section class="help-surface" id="help-surface" aria-label="Corebound menu and help" hidden>
+      <div class="help-head">
+        <div>
+          <span>Menu</span>
+          <strong id="help-version">Corebound</strong>
+        </div>
+        <button type="button" id="help-close" aria-label="Close Corebound menu">x</button>
+      </div>
+      <div class="help-grid">
+        <div class="help-block help-current">
+          <span>Current objective</span>
+          <strong id="help-objective-title">Launch from surface</strong>
+          <p id="help-objective-detail">Tap launch or hold down at the shaft to begin.</p>
+        </div>
+        <div class="help-block">
+          <span>Quick start</span>
+          <ol id="help-quick-start"></ol>
+        </div>
+        <div class="help-block">
+          <span>Controls</span>
+          <p>Hold WASD, arrow keys, or the touch pad to move. Hold against solid terrain until the drill bite completes. Climb to 0 m for surface services.</p>
+        </div>
+        <div class="help-block">
+          <span>Systems</span>
+          <ol id="help-system-list"></ol>
+        </div>
+        <div class="help-actions" aria-label="Run reset actions">
+          <button type="button" id="help-return-surface">recall</button>
+          <button type="button" id="help-reset-run">reset run</button>
+        </div>
+      </div>
     </section>
   </main>
 

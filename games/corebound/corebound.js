@@ -15,31 +15,59 @@
     alloy: document.getElementById("alloy-readout"),
     research: document.getElementById("research-readout"),
     relic: document.getElementById("relic-readout"),
+    objectivePanel: document.querySelector(".objective-panel"),
+    objectiveStatus: document.getElementById("objective-status"),
+    objectiveTitle: document.getElementById("objective-title"),
+    objectiveDetail: document.getElementById("objective-detail"),
+    objectiveList: document.getElementById("objective-list"),
     ores: document.getElementById("ore-list"),
     log: document.getElementById("signal-log"),
     state: document.getElementById("run-state"),
     upgrades: document.getElementById("upgrade-list"),
     researchList: document.getElementById("research-list"),
+    contractPanel: document.querySelector(".contract-panel"),
     contractStatus: document.getElementById("contract-status"),
     contractProgress: document.getElementById("contract-progress"),
     contracts: document.getElementById("contract-list"),
+    charterPanel: document.querySelector(".charter-panel"),
     charterStatus: document.getElementById("charter-status"),
     charterProgress: document.getElementById("charter-progress"),
     charters: document.getElementById("charter-list"),
+    routePanel: document.querySelector(".route-panel"),
     routeStatus: document.getElementById("route-status"),
     routeProgress: document.getElementById("route-progress"),
     routes: document.getElementById("route-list"),
+    archivePanel: document.querySelector(".archive-panel"),
     archiveStatus: document.getElementById("archive-status"),
     archiveList: document.getElementById("archive-list"),
+    facilityPanel: document.querySelector(".facility-panel"),
     facilityStatus: document.getElementById("facility-status"),
     facilityProgress: document.getElementById("facility-progress"),
     utilities: document.getElementById("utility-list"),
+    help: {
+      toggle: document.getElementById("help-toggle"),
+      surface: document.getElementById("help-surface"),
+      close: document.getElementById("help-close"),
+      version: document.getElementById("help-version"),
+      objectiveTitle: document.getElementById("help-objective-title"),
+      objectiveDetail: document.getElementById("help-objective-detail"),
+      quickStart: document.getElementById("help-quick-start"),
+      systemList: document.getElementById("help-system-list"),
+      returnSurface: document.getElementById("help-return-surface"),
+      resetRun: document.getElementById("help-reset-run")
+    },
     actions: {
       sell: document.getElementById("sell-cargo"),
       refine: document.getElementById("refine-cargo"),
       repair: document.getElementById("repair-rig"),
       launch: document.getElementById("launch-run")
     }
+  };
+
+  const GAME_RELEASE = DATA.release || {
+    version: "v0.4.0",
+    snapshot: "Natural Motion",
+    build: "local"
   };
 
   const dirs = {
@@ -190,6 +218,15 @@
     archiveProgress: {},
     utilityUses: {},
     beacons: [],
+    onboarding: {
+      launched: false,
+      heldMove: false,
+      drilled: false,
+      oreLoaded: false,
+      checkedMeters: false,
+      returned: false,
+      cargoSettled: false
+    },
     runNumber: 0,
     docked: true,
     hull: DATA.rig.maxHull,
@@ -217,6 +254,9 @@
   }
 
   function bandForDepth(y) {
+    if (y <= 0) {
+      return DATA.depthBands[0];
+    }
     return DATA.depthBands.find((band) => y >= band.from && y <= band.to) || DATA.depthBands[DATA.depthBands.length - 1];
   }
 
@@ -410,6 +450,286 @@
     hud.log.textContent = message;
   }
 
+  const ONBOARDING_STEPS = [
+    {
+      id: "launch",
+      title: "Launch from surface",
+      detail: "Tap launch or hold down at the shaft to begin.",
+      done: () => state.onboarding.launched || state.runNumber > 0 || state.player.y > 0
+    },
+    {
+      id: "heldMove",
+      title: "Hold movement",
+      detail: "Hold WASD, arrows, or the touch pad to keep the rig under pressure.",
+      done: () => state.onboarding.heldMove
+    },
+    {
+      id: "drill",
+      title: "Sustain drilling",
+      detail: "Hold against solid terrain until the bite bar completes.",
+      done: () => state.onboarding.drilled
+    },
+    {
+      id: "ore",
+      title: "Load first ore",
+      detail: "Cut a marked seam and watch the hold fill.",
+      done: () => state.onboarding.oreLoaded || state.cargo.length > 0
+    },
+    {
+      id: "meters",
+      title: "Check cargo and energy",
+      detail: "Use the cargo, energy, heat, and hull meters before pushing deeper.",
+      done: () => state.onboarding.checkedMeters
+    },
+    {
+      id: "return",
+      title: "Return to surface",
+      detail: "Climb back to 0 m and dock before reserves run thin.",
+      done: () => state.onboarding.returned
+    },
+    {
+      id: "settle",
+      title: "Sell or refine",
+      detail: "Turn cargo into credits, alloy, or research at surface lock.",
+      done: () => state.onboarding.cargoSettled
+    },
+    {
+      id: "upgrade",
+      title: "Plan first upgrade",
+      detail: "Use the surface list to target drill, cargo, or energy upgrades.",
+      done: () => hasInstalledUpgrade()
+    }
+  ];
+
+  function hasInstalledUpgrade() {
+    return Object.keys(state.installedUpgrades).length > 0;
+  }
+
+  function hasInstalledResearch() {
+    return Object.keys(state.installedResearch).length > 0;
+  }
+
+  function hasArchiveProgress() {
+    return Object.values(state.archiveProgress).some((value) => value > 0);
+  }
+
+  function hasRouteCompletions() {
+    return Object.values(state.routeCompletions).some((value) => value > 0);
+  }
+
+  function markOnboarding(key, message) {
+    if (!state.onboarding[key]) {
+      state.onboarding[key] = true;
+      if (message) {
+        setMessage(message);
+      }
+    }
+  }
+
+  function updatePassiveOnboarding() {
+    if ((state.cargo.length > 0 || state.onboarding.oreLoaded) && state.energy < rigStats().maxEnergy) {
+      markOnboarding("checkedMeters", "Cargo logged. Watch cargo and energy, then climb back to the surface.");
+    }
+    if (state.docked && state.runNumber > 0 && state.onboarding.oreLoaded) {
+      markOnboarding("returned", "Surface lock reached. Sell for credits or refine for upgrade stock.");
+    }
+  }
+
+  function currentObjectiveIndex() {
+    updatePassiveOnboarding();
+    const index = ONBOARDING_STEPS.findIndex((step) => !step.done());
+    return index === -1 ? ONBOARDING_STEPS.length - 1 : index;
+  }
+
+  function currentObjective() {
+    return ONBOARDING_STEPS[currentObjectiveIndex()];
+  }
+
+  function completedObjectiveCount() {
+    updatePassiveOnboarding();
+    return ONBOARDING_STEPS.filter((step) => step.done()).length;
+  }
+
+  function appendObjectiveStep(list, step, index, currentIndex) {
+    const done = step.done();
+    const item = document.createElement("li");
+    item.className = `objective-step${done ? " done" : ""}${index === currentIndex ? " current" : ""}`;
+
+    const marker = document.createElement("i");
+    marker.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.textContent = step.title;
+    item.append(marker, label);
+    list.append(item);
+  }
+
+  function renderObjectivePanel() {
+    if (!hud.objectiveStatus || !hud.objectiveTitle || !hud.objectiveDetail || !hud.objectiveList) {
+      return;
+    }
+
+    const currentIndex = currentObjectiveIndex();
+    const objective = ONBOARDING_STEPS[currentIndex];
+    const completed = completedObjectiveCount();
+    hud.objectiveStatus.textContent = completed >= ONBOARDING_STEPS.length ? "route open" : `${completed} / ${ONBOARDING_STEPS.length}`;
+    hud.objectiveTitle.textContent = objective.title;
+    hud.objectiveDetail.textContent = objective.done()
+      ? "Core loop staged. Contracts and deeper systems are available through the revealed panels."
+      : objective.detail;
+
+    hud.objectiveList.replaceChildren();
+    const start = Math.max(0, currentIndex - 1);
+    const end = Math.min(ONBOARDING_STEPS.length, currentIndex + 3);
+    for (let index = start; index < end; index += 1) {
+      appendObjectiveStep(hud.objectiveList, ONBOARDING_STEPS[index], index, currentIndex);
+    }
+  }
+
+  function contractsLayerOpen() {
+    return state.onboarding.cargoSettled || !!state.activeContractId || completedContractCount() > 0;
+  }
+
+  function chartersLayerOpen() {
+    return completedContractCount() > 0
+      || !!state.activeCharterId
+      || !!state.runCharterId
+      || completedCharterCount() > 0;
+  }
+
+  function routesLayerOpen() {
+    return completedContractCount() > 0
+      || completedCharterCount() > 0
+      || hasRouteCompletions();
+  }
+
+  function archiveLayerOpen() {
+    return completedContractCount() > 0
+      || completedArchiveSetCount() > 0
+      || hasArchiveProgress()
+      || state.resources.relic > 0;
+  }
+
+  function facilityLayerOpen() {
+    return completedContractCount() > 0
+      || completedCharterCount() > 0
+      || completedArchiveSetCount() > 0;
+  }
+
+  function researchLayerOpen() {
+    return state.resources.research > 0 || hasInstalledResearch() || completedArchiveSetCount() > 0;
+  }
+
+  function setPanelDisclosure(panel, open) {
+    if (!panel) {
+      return;
+    }
+    panel.classList.toggle("panel-locked", !open);
+    panel.dataset.reveal = open ? "open" : "locked";
+  }
+
+  function renderLockedList(list, hint) {
+    if (!list) {
+      return;
+    }
+    list.replaceChildren();
+    const item = document.createElement("li");
+    item.className = "panel-lock-row";
+    item.textContent = hint;
+    list.append(item);
+  }
+
+  function systemRevealRows() {
+    return [
+      {
+        label: "Contracts",
+        open: contractsLayerOpen(),
+        hint: "Unlocks after first cargo turn-in."
+      },
+      {
+        label: "Deep Charters",
+        open: chartersLayerOpen(),
+        hint: "Unlocks after a filed commission."
+      },
+      {
+        label: "Late Routes",
+        open: routesLayerOpen(),
+        hint: "Unlocks after contract or charter progress."
+      },
+      {
+        label: "Archive Sets",
+        open: archiveLayerOpen(),
+        hint: "Unlocks after relic fragments or filed work."
+      },
+      {
+        label: "Relay Utilities",
+        open: facilityLayerOpen(),
+        hint: "Unlocks as survey reputation grows."
+      },
+      {
+        label: "Research",
+        open: researchLayerOpen(),
+        hint: "Unlocks after refined samples."
+      }
+    ];
+  }
+
+  function renderHelpSurface() {
+    const help = hud.help;
+    if (!help.surface) {
+      return;
+    }
+
+    const objective = currentObjective();
+    const completed = completedObjectiveCount();
+    if (help.version) {
+      help.version.textContent = `${GAME_RELEASE.version} / ${GAME_RELEASE.snapshot}`;
+    }
+    if (help.objectiveTitle) {
+      help.objectiveTitle.textContent = objective.title;
+    }
+    if (help.objectiveDetail) {
+      help.objectiveDetail.textContent = objective.done()
+        ? "Core loop staged. Use revealed panels for contracts, routing, archive, relay, and research."
+        : objective.detail;
+    }
+
+    if (help.quickStart) {
+      help.quickStart.replaceChildren();
+      const currentIndex = currentObjectiveIndex();
+      for (let index = 0; index < ONBOARDING_STEPS.length; index += 1) {
+        appendObjectiveStep(help.quickStart, ONBOARDING_STEPS[index], index, currentIndex);
+      }
+    }
+
+    if (help.systemList) {
+      help.systemList.replaceChildren();
+      for (const row of systemRevealRows()) {
+        const item = document.createElement("li");
+        item.className = "help-system-row";
+        const copy = document.createElement("div");
+        const status = document.createElement("span");
+        const label = document.createElement("strong");
+        const hint = document.createElement("small");
+        status.textContent = row.open ? "Visible" : "Staged";
+        label.textContent = row.label;
+        hint.textContent = row.open ? `${row.label} panel is live.` : row.hint;
+        copy.append(status, label, hint);
+        item.append(copy);
+        help.systemList.append(item);
+      }
+    }
+
+    if (help.returnSurface) {
+      help.returnSurface.disabled = state.docked && state.player.y === 0;
+    }
+    if (help.resetRun) {
+      help.resetRun.disabled = state.docked && state.player.y === 0 && !state.cargo.length;
+    }
+    if (help.surface) {
+      help.surface.dataset.objectiveCount = String(completed);
+    }
+  }
+
   function motionSettings() {
     return DATA.rig.motion || {
       maxSpeed: 4,
@@ -528,6 +848,44 @@
     state.completedDrillCell = null;
     syncMotionToPlayer(true);
     setMessage(message || "Surface lock reached. Settle cargo, repair, or relaunch.");
+    updateHud();
+    render();
+  }
+
+  function setHelpOpen(open) {
+    if (!hud.help.surface || !hud.help.toggle) {
+      return;
+    }
+    hud.help.surface.hidden = !open;
+    hud.help.toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      renderHelpSurface();
+    }
+  }
+
+  function recallRunFromHelp() {
+    if (state.docked && state.player.y === 0) {
+      setMessage("Rig already holds surface lock.");
+      updateHud();
+      return;
+    }
+    returnToSurface("Manual recall returned the rig to surface lock.");
+  }
+
+  function resetCurrentRun() {
+    centerSurfaceDock();
+    state.docked = true;
+    state.cargo = [];
+    state.runCharterId = null;
+    state.runRouteId = null;
+    state.utilityUses = {};
+    state.beacons = [];
+    state.energy = rigStats().maxEnergy;
+    state.heat = 0;
+    clearHeldInput();
+    clearDrillContact();
+    state.completedDrillCell = null;
+    setMessage("Run reset at surface lock. Resources, upgrades, and filed work stay intact.");
     updateHud();
     render();
   }
@@ -1291,7 +1649,11 @@
 
   function clearCargoWithMessage(message) {
     state.cargo = [];
-    setMessage(message);
+    if (!state.onboarding.cargoSettled) {
+      markOnboarding("cargoSettled", `${message} Upgrade path and contracts online.`);
+    } else {
+      setMessage(message);
+    }
     updateHud();
     render();
   }
@@ -1351,7 +1713,12 @@
     const archiveText = archiveSummary ? ` Archive filed: ${archiveSummary}.` : "";
     const contractText = contractCompleted ? ` Contract filed: ${contractBeforeRefine.label}.` : "";
     const unlockText = archiveUnlocks.length ? ` Archive unlock: ${archiveUnlocks.join(", ")}.` : "";
-    setMessage(`Cargo refined into ${formatAmounts(refined)}.${archiveText}${contractText}${unlockText}`);
+    const refineMessage = `Cargo refined into ${formatAmounts(refined)}.${archiveText}${contractText}${unlockText}`;
+    if (!state.onboarding.cargoSettled) {
+      markOnboarding("cargoSettled", `${refineMessage} Upgrade path and contracts online.`);
+    } else {
+      setMessage(refineMessage);
+    }
     updateHud();
     render();
   }
@@ -1486,7 +1853,12 @@
     if (route) {
       assignments.push(`Route: ${route.label}`);
     }
-    setMessage(assignments.length ? `Run ${state.runNumber} launched for ${assignments.join(" / ")}.` : `Run ${state.runNumber} launched.`);
+    const launchMessage = assignments.length ? `Run ${state.runNumber} launched for ${assignments.join(" / ")}.` : `Run ${state.runNumber} launched.`;
+    if (!state.onboarding.launched) {
+      markOnboarding("launched", `${launchMessage} Hold movement into the first seam.`);
+    } else {
+      setMessage(launchMessage);
+    }
     updateHud();
     render();
     return true;
@@ -1499,7 +1871,11 @@
       return false;
     }
     state.cargo.push(oreKey);
-    setMessage(`${ore.label} loaded into hold.`);
+    if (!state.onboarding.oreLoaded) {
+      markOnboarding("oreLoaded", `${ore.label} loaded. Watch cargo and energy, then return to surface.`);
+    } else {
+      setMessage(`${ore.label} loaded into hold.`);
+    }
     updateContractProgress();
     updateCharterProgress();
     updateRouteProgress();
@@ -1663,6 +2039,7 @@
       return false;
     }
 
+    const hadOre = !!cell.ore;
     contact.completed = true;
     if (!drillBlock(targetX, targetY, cell)) {
       clearDrillContact();
@@ -1670,6 +2047,7 @@
       return false;
     }
 
+    markOnboarding("drilled", hadOre ? null : "First seam cut. Follow ore markers and keep reserves visible.");
     state.completedDrillCell = { x: targetX, y: targetY };
     clearDrillContact();
     const entered = enterCell(targetX, targetY, contact.dx, contact.dy);
@@ -1895,6 +2273,9 @@
     }
     state.input.held[source] = [dx, dy];
     state.input.lastVector = [dx, dy];
+    if (!state.docked) {
+      markOnboarding("heldMove", "Held movement online. Keep pressure on solid terrain to drill.");
+    }
   }
 
   function endDirectionalInput(source) {
@@ -2058,6 +2439,11 @@
 
     const atSurface = state.player.y === 0 && state.docked;
     hud.researchList.replaceChildren();
+    if (!researchLayerOpen()) {
+      renderLockedList(hud.researchList, "Research desk unlocks after refined samples. First upgrades stay visible above.");
+      return;
+    }
+
     for (const project of DATA.researchProjects) {
       const owned = !!state.installedResearch[project.id];
       const item = document.createElement("li");
@@ -2087,6 +2473,15 @@
 
   function renderContractPanel() {
     if (!hud.contracts || !hud.contractStatus || !hud.contractProgress) {
+      return;
+    }
+
+    const open = contractsLayerOpen();
+    setPanelDisclosure(hud.contractPanel, open);
+    if (!open) {
+      hud.contractStatus.textContent = "after cargo";
+      hud.contractProgress.textContent = "Contracts unlock after first cargo turn-in.";
+      renderLockedList(hud.contracts, "Return with ore, then sell or refine to open commissions.");
       return;
     }
 
@@ -2135,6 +2530,15 @@
       return;
     }
 
+    const open = chartersLayerOpen();
+    setPanelDisclosure(hud.charterPanel, open);
+    if (!open) {
+      hud.charterStatus.textContent = "staged";
+      hud.charterProgress.textContent = "Deep Charters open after a filed commission.";
+      renderLockedList(hud.charters, "Expedition constraints stay collapsed until contracts prove the surface loop.");
+      return;
+    }
+
     const charter = visibleCharter();
     const inField = state.player.y > 0 && !state.docked;
     const atSurface = state.player.y === 0 && state.docked;
@@ -2179,6 +2583,15 @@
 
   function renderRoutePanel() {
     if (!hud.routes || !hud.routeStatus || !hud.routeProgress) {
+      return;
+    }
+
+    const open = routesLayerOpen();
+    setPanelDisclosure(hud.routePanel, open);
+    if (!open) {
+      hud.routeStatus.textContent = "staged";
+      hud.routeProgress.textContent = "Late routes unlock after contract or charter progress.";
+      renderLockedList(hud.routes, "The standard line runs quietly until alternate route work is relevant.");
       return;
     }
 
@@ -2232,6 +2645,14 @@
       return;
     }
 
+    const open = archiveLayerOpen();
+    setPanelDisclosure(hud.archivePanel, open);
+    if (!open) {
+      hud.archiveStatus.textContent = "staged";
+      renderLockedList(hud.archiveList, "Archive sets unlock when contracts or relic fragments start feeding the ledger.");
+      return;
+    }
+
     let filed = 0;
     let required = 0;
     let unlocked = 0;
@@ -2271,6 +2692,15 @@
 
   function renderFacilityPanel() {
     if (!hud.utilities || !hud.facilityStatus || !hud.facilityProgress) {
+      return;
+    }
+
+    const open = facilityLayerOpen();
+    setPanelDisclosure(hud.facilityPanel, open);
+    if (!open) {
+      hud.facilityStatus.textContent = "standby";
+      hud.facilityProgress.textContent = "Relay utilities unlock from filed contracts, charters, and archive sets.";
+      renderLockedList(hud.utilities, "Sweep scan and route support stay staged until reputation exists.");
       return;
     }
 
@@ -2333,8 +2763,9 @@
     hud.research.textContent = `research ${state.resources.research}`;
     hud.relic.textContent = `relic ${state.resources.relic}`;
     const route = runRoute();
-    const routeLabel = route ? ` / ${route.label}` : "";
-    hud.state.textContent = state.docked ? "surface dock" : `run ${state.runNumber} / ${bandForDepth(state.player.y).name}${routeLabel}`;
+    const routeLabel = route && routesLayerOpen() ? ` / ${route.label}` : "";
+    const runLocation = state.player.y <= 0 ? "launch shaft" : bandForDepth(state.player.y).name;
+    hud.state.textContent = state.docked ? "surface dock" : `run ${state.runNumber} / ${runLocation}${routeLabel}`;
 
     const counts = oreCounts();
     hud.ores.replaceChildren();
@@ -2358,6 +2789,7 @@
       }
     }
 
+    renderObjectivePanel();
     updateActionButtons();
     renderContractPanel();
     renderCharterPanel();
@@ -2366,6 +2798,7 @@
     renderFacilityPanel();
     renderUpgradeList();
     renderResearchList();
+    renderHelpSurface();
   }
 
   function resizeCanvas() {
@@ -2828,6 +3261,31 @@
   hud.actions.launch.addEventListener("click", () => {
     if (launchRun()) {
       startLaunchDescent();
+    }
+  });
+  if (hud.help.toggle) {
+    hud.help.toggle.addEventListener("click", () => {
+      setHelpOpen(hud.help.surface ? hud.help.surface.hidden : true);
+    });
+  }
+  if (hud.help.close) {
+    hud.help.close.addEventListener("click", () => setHelpOpen(false));
+  }
+  if (hud.help.returnSurface) {
+    hud.help.returnSurface.addEventListener("click", () => {
+      recallRunFromHelp();
+      setHelpOpen(false);
+    });
+  }
+  if (hud.help.resetRun) {
+    hud.help.resetRun.addEventListener("click", () => {
+      resetCurrentRun();
+      setHelpOpen(false);
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && hud.help.surface && !hud.help.surface.hidden) {
+      setHelpOpen(false);
     }
   });
 
