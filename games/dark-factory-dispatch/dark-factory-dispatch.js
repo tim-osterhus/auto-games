@@ -107,6 +107,14 @@ const DarkFactoryDispatch = (() => {
         outputs: { stability: 6 },
         family: "emergency",
       },
+      {
+        id: "patch-audit-relay",
+        name: "Patch Audit Relay",
+        duration: 3,
+        inputs: { circuits: 1, power: 1 },
+        outputs: { stability: 3 },
+        family: "grid",
+      },
     ],
     contracts: [
       {
@@ -193,8 +201,68 @@ const DarkFactoryDispatch = (() => {
       { jobTypeId: "print-modules", priority: 2 },
       { jobTypeId: "assemble-drones", priority: 3 },
     ],
+    grid: {
+      sectors: [
+        {
+          id: "forge-bus",
+          name: "Forge Bus",
+          laneId: "forge-line",
+          connectedTo: ["assembly-bus"],
+          baseLoad: 2,
+          priority: { powerCost: 1, throughputBonus: 0.2, pressureRelief: 1 },
+          isolate: { stabilityCost: 2, pressureRelief: 3 },
+        },
+        {
+          id: "assembly-bus",
+          name: "Assembly Bus",
+          laneId: "assembler-bay",
+          connectedTo: ["forge-bus", "clean-bus"],
+          baseLoad: 2,
+          priority: { powerCost: 1, throughputBonus: 0.2, pressureRelief: 1 },
+          isolate: { stabilityCost: 2, pressureRelief: 3 },
+        },
+        {
+          id: "clean-bus",
+          name: "Clean Bus",
+          laneId: "clean-room",
+          connectedTo: ["assembly-bus"],
+          baseLoad: 1,
+          priority: { powerCost: 1, throughputBonus: 0.2, pressureRelief: 1 },
+          isolate: { stabilityCost: 2, pressureRelief: 2 },
+        },
+      ],
+      blackout: {
+        threshold: 10,
+        lockoutTicks: 3,
+        stabilityPenalty: 8,
+        powerPenalty: 1,
+        pressureRelief: 5,
+      },
+      reserve: {
+        capacity: 3,
+        drawAmount: 3,
+        pressureRelief: 4,
+        stabilityCost: 5,
+      },
+      auditDirectives: [
+        {
+          id: "reserve-ledger-audit",
+          name: "Reserve Ledger Audit",
+          activationTick: 4,
+          dueTicks: 6,
+          jobTypeId: "patch-audit-relay",
+          repairCost: { circuits: 1, power: 1 },
+          reward: { reputation: 1, stability: 2 },
+          penalty: { stability: -8 },
+          deferCost: { stability: 3 },
+          deferPressure: 2,
+          extensionTicks: 3,
+          failurePressure: 3,
+        },
+      ],
+    },
     campaign: {
-      release: "v0.1.0 Escalation Shift",
+      release: "v0.2.0 Grid Siege",
       shifts: [
         {
           shift: 1,
@@ -311,9 +379,13 @@ const DarkFactoryDispatch = (() => {
     return effects;
   }
 
-  function lanePerformance(source, upgradeEffects, overdrive = null) {
+  function lanePerformance(source, upgradeEffects, overdrive = null, gridEffect = null) {
     const overdriveData = overdrive && overdrive.active ? GAME_DATA.campaign.laneOverdrive : {};
-    const throughputBonus = (upgradeEffects.throughputBonus || 0) + (overdriveData.throughputBonus || 0);
+    const throughputBonus = (
+      (upgradeEffects.throughputBonus || 0) +
+      (overdriveData.throughputBonus || 0) +
+      (gridEffect && gridEffect.throughputBonus ? gridEffect.throughputBonus : 0)
+    );
     const jamPressure = overdriveData.jamRiskBonus || 0;
     return {
       throughput: roundTenth(source.throughput + throughputBonus),
@@ -322,6 +394,103 @@ const DarkFactoryDispatch = (() => {
         roundTenth((source.jamRisk - (upgradeEffects.jamResistance || 0) + jamPressure) * 100) / 100
       ),
     };
+  }
+
+  function gridSectorDefinition(sectorId) {
+    return byId(GAME_DATA.grid.sectors, sectorId);
+  }
+
+  function gridSectorForLane(grid, laneId) {
+    if (!grid || !Array.isArray(grid.sectors)) {
+      return null;
+    }
+    return grid.sectors.find((sector) => sector.laneId === laneId) || null;
+  }
+
+  function gridEffectForLane(grid, laneId) {
+    const sector = gridSectorForLane(grid, laneId);
+    if (!sector || sector.route !== "priority" || sector.isolated) {
+      return {};
+    }
+    const definition = gridSectorDefinition(sector.id);
+    return definition && definition.priority ? definition.priority : {};
+  }
+
+  function clampResourceFloor(resources) {
+    Object.keys(resources).forEach((resource) => {
+      resources[resource] = Math.max(0, resources[resource]);
+    });
+  }
+
+  function createGridState(campaign, options = {}) {
+    const incoming = options.campaign || {};
+    const carryover = incoming.gridCarryover || {};
+    const pressure = Math.max(0, (carryover.blackoutScar || 0) + (carryover.auditPressure || 0));
+    const reserveDebt = Math.max(0, carryover.reserveDebt || 0);
+    const threshold = Math.max(6, GAME_DATA.grid.blackout.threshold - Math.max(0, campaign.demand - 2));
+    return {
+      release: GAME_DATA.campaign.release,
+      pressure,
+      currentLoad: 0,
+      threshold,
+      sectors: GAME_DATA.grid.sectors.map((sector) => ({
+        id: sector.id,
+        name: sector.name,
+        laneId: sector.laneId,
+        connectedTo: sector.connectedTo.slice(),
+        route: "balanced",
+        isolated: false,
+        powered: true,
+        blackoutLockedUntil: null,
+        blackoutCount: 0,
+        reserveDraws: 0,
+      })),
+      blackout: {
+        status: "armed",
+        threshold,
+        activeSectorId: null,
+        lastEventTick: null,
+        events: [],
+      },
+      reserve: {
+        capacity: GAME_DATA.grid.reserve.capacity,
+        available: Math.max(0, GAME_DATA.grid.reserve.capacity - reserveDebt),
+        drawn: 0,
+        draws: 0,
+        debt: reserveDebt,
+      },
+      audit: {
+        status: campaign.demand > 1 ? "armed" : "quiet",
+        directiveId: GAME_DATA.grid.auditDirectives[0].id,
+        activatedAtTick: null,
+        dueTick: null,
+        deferrals: 0,
+        completed: 0,
+        failures: 0,
+        queued: false,
+      },
+      choices: {
+        powerRoutes: 0,
+        sectorIsolations: 0,
+        reserveDraws: 0,
+        auditDeferrals: 0,
+        auditRepairs: 0,
+      },
+      carryover: {
+        blackoutScar: carryover.blackoutScar || 0,
+        reserveDebt,
+        auditPressure: carryover.auditPressure || 0,
+      },
+    };
+  }
+
+  function applyGridCarryoverResources(resources, grid) {
+    if (!grid || !grid.carryover) {
+      return;
+    }
+    resources.power -= grid.carryover.reserveDebt || 0;
+    resources.stability -= grid.carryover.blackoutScar || 0;
+    clampResourceFloor(resources);
   }
 
   function advanceSeed(state) {
@@ -371,6 +540,11 @@ const DarkFactoryDispatch = (() => {
       choices: {
         queuePolicyChanges: 0,
         laneOverdrives: 0,
+        gridPowerRoutes: 0,
+        reserveDraws: 0,
+        sectorIsolations: 0,
+        auditDeferrals: 0,
+        auditRepairs: 0,
       },
     };
   }
@@ -436,6 +610,8 @@ const DarkFactoryDispatch = (() => {
       status: options.status || "queued",
       emergency: Boolean(options.emergency),
       sourceContractId: options.sourceContractId || null,
+      gridDirective: Boolean(options.gridDirective),
+      sourceDirectiveId: options.sourceDirectiveId || null,
       heldReason: options.heldReason || null,
       createdAtTick: state.tick,
     };
@@ -449,8 +625,10 @@ const DarkFactoryDispatch = (() => {
     const purchased = purchasedUpgradeIds(options.upgrades);
     const upgradeEffects = aggregateUpgradeEffects(purchased);
     const campaign = createCampaignState(run, options);
+    const grid = createGridState(campaign, options);
     const resources = baseResources();
     applyBundle(resources, upgradeEffects.startResources, 1);
+    applyGridCarryoverResources(resources, grid);
     const state = {
       tick: 0,
       seed,
@@ -458,12 +636,14 @@ const DarkFactoryDispatch = (() => {
       resources,
       produced: {},
       queue: [],
+      grid,
       lanes: GAME_DATA.lanes.map((lane) => {
-        const performance = lanePerformance(lane, upgradeEffects);
+        const performance = lanePerformance(lane, upgradeEffects, null, gridEffectForLane(grid, lane.id));
         return {
           id: lane.id,
           name: lane.name,
           trait: lane.trait,
+          gridSectorId: gridSectorForLane(grid, lane.id).id,
           baseThroughput: lane.throughput,
           throughput: performance.throughput,
           baseJamRisk: lane.jamRisk,
@@ -574,7 +754,7 @@ const DarkFactoryDispatch = (() => {
     if (!source) {
       return;
     }
-    const performance = lanePerformance(source, state.upgrades.effects, lane.overdrive);
+    const performance = lanePerformance(source, state.upgrades.effects, lane.overdrive, gridEffectForLane(state.grid, lane.id));
     lane.baseThroughput = source.throughput;
     lane.baseJamRisk = source.jamRisk;
     lane.throughput = performance.throughput;
@@ -667,6 +847,374 @@ const DarkFactoryDispatch = (() => {
     return withLog(next, `${lane.name} overdrive ${active ? "engaged" : "released"}.`);
   }
 
+  function gridSectorState(state, sectorId) {
+    return state.grid && state.grid.sectors ? byId(state.grid.sectors, sectorId) : null;
+  }
+
+  function laneForSector(state, sector) {
+    return sector ? byId(state.lanes, sector.laneId) : null;
+  }
+
+  function markLaneGridLocked(lane, reason, untilTick = null) {
+    if (!lane) {
+      return;
+    }
+    lane.gridLock = {
+      reason,
+      untilTick,
+      previousStatus: lane.status,
+    };
+    lane.status = "locked";
+    if (lane.currentJob) {
+      lane.currentJob.status = "locked";
+    }
+    lane.runRemaining = lane.currentJob ? lane.currentJob.remaining : 0;
+  }
+
+  function restoreLaneGridLock(lane, reason) {
+    if (!lane || !lane.gridLock || lane.gridLock.reason !== reason) {
+      return;
+    }
+    lane.gridLock = null;
+    if (lane.currentJob) {
+      lane.currentJob.status = "assigned";
+      lane.status = "assigned";
+      lane.runRemaining = lane.currentJob.remaining;
+    } else {
+      lane.status = "idle";
+      lane.runRemaining = 0;
+    }
+  }
+
+  function laneGridAvailable(state, lane) {
+    if (!lane) {
+      return false;
+    }
+    const sector = gridSectorForLane(state.grid, lane.id);
+    return !sector || (!sector.isolated && !lane.gridLock);
+  }
+
+  function refreshSectorLane(state, sector) {
+    const lane = laneForSector(state, sector);
+    if (lane) {
+      refreshLanePerformance(state, lane);
+      rescaleCurrentJobForLane(lane);
+    }
+  }
+
+  function routePowerToSector(state, sectorId, route = "priority") {
+    const next = clone(state);
+    const sector = gridSectorState(next, sectorId);
+    const definition = gridSectorDefinition(sectorId);
+    if (!sector || !definition) {
+      return withLog(next, "Unknown grid sector route.");
+    }
+    if (!["balanced", "priority"].includes(route)) {
+      return withLog(next, "Unknown grid route mode.");
+    }
+    if (sector.route === route) {
+      return withLog(next, `${sector.name} already routed ${route}.`);
+    }
+    if (route === "priority") {
+      const cost = { power: definition.priority.powerCost || 0 };
+      if (!canPay(next.resources, cost)) {
+        return withLog(next, `${sector.name} priority route lacks ${formatBundle(cost)}.`);
+      }
+      applyBundle(next.resources, cost, -1);
+    }
+    sector.route = route;
+    next.grid.choices.powerRoutes += 1;
+    next.campaign.choices.gridPowerRoutes += 1;
+    refreshSectorLane(next, sector);
+    return withLog(next, `${sector.name} routed ${route}.`);
+  }
+
+  function isolateGridSector(state, sectorId, active = true) {
+    const next = clone(state);
+    const sector = gridSectorState(next, sectorId);
+    const definition = gridSectorDefinition(sectorId);
+    if (!sector || !definition) {
+      return withLog(next, "Unknown grid sector isolation.");
+    }
+    if (active && sector.isolated) {
+      return withLog(next, `${sector.name} already isolated.`);
+    }
+    if (!active && !sector.isolated) {
+      return withLog(next, `${sector.name} already tied to the grid.`);
+    }
+    const lane = laneForSector(next, sector);
+    if (active) {
+      const cost = { stability: definition.isolate.stabilityCost || 0 };
+      if (!canPay(next.resources, cost)) {
+        return withLog(next, `${sector.name} isolation lacks ${formatBundle(cost)}.`);
+      }
+      applyBundle(next.resources, cost, -1);
+      sector.isolated = true;
+      sector.powered = false;
+      sector.route = "balanced";
+      markLaneGridLocked(lane, "isolated");
+    } else {
+      sector.isolated = false;
+      sector.powered = true;
+      restoreLaneGridLock(lane, "isolated");
+    }
+    next.grid.pressure = Math.max(0, next.grid.pressure - (definition.isolate.pressureRelief || 0));
+    next.grid.choices.sectorIsolations += 1;
+    next.campaign.choices.sectorIsolations += 1;
+    refreshSectorLane(next, sector);
+    return withLog(next, `${sector.name} ${active ? "isolated from" : "returned to"} the grid.`);
+  }
+
+  function authorizeReserveDraw(state, sectorId = null) {
+    const next = clone(state);
+    if (!next.grid || next.grid.reserve.available <= 0) {
+      return withLog(next, "Reserve batteries are empty.");
+    }
+    const sector = sectorId ? gridSectorState(next, sectorId) : null;
+    const reserve = GAME_DATA.grid.reserve;
+    applyBundle(next.resources, { power: reserve.drawAmount, stability: -reserve.stabilityCost }, 1);
+    clampResourceFloor(next.resources);
+    next.grid.reserve.available -= 1;
+    next.grid.reserve.drawn += reserve.drawAmount;
+    next.grid.reserve.draws += 1;
+    next.grid.reserve.debt += 1;
+    next.grid.pressure = Math.max(0, next.grid.pressure - reserve.pressureRelief);
+    next.grid.choices.reserveDraws += 1;
+    next.campaign.choices.reserveDraws += 1;
+    if (sector) {
+      sector.reserveDraws += 1;
+      sector.powered = true;
+    }
+    return withLog(next, `Reserve batteries drew ${reserve.drawAmount} power into ${sector ? sector.name : "the grid"}.`);
+  }
+
+  function auditDirectiveDefinition(state) {
+    return byId(GAME_DATA.grid.auditDirectives, state.grid.audit.directiveId);
+  }
+
+  function queueAuditDirective(state, directive) {
+    if (state.grid.audit.queued || !directive.jobTypeId) {
+      return;
+    }
+    state.queue.unshift(createQueueEntry(state, directive.jobTypeId, 1, {
+      gridDirective: true,
+      sourceDirectiveId: directive.id,
+    }));
+    state.grid.audit.queued = true;
+    applyQueuePolicy(state);
+  }
+
+  function maybeActivateAuditDirective(state) {
+    if (!state.grid || state.grid.audit.status !== "armed") {
+      return false;
+    }
+    const directive = auditDirectiveDefinition(state);
+    const activationTick = Math.max(2, directive.activationTick - Math.max(0, state.campaign.demand - 2));
+    if (state.tick < activationTick) {
+      return false;
+    }
+    state.grid.audit.status = "active";
+    state.grid.audit.activatedAtTick = state.tick;
+    state.grid.audit.dueTick = state.tick + directive.dueTicks;
+    queueAuditDirective(state, directive);
+    state.log.unshift({ tick: state.tick, message: `${directive.name} audit directive active.` });
+    return true;
+  }
+
+  function completeAuditDirectiveInPlace(state, directive, consumeRepairCost = true) {
+    if (!state.grid || state.grid.audit.status !== "active") {
+      return false;
+    }
+    if (consumeRepairCost) {
+      if (!canPay(state.resources, directive.repairCost)) {
+        return false;
+      }
+      applyBundle(state.resources, directive.repairCost, -1);
+    }
+    applyBundle(state.resources, directive.reward, 1);
+    state.grid.audit.status = "complete";
+    state.grid.audit.dueTick = null;
+    state.grid.audit.completed += 1;
+    state.grid.pressure = Math.max(0, state.grid.pressure - 3);
+    state.grid.choices.auditRepairs += 1;
+    state.campaign.choices.auditRepairs += 1;
+    state.log.unshift({ tick: state.tick, message: `${directive.name} audit directive cleared.` });
+    return true;
+  }
+
+  function resolveAuditDirective(state) {
+    const next = clone(state);
+    const directive = auditDirectiveDefinition(next);
+    if (!directive || next.grid.audit.status !== "active") {
+      return withLog(next, "No active audit directive.");
+    }
+    if (!completeAuditDirectiveInPlace(next, directive, true)) {
+      return withLog(next, `${directive.name} lacks ${formatBundle(directive.repairCost)}.`);
+    }
+    return next;
+  }
+
+  function deferAuditDirective(state) {
+    const next = clone(state);
+    const directive = auditDirectiveDefinition(next);
+    if (!directive || next.grid.audit.status !== "active") {
+      return withLog(next, "No active audit directive to defer.");
+    }
+    if (!canPay(next.resources, directive.deferCost)) {
+      return withLog(next, `${directive.name} deferral lacks ${formatBundle(directive.deferCost)}.`);
+    }
+    applyBundle(next.resources, directive.deferCost, -1);
+    next.grid.audit.dueTick += directive.extensionTicks;
+    next.grid.audit.deferrals += 1;
+    next.grid.pressure += directive.deferPressure;
+    next.grid.choices.auditDeferrals += 1;
+    next.campaign.choices.auditDeferrals += 1;
+    return withLog(next, `${directive.name} deferred to t${next.grid.audit.dueTick}.`);
+  }
+
+  function maybeFailAuditDirective(state) {
+    if (!state.grid || state.grid.audit.status !== "active" || state.tick <= state.grid.audit.dueTick) {
+      return false;
+    }
+    const directive = auditDirectiveDefinition(state);
+    applyBundle(state.resources, directive.penalty, 1);
+    clampResourceFloor(state.resources);
+    state.grid.audit.status = "failed";
+    state.grid.audit.failures += 1;
+    state.grid.audit.dueTick = null;
+    state.grid.pressure += directive.failurePressure;
+    state.log.unshift({ tick: state.tick, message: `${directive.name} audit directive failed.` });
+    return true;
+  }
+
+  function gridPressureRelief(state) {
+    return state.grid.sectors.reduce((total, sector) => {
+      const definition = gridSectorDefinition(sector.id);
+      if (!definition) {
+        return total;
+      }
+      if (sector.isolated) {
+        return total + (definition.isolate.pressureRelief || 0);
+      }
+      if (sector.route === "priority") {
+        return total + (definition.priority.pressureRelief || 0);
+      }
+      return total;
+    }, 0);
+  }
+
+  function computeGridLoad(state) {
+    if (!state.grid) {
+      return 0;
+    }
+    let load = Math.max(0, state.campaign.demand - 1);
+    state.lanes.forEach((lane) => {
+      if (lane.status !== "running") {
+        return;
+      }
+      const sector = gridSectorForLane(state.grid, lane.id);
+      const definition = sector ? gridSectorDefinition(sector.id) : null;
+      if (sector && !sector.isolated && definition) {
+        load += definition.baseLoad;
+      }
+    });
+    if (hasActiveEmergency(state)) {
+      load += 2;
+    }
+    if (state.grid.audit.status === "active") {
+      load += 1;
+    }
+    return Math.max(0, load - gridPressureRelief(state));
+  }
+
+  function selectBlackoutSector(state) {
+    return state.grid.sectors
+      .filter((sector) => !sector.isolated)
+      .map((sector) => {
+        const lane = laneForSector(state, sector);
+        const definition = gridSectorDefinition(sector.id);
+        return {
+          sector,
+          running: lane && lane.status === "running" ? 1 : 0,
+          priority: sector.route === "priority" ? 0 : 1,
+          load: definition ? definition.baseLoad : 0,
+        };
+      })
+      .sort((left, right) => (
+        right.running - left.running ||
+        right.priority - left.priority ||
+        right.load - left.load
+      ))[0]?.sector || null;
+  }
+
+  function triggerBlackout(state) {
+    const sector = selectBlackoutSector(state);
+    if (!sector) {
+      return false;
+    }
+    const blackout = GAME_DATA.grid.blackout;
+    const lane = laneForSector(state, sector);
+    const pressureBefore = state.grid.pressure;
+    sector.blackoutLockedUntil = state.tick + blackout.lockoutTicks;
+    sector.powered = false;
+    sector.blackoutCount += 1;
+    markLaneGridLocked(lane, "blackout", sector.blackoutLockedUntil);
+    applyBundle(state.resources, { stability: -blackout.stabilityPenalty, power: -blackout.powerPenalty }, 1);
+    clampResourceFloor(state.resources);
+    state.grid.pressure = Math.max(0, state.grid.pressure - blackout.pressureRelief);
+    state.grid.blackout.status = "active";
+    state.grid.blackout.activeSectorId = sector.id;
+    state.grid.blackout.lastEventTick = state.tick;
+    state.grid.blackout.events.unshift({
+      tick: state.tick,
+      sectorId: sector.id,
+      pressureBefore,
+      lockedUntil: sector.blackoutLockedUntil,
+    });
+    state.log.unshift({ tick: state.tick, message: `${sector.name} blackout lockout until t${sector.blackoutLockedUntil}.` });
+    return true;
+  }
+
+  function releaseBlackoutLocks(state) {
+    state.grid.sectors.forEach((sector) => {
+      if (sector.blackoutLockedUntil === null || state.tick < sector.blackoutLockedUntil) {
+        return;
+      }
+      const lane = laneForSector(state, sector);
+      sector.blackoutLockedUntil = null;
+      sector.powered = !sector.isolated;
+      restoreLaneGridLock(lane, "blackout");
+      state.log.unshift({ tick: state.tick, message: `${sector.name} blackout lockout cleared.` });
+    });
+    const activeSector = state.grid.blackout.activeSectorId
+      ? gridSectorState(state, state.grid.blackout.activeSectorId)
+      : null;
+    if (!activeSector || activeSector.blackoutLockedUntil === null) {
+      state.grid.blackout.status = "armed";
+      state.grid.blackout.activeSectorId = null;
+    }
+  }
+
+  function advanceGridState(state) {
+    if (!state.grid) {
+      return;
+    }
+    releaseBlackoutLocks(state);
+    maybeActivateAuditDirective(state);
+    maybeFailAuditDirective(state);
+    const load = computeGridLoad(state);
+    state.grid.currentLoad = load;
+    const pressureGain = Math.max(0, Math.ceil((load - 2) / 3));
+    if (pressureGain > 0) {
+      state.grid.pressure += pressureGain;
+    } else if (load === 0 && state.grid.pressure > 0 && state.grid.audit.status !== "active") {
+      state.grid.pressure -= 1;
+    }
+    if (state.grid.pressure >= state.grid.blackout.threshold) {
+      triggerBlackout(state);
+    }
+  }
+
   function enqueueJob(state, jobTypeId) {
     const jobType = byId(GAME_DATA.jobTypes, jobTypeId);
     if (!jobType) {
@@ -708,9 +1256,14 @@ const DarkFactoryDispatch = (() => {
 
   function assignJobToLane(state, laneId, entryId = null) {
     const next = clone(state);
-    const lane = byId(next.lanes, laneId) || next.lanes.find((candidate) => candidate.status === "idle");
+    const lane = byId(next.lanes, laneId) || next.lanes.find((candidate) => (
+      candidate.status === "idle" && laneGridAvailable(next, candidate)
+    ));
     if (!lane || lane.status !== "idle") {
       return withLog(next, "No idle lane available.");
+    }
+    if (!laneGridAvailable(next, lane)) {
+      return withLog(next, `${lane.name} grid sector is unavailable.`);
     }
     const entryIndex = entryId
       ? next.queue.findIndex((entry) => entry.id === entryId && entry.status === "queued")
@@ -729,6 +1282,10 @@ const DarkFactoryDispatch = (() => {
       remaining: runtimeForLane(jobType, lane),
       inputsConsumed: false,
       startedAtTick: null,
+      emergency: entry.emergency,
+      sourceContractId: entry.sourceContractId,
+      gridDirective: entry.gridDirective,
+      sourceDirectiveId: entry.sourceDirectiveId,
     };
     lane.status = "assigned";
     lane.progress = 0;
@@ -741,6 +1298,9 @@ const DarkFactoryDispatch = (() => {
     const lane = byId(next.lanes, laneId);
     if (!lane || !lane.currentJob) {
       return withLog(next, "Lane has no assigned job.");
+    }
+    if (!laneGridAvailable(next, lane)) {
+      return withLog(next, `${lane.name} grid sector is unavailable.`);
     }
     if (lane.fault) {
       lane.status = "blocked";
@@ -777,7 +1337,8 @@ const DarkFactoryDispatch = (() => {
   }
 
   function completeLaneJob(state, lane) {
-    const jobType = byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId);
+    const completedJob = lane.currentJob;
+    const jobType = byId(GAME_DATA.jobTypes, completedJob.jobTypeId);
     applyBundle(state.resources, jobType.outputs, 1);
     Object.entries(jobType.outputs).forEach(([resource, amount]) => {
       if (amount > 0) {
@@ -790,6 +1351,12 @@ const DarkFactoryDispatch = (() => {
     lane.progress = 0;
     lane.runRemaining = 0;
     state.log.unshift({ tick: state.tick, message: `${lane.name} completed ${jobType.name}.` });
+    if (completedJob.sourceDirectiveId) {
+      const directive = byId(GAME_DATA.grid.auditDirectives, completedJob.sourceDirectiveId);
+      if (directive) {
+        completeAuditDirectiveInPlace(state, directive, false);
+      }
+    }
     evaluateContracts(state);
   }
 
@@ -878,6 +1445,7 @@ const DarkFactoryDispatch = (() => {
       }
       next.tick += 1;
       maybeActivateEmergencyContracts(next);
+      advanceGridState(next);
       next.lanes.forEach((lane) => {
         advanceLaneRecovery(next, lane);
         if (lane.status !== "running" || !lane.currentJob) {
@@ -1045,6 +1613,44 @@ const DarkFactoryDispatch = (() => {
     return String(shift).padStart(2, "0");
   }
 
+  function gridSurfaceState(state) {
+    const grid = state.grid;
+    return {
+      release: grid.release,
+      pressure: grid.pressure,
+      load: grid.currentLoad,
+      threshold: grid.blackout.threshold,
+      reserve: {
+        available: grid.reserve.available,
+        capacity: grid.reserve.capacity,
+        drawn: grid.reserve.drawn,
+        debt: grid.reserve.debt,
+      },
+      blackout: {
+        status: grid.blackout.status,
+        activeSectorId: grid.blackout.activeSectorId,
+        events: grid.blackout.events.length,
+      },
+      audit: {
+        status: grid.audit.status,
+        directiveId: grid.audit.directiveId,
+        dueTick: grid.audit.dueTick,
+        deferrals: grid.audit.deferrals,
+      },
+      sectors: grid.sectors.map((sector) => ({
+        id: sector.id,
+        name: sector.name,
+        laneId: sector.laneId,
+        route: sector.route,
+        isolated: sector.isolated,
+        powered: sector.powered,
+        blackoutLockedUntil: sector.blackoutLockedUntil,
+        reserveDraws: sector.reserveDraws,
+      })),
+      choices: clone(grid.choices),
+    };
+  }
+
   function campaignSurfaceState(state) {
     const campaign = state.campaign;
     const policy = byId(GAME_DATA.campaign.queuePolicies, campaign.queuePolicy) || GAME_DATA.campaign.queuePolicies[0];
@@ -1100,7 +1706,12 @@ const DarkFactoryDispatch = (() => {
         queuePolicyChanges: campaign.choices.queuePolicyChanges,
         laneOverdrives: campaign.choices.laneOverdrives,
         activeOverdrives: state.lanes.filter((lane) => lane.overdrive && lane.overdrive.active).length,
+        gridPowerRoutes: campaign.choices.gridPowerRoutes,
+        reserveDraws: campaign.choices.reserveDraws,
+        sectorIsolations: campaign.choices.sectorIsolations,
+        auditDeferrals: campaign.choices.auditDeferrals,
       },
+      grid: gridSurfaceState(state),
     };
   }
 
@@ -1109,17 +1720,34 @@ const DarkFactoryDispatch = (() => {
       return null;
     }
     const ledger = Array.isArray(state.campaign.ledger) ? clone(state.campaign.ledger) : [];
+    const previousCarryover = state.grid && state.grid.carryover ? state.grid.carryover : {};
+    const blackoutEvents = state.grid ? state.grid.blackout.events.length : 0;
+    const reserveDraws = state.grid ? state.grid.reserve.draws : 0;
+    const auditUnresolved = state.grid && ["active", "failed"].includes(state.grid.audit.status);
+    const gridCarryover = {
+      blackoutScar: Math.min(12, (previousCarryover.blackoutScar || 0) + blackoutEvents * 2),
+      reserveDebt: Math.min(GAME_DATA.grid.reserve.capacity, Math.max(0, (previousCarryover.reserveDebt || 0) + reserveDraws)),
+      auditPressure: Math.min(6, auditUnresolved ? 2 + state.grid.audit.deferrals : 0),
+    };
     ledger.push({
       shift: state.campaign.shift,
       phase: state.campaign.phase,
       completedContracts: state.run.completedContracts,
       failedContracts: state.run.failedContracts,
       emergencyStatus: state.campaign.emergency.status,
+      grid: state.grid ? {
+        pressure: state.grid.pressure,
+        blackoutEvents,
+        reserveDraws,
+        auditStatus: state.grid.audit.status,
+        carryover: gridCarryover,
+      } : null,
       finishedAtTick: state.tick,
     });
     return {
       queuePolicy: state.campaign.queuePolicy,
       ledger,
+      gridCarryover,
     };
   }
 
@@ -1299,7 +1927,12 @@ const DarkFactoryDispatch = (() => {
       <article class="escalation-card" data-surface="choices">
         <span>Operator choices</span>
         <strong>${surface.queuePolicy.name}</strong>
-        <p>${surface.choices.activeOverdrives} overdrive active / ${surface.choices.laneOverdrives} engaged</p>
+        <p>${surface.choices.activeOverdrives} overdrive active / ${surface.choices.laneOverdrives} engaged / ${surface.choices.gridPowerRoutes} grid routes</p>
+      </article>
+      <article class="escalation-card" data-surface="grid" data-alert="${surface.grid.blackout.status}">
+        <span>Grid Siege</span>
+        <strong>pressure ${surface.grid.pressure}/${surface.grid.threshold} / reserve ${surface.grid.reserve.available}</strong>
+        <p>audit ${surface.grid.audit.status} / blackout ${surface.grid.blackout.events} / load ${surface.grid.load}</p>
       </article>
     `;
   }
@@ -1322,6 +1955,10 @@ const DarkFactoryDispatch = (() => {
         power: overdriveCost.powerCost,
         stability: overdriveCost.stabilityCost,
       });
+      const sector = gridSectorForLane(state.grid, lane.id);
+      const gridText = sector
+        ? `${sector.name} / ${sector.route}${sector.isolated ? " / isolated" : ""}${sector.blackoutLockedUntil ? ` / lock t${sector.blackoutLockedUntil}` : ""}`
+        : "no grid sector";
       return `
         <article class="lane-card" data-status="${lane.status}" data-overdrive="${overdriveActive ? "true" : "false"}">
           <div class="lane-title">
@@ -1336,6 +1973,7 @@ const DarkFactoryDispatch = (() => {
             <span>jam ${Math.round(lane.jamRisk * 100)}%</span>
             <span>recover ${lane.recoveryRemaining}</span>
             <span>${overdriveText}</span>
+            <span>${gridText}</span>
           </div>
           <div class="fault-readout" data-active="${lane.fault ? "true" : "false"}">${faultIcon}<span>fault ${faultText}</span></div>
           <div class="lane-actions">
@@ -1367,6 +2005,7 @@ const DarkFactoryDispatch = (() => {
             <span>in ${formatBundle(jobType.inputs)}</span>
             <span>out ${formatBundle(jobType.outputs)}</span>
             ${entry.sourceContractId ? `<span>${entry.sourceContractId}</span>` : ""}
+            ${entry.sourceDirectiveId ? `<span>${entry.sourceDirectiveId}</span>` : ""}
           </div>
           <div class="queue-actions">
             <button type="button" data-action="assign" data-entry="${entry.id}">assign</button>
@@ -1461,12 +2100,19 @@ const DarkFactoryDispatch = (() => {
     purchaseUpgrade,
     setQueuePolicy,
     toggleLaneOverdrive,
+    routePowerToSector,
+    isolateGridSector,
+    authorizeReserveDraw,
+    deferAuditDirective,
+    resolveAuditDirective,
     evaluateContracts,
     maybeActivateEmergencyContracts,
+    advanceGridState,
     resetFactoryState,
     canPay,
     applyBundle,
     contractProgress,
+    gridSurfaceState,
     campaignSurfaceState,
   };
 
