@@ -99,12 +99,22 @@ const DarkFactoryDispatch = (() => {
         inputs: { modules: 2, drones: 1, power: 3 },
         outputs: { defenses: 2, reputation: 1 },
       },
+      {
+        id: "stabilize-grid",
+        name: "Stabilize Grid",
+        duration: 4,
+        inputs: { circuits: 1, power: 2 },
+        outputs: { stability: 6 },
+        family: "emergency",
+      },
     ],
     contracts: [
       {
         id: "perimeter-grid",
         name: "Perimeter Grid",
+        family: "defense",
         requirement: { defenses: 2, drones: 2 },
+        escalationRequirement: { defenses: 1 },
         reward: { reputation: 2, scrap: 5 },
         penalty: { stability: -14, reputation: -1 },
         deadline: 20,
@@ -114,12 +124,27 @@ const DarkFactoryDispatch = (() => {
       {
         id: "relay-refit",
         name: "Relay Refit",
+        family: "relay",
         requirement: { modules: 4, circuits: 4 },
+        escalationRequirement: { modules: 1 },
         reward: { reputation: 1, power: 2 },
         penalty: { stability: -10, scrap: -3 },
         deadline: 16,
         pressure: "refit the relay before the next dispatch window",
         status: "open",
+      },
+    ],
+    emergencyContracts: [
+      {
+        id: "coolant-diversion",
+        name: "Coolant Diversion",
+        family: "emergency",
+        requirement: { stability: 6 },
+        reward: { reputation: 1, stability: 4 },
+        penalty: { stability: -18, power: -2 },
+        deadline: 7,
+        pressure: "stabilize the coolant bus before the escalation alarm burns through reserves",
+        jobTypeId: "stabilize-grid",
       },
     ],
     faultTypes: [
@@ -168,6 +193,53 @@ const DarkFactoryDispatch = (() => {
       { jobTypeId: "print-modules", priority: 2 },
       { jobTypeId: "assemble-drones", priority: 3 },
     ],
+    campaign: {
+      release: "v0.1.0 Escalation Shift",
+      shifts: [
+        {
+          shift: 1,
+          phase: "Dispatch Floor",
+          demand: 1,
+          deadlineDelta: 0,
+          emergencyTick: null,
+          emergencyContractId: null,
+        },
+        {
+          shift: 2,
+          phase: "Escalation Shift",
+          demand: 2,
+          deadlineDelta: -2,
+          emergencyTick: 6,
+          emergencyContractId: "coolant-diversion",
+        },
+        {
+          shift: 3,
+          phase: "Blackout Compression",
+          demand: 3,
+          deadlineDelta: -4,
+          emergencyTick: 4,
+          emergencyContractId: "coolant-diversion",
+        },
+      ],
+      queuePolicies: [
+        {
+          id: "standard-release",
+          name: "Standard Release",
+          description: "Keep queued work available in operator order.",
+        },
+        {
+          id: "emergency-first",
+          name: "Emergency First",
+          description: "Hold ordinary queued work while an emergency order is active.",
+        },
+      ],
+      laneOverdrive: {
+        powerCost: 2,
+        stabilityCost: 4,
+        throughputBonus: 0.6,
+        jamRiskBonus: 0.07,
+      },
+    },
   };
 
   const dom = {};
@@ -239,6 +311,19 @@ const DarkFactoryDispatch = (() => {
     return effects;
   }
 
+  function lanePerformance(source, upgradeEffects, overdrive = null) {
+    const overdriveData = overdrive && overdrive.active ? GAME_DATA.campaign.laneOverdrive : {};
+    const throughputBonus = (upgradeEffects.throughputBonus || 0) + (overdriveData.throughputBonus || 0);
+    const jamPressure = overdriveData.jamRiskBonus || 0;
+    return {
+      throughput: roundTenth(source.throughput + throughputBonus),
+      jamRisk: Math.max(
+        0.01,
+        roundTenth((source.jamRisk - (upgradeEffects.jamResistance || 0) + jamPressure) * 100) / 100
+      ),
+    };
+  }
+
   function advanceSeed(state) {
     state.seed = (Math.imul(state.seed, 1664525) + 1013904223) >>> 0;
     return state.seed / 4294967296;
@@ -252,12 +337,106 @@ const DarkFactoryDispatch = (() => {
     return resources;
   }
 
-  function createQueueEntry(state, jobTypeId, priority) {
+  function campaignShiftForRun(run) {
+    const shifts = GAME_DATA.campaign.shifts;
+    const capped = shifts[Math.min(Math.max(run, 1), shifts.length) - 1];
+    const overflow = Math.max(0, run - shifts.length);
+    return {
+      ...clone(capped),
+      shift: run,
+      demand: capped.demand + overflow,
+      deadlineDelta: capped.deadlineDelta - overflow,
+      emergencyTick: capped.emergencyTick === null ? null : Math.max(2, capped.emergencyTick - overflow),
+    };
+  }
+
+  function createCampaignState(run, options = {}) {
+    const shift = campaignShiftForRun(run);
+    const incoming = options.campaign || {};
+    const queuePolicy = incoming.queuePolicy || "standard-release";
+    return {
+      release: GAME_DATA.campaign.release,
+      shift: run,
+      phase: shift.phase,
+      demand: shift.demand,
+      deadlineDelta: shift.deadlineDelta,
+      queuePolicy,
+      ledger: Array.isArray(incoming.ledger) ? clone(incoming.ledger) : [],
+      emergency: {
+        status: shift.emergencyContractId ? "armed" : "quiet",
+        triggerTick: shift.emergencyTick,
+        contractId: shift.emergencyContractId,
+        queued: false,
+      },
+      choices: {
+        queuePolicyChanges: 0,
+        laneOverdrives: 0,
+      },
+    };
+  }
+
+  function escalatedRequirement(contract, campaign) {
+    const requirement = clone(contract.requirement);
+    const demandStep = Math.max(0, campaign.demand - 1);
+    Object.entries(contract.escalationRequirement || {}).forEach(([resource, amount]) => {
+      requirement[resource] = (requirement[resource] || 0) + amount * demandStep;
+    });
+    return requirement;
+  }
+
+  function buildContractState(campaign) {
+    const contracts = GAME_DATA.contracts.map((contract, index) => ({
+      id: contract.id,
+      name: contract.name,
+      family: contract.family || "standard",
+      requirement: escalatedRequirement(contract, campaign),
+      reward: clone(contract.reward),
+      penalty: clone(contract.penalty),
+      deadline: Math.max(6, contract.deadline + campaign.deadlineDelta),
+      timeRemaining: Math.max(6, contract.deadline + campaign.deadlineDelta),
+      pressure: campaign.demand > 1 ? `${contract.pressure}; demand x${campaign.demand}` : contract.pressure,
+      status: index === 0 ? "active" : contract.status,
+      startedAtTick: index === 0 ? 0 : null,
+      completedAtTick: null,
+      failedAtTick: null,
+      emergency: false,
+    }));
+    if (campaign.emergency.contractId) {
+      const emergency = byId(GAME_DATA.emergencyContracts, campaign.emergency.contractId);
+      if (emergency) {
+        const deadline = Math.max(4, emergency.deadline - Math.max(0, campaign.demand - 2));
+        contracts.push({
+          id: emergency.id,
+          name: emergency.name,
+          family: emergency.family,
+          requirement: clone(emergency.requirement),
+          reward: clone(emergency.reward),
+          penalty: clone(emergency.penalty),
+          deadline,
+          timeRemaining: deadline,
+          pressure: emergency.pressure,
+          status: "pending",
+          startedAtTick: null,
+          completedAtTick: null,
+          failedAtTick: null,
+          activationTick: campaign.emergency.triggerTick,
+          emergency: true,
+          jobTypeId: emergency.jobTypeId,
+        });
+      }
+    }
+    return contracts;
+  }
+
+  function createQueueEntry(state, jobTypeId, priority, options = {}) {
     const entry = {
       id: `q${state.nextQueueId}`,
       jobTypeId,
       priority,
-      status: "queued",
+      status: options.status || "queued",
+      emergency: Boolean(options.emergency),
+      sourceContractId: options.sourceContractId || null,
+      heldReason: options.heldReason || null,
       createdAtTick: state.tick,
     };
     state.nextQueueId += 1;
@@ -269,6 +448,7 @@ const DarkFactoryDispatch = (() => {
     const seed = options.seed || 7103;
     const purchased = purchasedUpgradeIds(options.upgrades);
     const upgradeEffects = aggregateUpgradeEffects(purchased);
+    const campaign = createCampaignState(run, options);
     const resources = baseResources();
     applyBundle(resources, upgradeEffects.startResources, 1);
     const state = {
@@ -278,37 +458,32 @@ const DarkFactoryDispatch = (() => {
       resources,
       produced: {},
       queue: [],
-      lanes: GAME_DATA.lanes.map((lane) => ({
-        id: lane.id,
-        name: lane.name,
-        trait: lane.trait,
-        baseThroughput: lane.throughput,
-        throughput: roundTenth(lane.throughput + upgradeEffects.throughputBonus),
-        baseJamRisk: lane.jamRisk,
-        jamRisk: Math.max(0.01, roundTenth((lane.jamRisk - upgradeEffects.jamResistance) * 100) / 100),
-        status: "idle",
-        progress: 0,
-        runRemaining: 0,
-        recoveryRemaining: 0,
-        currentJob: null,
-        fault: null,
-        completedJobs: 0,
-        restartState: clone(lane.restartState),
-      })),
-      contracts: GAME_DATA.contracts.map((contract, index) => ({
-        id: contract.id,
-        name: contract.name,
-        requirement: clone(contract.requirement),
-        reward: clone(contract.reward),
-        penalty: clone(contract.penalty),
-        deadline: contract.deadline,
-        timeRemaining: contract.deadline,
-        pressure: contract.pressure,
-        status: index === 0 ? "active" : contract.status,
-        startedAtTick: index === 0 ? 0 : null,
-        completedAtTick: null,
-        failedAtTick: null,
-      })),
+      lanes: GAME_DATA.lanes.map((lane) => {
+        const performance = lanePerformance(lane, upgradeEffects);
+        return {
+          id: lane.id,
+          name: lane.name,
+          trait: lane.trait,
+          baseThroughput: lane.throughput,
+          throughput: performance.throughput,
+          baseJamRisk: lane.jamRisk,
+          jamRisk: performance.jamRisk,
+          overdrive: {
+            active: false,
+            powerSpent: 0,
+            stabilitySpent: 0,
+          },
+          status: "idle",
+          progress: 0,
+          runRemaining: 0,
+          recoveryRemaining: 0,
+          currentJob: null,
+          fault: null,
+          completedJobs: 0,
+          restartState: clone(lane.restartState),
+        };
+      }),
+      contracts: buildContractState(campaign),
       faults: {
         enabled: options.faultsEnabled !== false,
         graceTicks: options.faultGraceTicks === undefined ? 4 : options.faultGraceTicks,
@@ -319,6 +494,7 @@ const DarkFactoryDispatch = (() => {
         purchased,
         effects: upgradeEffects,
       },
+      campaign,
       run: {
         status: "active",
         completedContracts: 0,
@@ -330,14 +506,50 @@ const DarkFactoryDispatch = (() => {
         lastResetTick: 0,
         seed,
       },
-      log: [{ tick: 0, message: "Factory shell online." }],
+      log: [{ tick: 0, message: `${campaign.release} ${campaign.phase} online.` }],
     };
 
     GAME_DATA.initialQueue.forEach((entry) => {
       state.queue.push(createQueueEntry(state, entry.jobTypeId, entry.priority));
     });
+    applyQueuePolicy(state);
 
     return state;
+  }
+
+  function normalizeQueuePriorities(state) {
+    state.queue.forEach((entry, index) => {
+      entry.priority = index + 1;
+    });
+  }
+
+  function hasActiveEmergency(state) {
+    return state.contracts.some((contract) => contract.emergency && contract.status === "active");
+  }
+
+  function applyQueuePolicy(state) {
+    const policyId = state.campaign ? state.campaign.queuePolicy : "standard-release";
+    state.queue.forEach((entry) => {
+      if (entry.status === "held") {
+        entry.status = "queued";
+      }
+      entry.heldReason = null;
+    });
+    if (policyId === "emergency-first" && hasActiveEmergency(state)) {
+      state.queue.sort((left, right) => {
+        if (left.emergency !== right.emergency) {
+          return left.emergency ? -1 : 1;
+        }
+        return left.priority - right.priority;
+      });
+      state.queue.forEach((entry) => {
+        if (!entry.emergency) {
+          entry.status = "held";
+          entry.heldReason = "emergency-first";
+        }
+      });
+    }
+    normalizeQueuePriorities(state);
   }
 
   function withLog(state, message) {
@@ -357,17 +569,22 @@ const DarkFactoryDispatch = (() => {
     });
   }
 
+  function refreshLanePerformance(state, lane) {
+    const source = byId(GAME_DATA.lanes, lane.id);
+    if (!source) {
+      return;
+    }
+    const performance = lanePerformance(source, state.upgrades.effects, lane.overdrive);
+    lane.baseThroughput = source.throughput;
+    lane.baseJamRisk = source.jamRisk;
+    lane.throughput = performance.throughput;
+    lane.jamRisk = performance.jamRisk;
+  }
+
   function refreshUpgradeEffects(state) {
     state.upgrades.effects = aggregateUpgradeEffects(state.upgrades.purchased);
     state.lanes.forEach((lane) => {
-      const source = byId(GAME_DATA.lanes, lane.id);
-      lane.baseThroughput = source.throughput;
-      lane.baseJamRisk = source.jamRisk;
-      lane.throughput = roundTenth(source.throughput + state.upgrades.effects.throughputBonus);
-      lane.jamRisk = Math.max(
-        0.01,
-        roundTenth((source.jamRisk - state.upgrades.effects.jamResistance) * 100) / 100
-      );
+      refreshLanePerformance(state, lane);
     });
   }
 
@@ -392,6 +609,64 @@ const DarkFactoryDispatch = (() => {
     return withLog(next, `${upgrade.name} installed for later shifts.`);
   }
 
+  function setQueuePolicy(state, policyId) {
+    const policy = byId(GAME_DATA.campaign.queuePolicies, policyId);
+    if (!policy) {
+      return withLog(state, "Unknown queue policy.");
+    }
+    const next = clone(state);
+    next.campaign.queuePolicy = policy.id;
+    next.campaign.choices.queuePolicyChanges += 1;
+    applyQueuePolicy(next);
+    return withLog(next, `${policy.name} queue policy engaged.`);
+  }
+
+  function rescaleCurrentJobForLane(lane) {
+    if (!lane.currentJob || lane.currentJob.status === "running") {
+      return;
+    }
+    const jobType = byId(GAME_DATA.jobTypes, lane.currentJob.jobTypeId);
+    if (!jobType) {
+      return;
+    }
+    const completed = Math.max(0, lane.currentJob.duration - lane.currentJob.remaining);
+    const nextDuration = runtimeForLane(jobType, lane);
+    lane.currentJob.duration = nextDuration;
+    lane.currentJob.remaining = Math.max(1, nextDuration - completed);
+    lane.runRemaining = lane.currentJob.remaining;
+  }
+
+  function toggleLaneOverdrive(state, laneId, active = true) {
+    const next = clone(state);
+    const lane = byId(next.lanes, laneId);
+    if (!lane) {
+      return withLog(next, "Unknown lane overdrive request.");
+    }
+    const overdrive = GAME_DATA.campaign.laneOverdrive;
+    const cost = { power: overdrive.powerCost, stability: overdrive.stabilityCost };
+    if (active && lane.overdrive.active) {
+      return withLog(next, `${lane.name} overdrive already active.`);
+    }
+    if (!active && !lane.overdrive.active) {
+      return withLog(next, `${lane.name} overdrive already cold.`);
+    }
+    if (active && !canPay(next.resources, cost)) {
+      return withLog(next, `${lane.name} overdrive lacks ${formatBundle(cost)}.`);
+    }
+    if (active) {
+      applyBundle(next.resources, cost, -1);
+      lane.overdrive.active = true;
+      lane.overdrive.powerSpent += overdrive.powerCost;
+      lane.overdrive.stabilitySpent += overdrive.stabilityCost;
+      next.campaign.choices.laneOverdrives += 1;
+    } else {
+      lane.overdrive.active = false;
+    }
+    refreshLanePerformance(next, lane);
+    rescaleCurrentJobForLane(lane);
+    return withLog(next, `${lane.name} overdrive ${active ? "engaged" : "released"}.`);
+  }
+
   function enqueueJob(state, jobTypeId) {
     const jobType = byId(GAME_DATA.jobTypes, jobTypeId);
     if (!jobType) {
@@ -400,6 +675,7 @@ const DarkFactoryDispatch = (() => {
     const next = clone(state);
     const priority = next.queue.length + 1;
     next.queue.push(createQueueEntry(next, jobTypeId, priority));
+    applyQueuePolicy(next);
     return withLog(next, `${jobType.name} queued.`);
   }
 
@@ -415,9 +691,7 @@ const DarkFactoryDispatch = (() => {
     }
     const [entry] = next.queue.splice(index, 1);
     next.queue.splice(target, 0, entry);
-    next.queue.forEach((queued, queueIndex) => {
-      queued.priority = queueIndex + 1;
-    });
+    applyQueuePolicy(next);
     return withLog(next, `${jobName(entry.jobTypeId)} priority raised.`);
   }
 
@@ -428,6 +702,7 @@ const DarkFactoryDispatch = (() => {
       return withLog(next, "No queued job available to cancel.");
     }
     const [removed] = next.queue.splice(index, 1);
+    normalizeQueuePriorities(next);
     return withLog(next, `${jobName(removed.jobTypeId)} cancelled.`);
   }
 
@@ -438,12 +713,13 @@ const DarkFactoryDispatch = (() => {
       return withLog(next, "No idle lane available.");
     }
     const entryIndex = entryId
-      ? next.queue.findIndex((entry) => entry.id === entryId)
+      ? next.queue.findIndex((entry) => entry.id === entryId && entry.status === "queued")
       : next.queue.findIndex((entry) => entry.status === "queued");
     if (entryIndex < 0) {
-      return withLog(next, "Queue is empty.");
+      return withLog(next, "No releasable queued job is available.");
     }
     const [entry] = next.queue.splice(entryIndex, 1);
+    normalizeQueuePriorities(next);
     const jobType = byId(GAME_DATA.jobTypes, entry.jobTypeId);
     lane.currentJob = {
       entryId: entry.id,
@@ -570,6 +846,30 @@ const DarkFactoryDispatch = (() => {
     state.log.unshift({ tick: state.tick, message: `${lane.name} cleared ${faultName}; restart required.` });
   }
 
+  function maybeActivateEmergencyContracts(state) {
+    if (!state.campaign || !state.campaign.emergency.contractId) {
+      return false;
+    }
+    const emergency = byId(state.contracts, state.campaign.emergency.contractId);
+    if (!emergency || emergency.status !== "pending" || state.tick < emergency.activationTick) {
+      return false;
+    }
+    emergency.status = "active";
+    emergency.startedAtTick = state.tick;
+    emergency.timeRemaining = emergency.deadline;
+    state.campaign.emergency.status = "active";
+    if (!state.campaign.emergency.queued && emergency.jobTypeId) {
+      state.queue.unshift(createQueueEntry(state, emergency.jobTypeId, 1, {
+        emergency: true,
+        sourceContractId: emergency.id,
+      }));
+      state.campaign.emergency.queued = true;
+    }
+    applyQueuePolicy(state);
+    state.log.unshift({ tick: state.tick, message: `${emergency.name} emergency order active.` });
+    return true;
+  }
+
   function stepFactory(state, ticks = 1) {
     const next = clone(state);
     for (let i = 0; i < ticks; i += 1) {
@@ -577,6 +877,7 @@ const DarkFactoryDispatch = (() => {
         break;
       }
       next.tick += 1;
+      maybeActivateEmergencyContracts(next);
       next.lanes.forEach((lane) => {
         advanceLaneRecovery(next, lane);
         if (lane.status !== "running" || !lane.currentJob) {
@@ -621,7 +922,9 @@ const DarkFactoryDispatch = (() => {
   }
 
   function evaluateRunOutcome(state) {
-    const openOrActive = state.contracts.some((contract) => contract.status === "open" || contract.status === "active");
+    const openOrActive = state.contracts.some((contract) => (
+      contract.status === "open" || contract.status === "active" || contract.status === "pending"
+    ));
     const completeCount = state.contracts.filter((contract) => contract.status === "complete").length;
     const failedCount = state.contracts.filter((contract) => contract.status === "failed").length;
     state.run.completedContracts = completeCount;
@@ -644,6 +947,9 @@ const DarkFactoryDispatch = (() => {
       if (contractSatisfied(contract, state)) {
         contract.status = "complete";
         contract.completedAtTick = state.tick;
+        if (contract.emergency && state.campaign) {
+          state.campaign.emergency.status = "complete";
+        }
         applyBundle(state.resources, contract.reward, 1);
         state.log.unshift({ tick: state.tick, message: `${contract.name} contract complete.` });
         activateNextContract(state);
@@ -652,11 +958,15 @@ const DarkFactoryDispatch = (() => {
       if (contract.timeRemaining === 0) {
         contract.status = "failed";
         contract.failedAtTick = state.tick;
+        if (contract.emergency && state.campaign) {
+          state.campaign.emergency.status = "failed";
+        }
         applyBundle(state.resources, contract.penalty, 1);
         state.log.unshift({ tick: state.tick, message: `${contract.name} contract failed; penalty applied.` });
         activateNextContract(state);
       }
     });
+    applyQueuePolicy(state);
     evaluateRunOutcome(state);
   }
 
@@ -698,6 +1008,7 @@ const DarkFactoryDispatch = (() => {
       run: nextRun,
       seed,
       upgrades: state && state.upgrades ? state.upgrades.purchased : [],
+      campaign: campaignForRestart(state),
     });
     next.restart.reason = "operator restart";
     next.restart.lastResetTick = state ? state.tick : 0;
@@ -722,6 +1033,25 @@ const DarkFactoryDispatch = (() => {
       timeRemaining: contract.timeRemaining,
       status: contract.status,
     }));
+  }
+
+  function campaignForRestart(state) {
+    if (!state || !state.campaign) {
+      return null;
+    }
+    const ledger = Array.isArray(state.campaign.ledger) ? clone(state.campaign.ledger) : [];
+    ledger.push({
+      shift: state.campaign.shift,
+      phase: state.campaign.phase,
+      completedContracts: state.run.completedContracts,
+      failedContracts: state.run.failedContracts,
+      emergencyStatus: state.campaign.emergency.status,
+      finishedAtTick: state.tick,
+    });
+    return {
+      queuePolicy: state.campaign.queuePolicy,
+      ledger,
+    };
   }
 
   function initDom() {
@@ -843,7 +1173,7 @@ const DarkFactoryDispatch = (() => {
   }
 
   function render(state) {
-    dom.runChip.textContent = `shift ${String(state.restart.run).padStart(2, "0")} / ${state.run.status} / t${state.tick}`;
+    dom.runChip.textContent = `shift ${String(state.restart.run).padStart(2, "0")} / d${state.campaign.demand} / ${state.run.status} / t${state.tick}`;
     renderResources(state);
     renderLanes(state);
     renderQueue(state);
@@ -871,6 +1201,7 @@ const DarkFactoryDispatch = (() => {
         ? `${lane.fault.name} / ${lane.fault.phase} / ${lane.fault.decision} / ${formatBundle(lane.fault.recovery)}`
         : "clear";
       const statusText = lane.status === "idle" ? "ready" : lane.status;
+      const overdriveText = lane.overdrive && lane.overdrive.active ? "overdrive" : "normal";
       return `
         <article class="lane-card" data-status="${lane.status}">
           <div class="lane-title">
@@ -884,6 +1215,7 @@ const DarkFactoryDispatch = (() => {
             <span>rate ${lane.throughput}</span>
             <span>jam ${Math.round(lane.jamRisk * 100)}%</span>
             <span>recover ${lane.recoveryRemaining}</span>
+            <span>${overdriveText}</span>
           </div>
           <div class="fault-readout" data-active="${lane.fault ? "true" : "false"}">${faultIcon}<span>fault ${faultText}</span></div>
           <div class="lane-actions">
@@ -903,15 +1235,17 @@ const DarkFactoryDispatch = (() => {
     }
     dom.queue.innerHTML = state.queue.map((entry) => {
       const jobType = byId(GAME_DATA.jobTypes, entry.jobTypeId);
+      const statusText = entry.status === "held" ? "held" : `p${entry.priority}`;
       return `
         <li class="queue-item">
           <div class="queue-title">
             <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[entry.jobTypeId], "asset-icon queue-icon")}<strong>${jobType.name}</strong></span>
-            <span class="status-pill">p${entry.priority}</span>
+            <span class="status-pill">${statusText}</span>
           </div>
           <div class="queue-meta">
             <span>in ${formatBundle(jobType.inputs)}</span>
             <span>out ${formatBundle(jobType.outputs)}</span>
+            ${entry.sourceContractId ? `<span>${entry.sourceContractId}</span>` : ""}
           </div>
           <div class="queue-actions">
             <button type="button" data-action="assign" data-entry="${entry.id}">assign</button>
@@ -928,7 +1262,9 @@ const DarkFactoryDispatch = (() => {
       const progress = contractProgress(contract, state)
         .map((line) => `${line.resource} ${line.current}/${line.required}`)
         .join(" / ");
-      const timer = contract.status === "open" ? `opens next / ${contract.deadline} ticks` : `${contract.timeRemaining} ticks left`;
+      const timer = contract.status === "pending"
+        ? `arms t${contract.activationTick} / ${contract.deadline} ticks`
+        : contract.status === "open" ? `opens next / ${contract.deadline} ticks` : `${contract.timeRemaining} ticks left`;
       return `
         <article class="contract-card" data-status="${contract.status}">
           <div class="contract-title">
@@ -1002,7 +1338,10 @@ const DarkFactoryDispatch = (() => {
     injectLaneFault,
     recoverLane,
     purchaseUpgrade,
+    setQueuePolicy,
+    toggleLaneOverdrive,
     evaluateContracts,
+    maybeActivateEmergencyContracts,
     resetFactoryState,
     canPay,
     applyBundle,
