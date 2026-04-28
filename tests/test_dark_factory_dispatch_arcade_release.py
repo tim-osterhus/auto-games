@@ -18,26 +18,36 @@ def game_by_slug(slug: str) -> dict:
 
 
 class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
-    def test_manifest_adds_truthful_dark_factory_dispatch_release_entry(self) -> None:
+    def test_manifest_adds_truthful_dark_factory_dispatch_escalation_shift_release(self) -> None:
         game = game_by_slug("dark-factory-dispatch")
 
         self.assertEqual("Dark Factory Dispatch", game["title"])
-        self.assertEqual("0.0.1", game["version"])
+        self.assertEqual("0.1.0", game["version"])
         self.assertEqual("playable", game["status"])
         self.assertEqual("games/dark-factory-dispatch/", game["path"])
         self.assertEqual("games/dark-factory-dispatch/assets/arcade-title-card.png", game["thumbnail"])
-        self.assertIn("queueing jobs", game["summary"])
-        self.assertEqual("v0.0.1 Dispatch Floor", game["release"]["label"])
-        self.assertIn("original project-local lane, job, fault, and title-card art", game["release"]["copy"])
+        self.assertIn("escalating shifts", game["summary"])
+        self.assertIn("emergency coolant-diversion orders", game["summary"])
+        self.assertIn("lane overdrive calls", game["summary"])
+        self.assertEqual("v0.1.0 Escalation Shift", game["release"]["label"])
+        self.assertIn("multi-shift demand scaling", game["release"]["copy"])
+        self.assertIn("emergency-first queue policy", game["release"]["copy"])
+        self.assertIn("lane overdrive decisions", game["release"]["copy"])
 
         self.assertNotIn("snapshot", game)
-        snapshot = game["versions"][0]
-        self.assertEqual("0.0.1", snapshot["version"])
-        self.assertEqual("games/dark-factory-dispatch/versions/0.0.1/", snapshot["path"])
-        self.assertEqual("2026-04-28", snapshot["releasedAt"])
-        self.assertEqual("v0.0.1 Dispatch Floor", snapshot["label"])
-        self.assertIn("Three-lane factory dispatch board", snapshot["summary"])
-        self.assertRegex(snapshot["commit"], r"^[0-9a-f]{40}$")
+        current_snapshot = game["versions"][0]
+        self.assertEqual("0.1.0", current_snapshot["version"])
+        self.assertEqual("games/dark-factory-dispatch/versions/0.1.0/", current_snapshot["path"])
+        self.assertEqual("2026-04-28", current_snapshot["releasedAt"])
+        self.assertEqual("v0.1.0 Escalation Shift", current_snapshot["label"])
+        self.assertIn("Escalating shift demand", current_snapshot["summary"])
+        self.assertIn("persistent restart ledger carryover", current_snapshot["summary"])
+        self.assertRegex(current_snapshot["commit"], r"^[0-9a-f]{40}$")
+
+        first_snapshot = game["versions"][1]
+        self.assertEqual("0.0.1", first_snapshot["version"])
+        self.assertEqual("games/dark-factory-dispatch/versions/0.0.1/", first_snapshot["path"])
+        self.assertEqual("v0.0.1 Dispatch Floor", first_snapshot["label"])
 
     def test_manifest_preserves_corebound_while_listing_three_games(self) -> None:
         manifest = load_manifest()
@@ -49,7 +59,7 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertEqual(3, len(slugs))
         self.assertEqual("0.7.0", game_by_slug("corebound")["version"])
 
-    def test_generated_arcade_output_lists_second_game_card_and_thumbnail(self) -> None:
+    def test_generated_arcade_output_lists_escalation_shift_card_snapshot_and_thumbnail(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")
 
         self.assertIn("games <strong>3 games</strong>", html)
@@ -60,21 +70,31 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertIn('href="games/dark-factory-dispatch/"', html)
         self.assertIn('href="games/void-prospector/"', html)
         self.assertIn('src="games/dark-factory-dispatch/assets/arcade-title-card.png"', html)
+        self.assertIn("playable / v0.1.0", html)
+        self.assertIn("v0.1.0 Escalation Shift", html)
+        self.assertIn("emergency-first queue policy", html)
+        self.assertIn("lane overdrive decisions", html)
         self.assertIn("v0.0.1 Dispatch Floor", html)
         self.assertIn("Snapshots", html)
+        self.assertIn('href="games/dark-factory-dispatch/versions/0.1.0/"', html)
         self.assertIn('href="games/dark-factory-dispatch/versions/0.0.1/"', html)
         self.assertIn('href="games/void-prospector/versions/0.0.1/"', html)
         self.assertNotIn("Snapshot deferred", html)
 
-    def test_snapshot_directory_preserves_playable_static_release(self) -> None:
-        snapshot_dir = ROOT / "games" / "dark-factory-dispatch" / "versions" / "0.0.1"
+    def test_snapshot_directory_preserves_playable_static_escalation_shift_release(self) -> None:
+        snapshot_dir = ROOT / "games" / "dark-factory-dispatch" / "versions" / "0.1.0"
         html = (snapshot_dir / "index.html").read_text(encoding="utf-8")
         script = (snapshot_dir / "dark-factory-dispatch.js").read_text(encoding="utf-8")
 
         self.assertIn("<title>Dark Factory Dispatch</title>", html)
         self.assertIn("dark-factory-dispatch.css", html)
         self.assertIn("dark-factory-dispatch.js", html)
+        self.assertIn('id="escalation-surface"', html)
         self.assertIn('src="assets/arcade-title-card.png"', html)
+        self.assertIn("v0.1.0 Escalation Shift", script)
+        self.assertIn("coolant-diversion", script)
+        self.assertIn("emergency-first", script)
+        self.assertIn("toggleLaneOverdrive", script)
         self.assertNotIn("/versions/", script)
         self.assertFalse((snapshot_dir / "versions").exists())
         self.assertTrue((snapshot_dir / "assets" / "arcade-title-card.png").is_file())

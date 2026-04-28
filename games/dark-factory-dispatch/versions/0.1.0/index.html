@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080b0a" />
+  <title>Dark Factory Dispatch</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="dark-factory-dispatch.css" />
+</head>
+<body>
+  <main class="dispatch-shell" id="dark-factory-dispatch">
+    <header class="topline">
+      <a class="backlink" href="../../">Millrace Arcade</a>
+      <div class="identity">
+        <span class="eyebrow">Factory queue</span>
+        <h1>Dark Factory Dispatch</h1>
+      </div>
+      <div class="run-chip" id="run-chip">shift 01 / standby</div>
+    </header>
+
+    <section class="resource-strip" id="resource-readouts" aria-label="Factory resources"></section>
+
+    <section class="escalation-strip" id="escalation-surface" aria-label="Escalation Shift status"></section>
+
+    <section class="title-card-band" aria-label="Factory title art">
+      <img src="assets/arcade-title-card.png" alt="" />
+    </section>
+
+    <section class="factory-grid" aria-label="Dark Factory Dispatch play surface">
+      <section class="panel lane-panel" aria-labelledby="lanes-heading">
+        <div class="panel-head">
+          <span>Lane status</span>
+          <strong id="lanes-heading">Production floor</strong>
+        </div>
+        <div class="lane-board" id="lane-board"></div>
+      </section>
+
+      <section class="panel queue-panel" aria-labelledby="queue-heading">
+        <div class="panel-head">
+          <span>Queue</span>
+          <strong id="queue-heading">Queued jobs</strong>
+        </div>
+        <ol class="queue-list" id="queue-list"></ol>
+      </section>
+
+      <section class="panel contract-panel" aria-labelledby="contracts-heading">
+        <div class="panel-head">
+          <span>Contract</span>
+          <strong id="contracts-heading">Dispatch board</strong>
+        </div>
+        <div id="contract-board" class="contract-board"></div>
+      </section>
+
+      <section class="panel upgrade-panel" aria-labelledby="upgrades-heading">
+        <div class="panel-head">
+          <span>Upgrade</span>
+          <strong id="upgrades-heading">Improvement rack</strong>
+        </div>
+        <div id="upgrade-board" class="upgrade-board"></div>
+      </section>
+
+      <section class="panel job-panel" aria-labelledby="jobs-heading">
+        <div class="panel-head">
+          <span>Jobs</span>
+          <strong id="jobs-heading">Fabrication catalog</strong>
+        </div>
+        <div class="job-catalog" id="job-catalog"></div>
+      </section>
+
+      <section class="panel controls-panel" aria-label="Operator controls">
+        <div class="panel-head">
+          <span>Controls</span>
+          <strong>Dispatch console</strong>
+        </div>
+        <div class="control-stack">
+          <div class="control-selects">
+            <label class="select-line" for="job-type-select">
+              <span>Job type</span>
+              <select id="job-type-select"></select>
+            </label>
+            <label class="select-line" for="queue-policy-select">
+              <span>Queue policy</span>
+              <select id="queue-policy-select"></select>
+            </label>
+          </div>
+          <div class="button-grid">
+            <button type="button" id="enqueue-job">enqueue</button>
+            <button type="button" id="assign-next-job">assign</button>
+            <button type="button" id="start-all-lanes">start</button>
+            <button type="button" id="reprioritize-job">raise</button>
+            <button type="button" id="cancel-job">cancel</button>
+            <button type="button" id="restart-factory">restart</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel log-panel" aria-labelledby="log-heading">
+        <div class="panel-head">
+          <span>Signal</span>
+          <strong id="log-heading">Operator log</strong>
+        </div>
+        <ol class="operator-log" id="operator-log" aria-live="polite"></ol>
+      </section>
+    </section>
+  </main>
+
+  <script src="dark-factory-dispatch.js"></script>
+</body>
+</html>

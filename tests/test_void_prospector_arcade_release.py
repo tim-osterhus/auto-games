@@ -48,7 +48,7 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
 
         self.assertEqual(["corebound", "dark-factory-dispatch", "void-prospector"], slugs)
         self.assertEqual("0.7.0", game_by_slug("corebound")["version"])
-        self.assertEqual("0.0.1", game_by_slug("dark-factory-dispatch")["version"])
+        self.assertEqual("0.1.0", game_by_slug("dark-factory-dispatch")["version"])
         self.assertEqual("0.0.1", game_by_slug("void-prospector")["version"])
 
     def test_generated_arcade_output_lists_third_game_card_and_thumbnail(self) -> None:

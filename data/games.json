@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, the first Dark Factory Dispatch floor, and Void Prospector's asset-backed space-mining sortie."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's Escalation Shift, and Void Prospector's asset-backed space-mining sortie."
   },
   "games": [
     {
@@ -71,16 +71,24 @@
     {
       "slug": "dark-factory-dispatch",
       "title": "Dark Factory Dispatch",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "status": "playable",
-      "summary": "Run a compact machine-intelligence factory by queueing jobs, assigning imperfect production lanes, recovering jams, meeting contract pressure, and buying upgrades between shifts.",
+      "summary": "Run a compact machine-intelligence factory through escalating shifts with emergency coolant-diversion orders, queue policy choices, lane overdrive calls, persistent restart pressure, and upgrade decisions between shifts.",
       "path": "games/dark-factory-dispatch/",
       "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.0.1 Dispatch Floor",
-        "copy": "Dispatch Floor introduces the three-lane factory board, resource-backed work orders, timed contracts, recoverable material and logic faults, upgrade choices, and original project-local lane, job, fault, and title-card art."
+        "label": "v0.1.0 Escalation Shift",
+        "copy": "Escalation Shift expands the dispatch floor with multi-shift demand scaling, persistent restart ledger carryover, emergency coolant-diversion contracts, emergency-first queue policy, and lane overdrive decisions layered onto the original three-lane factory board."
       },
       "versions": [
+        {
+          "version": "0.1.0",
+          "path": "games/dark-factory-dispatch/versions/0.1.0/",
+          "releasedAt": "2026-04-28",
+          "label": "v0.1.0 Escalation Shift",
+          "summary": "Escalating shift demand, emergency coolant-diversion contracts, emergency-first queue policy, lane overdrive decisions, persistent restart ledger carryover, and the original three-lane factory dispatch board.",
+          "commit": "bb5df91df6a7f371cec264ad8249d701dd710f5e"
+        },
         {
           "version": "0.0.1",
           "path": "games/dark-factory-dispatch/versions/0.0.1/",
