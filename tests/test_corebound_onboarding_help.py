@@ -92,8 +92,8 @@ class CoreboundOnboardingHelpTests(unittest.TestCase):
         script = (GAME_DIR / "corebound.js").read_text(encoding="utf-8")
 
         self.assertIn("release", data)
-        self.assertIn('version: "v0.6.0"', data)
-        self.assertIn('snapshot: "Viewport Material release"', data)
+        self.assertIn('version: "v0.7.0"', data)
+        self.assertIn('snapshot: "HUD Breakthrough release"', data)
         self.assertIn("GAME_RELEASE.version", script)
         self.assertIn("GAME_RELEASE.snapshot", script)
 

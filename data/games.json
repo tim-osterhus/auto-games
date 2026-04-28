@@ -3,21 +3,29 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.6.0 Viewport Material release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release."
   },
   "games": [
     {
       "slug": "corebound",
       "title": "Corebound",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "status": "playable",
-      "summary": "Pilot Mantis-01 through a viewport-fitted HUD, keyboard and touch menu surfaces, surface dock services, material terrain, embedded ore deposits, continuous drill feedback, and progressively revealed contracts, Deep Charters, late routes, archives, relay utilities, upgrades, and research.",
+      "summary": "Pilot Mantis-01 through a compact overlay HUD, keyboard and touch menu surfaces, surface dock services, richer material strata, embedded ore and hazard pockets, smooth drill breakthrough feedback, and progressively revealed contracts, Deep Charters, late routes, archives, relay utilities, upgrades, and research.",
       "path": "games/corebound/",
       "release": {
-        "label": "v0.6.0 Viewport Material",
-        "copy": "Viewport Material fills the browser with the mine, keeps critical state in an in-game HUD, moves inventory and progression into the shared menu surface, anchors sell, refine, repair, and launch at the surface dock, and renders blended terrain material with embedded ore and hazard pockets plus material motion feedback."
+        "label": "v0.7.0 HUD Breakthrough",
+        "copy": "HUD Breakthrough keeps the mine dominant with a compressed overlay, moves detail into the shared menu surface, preserves surface dock actions, enriches strata and embedded ore or hazard pockets, and lets drilled blocks break open with continuous breakthrough motion instead of a cell-center snap."
       },
       "versions": [
+        {
+          "version": "0.7.0",
+          "path": "games/corebound/versions/0.7.0/",
+          "releasedAt": "2026-04-28",
+          "label": "v0.7.0 HUD Breakthrough",
+          "summary": "Compact overlay HUD, surface dock services, richer strata, embedded ore and hazard pockets, smooth breakthrough release motion, and subtler grid readability publish on top of the Viewport Material release.",
+          "commit": "db07d9e81cdbc5471eb02cfe10a9906eec4c1f3b"
+        },
         {
           "version": "0.6.0",
           "path": "games/corebound/versions/0.6.0/",
