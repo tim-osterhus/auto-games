@@ -25,9 +25,11 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             'id="escalation-surface"',
             'aria-label="Campaign and Grid Siege status"',
             'id="grid-siege-board"',
+            'id="freight-lockdown-board"',
             'id="queue-policy-select"',
             "Queue policy",
             "Grid Siege",
+            "Freight Lockdown",
             "Production floor",
             "Queued jobs",
             "Dispatch board",
@@ -40,8 +42,10 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             "campaignSurfaceState",
             "gridSurfaceState",
             "breachSurfaceState",
+            "freightSurfaceState",
             "renderEscalationSurface",
             "renderGridSiege",
+            "renderFreightLockdown",
             'data-surface="campaign"',
             'data-surface="emergency"',
             'data-surface="progression"',
@@ -58,8 +62,19 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             'data-action="grid-reserve"',
             'data-action="audit-resolve"',
             'data-action="audit-defer"',
+            'data-freight="summary"',
+            'data-freight="manifests"',
+            'data-action="freight-stage"',
+            'data-action="freight-drones"',
+            'data-action="freight-defenses"',
+            'data-action="freight-reserve"',
+            'data-action="freight-reroute"',
+            'data-action="freight-hold"',
+            'data-action="freight-seal"',
+            'data-action="freight-launch"',
             'data-compromised="${compromised ? "true" : "false"}"',
             'data-breach-directive="${entry.breachDirective ? "true" : "false"}"',
+            'data-freight-directive="${entry.freightDirective ? "true" : "false"}"',
             'data-breach-quarantine="${quarantineActive ? "true" : "false"}"',
             "setQueuePolicy(currentState",
             "toggleLaneOverdrive(",
@@ -72,6 +87,13 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             "authorizeReserveDraw(currentState",
             "resolveAuditDirective(currentState",
             "deferAuditDirective(currentState",
+            "stageFreightCargo(currentState",
+            "holdFreightManifest(currentState",
+            "assignFreightRouteSecurity(currentState",
+            "authorizeFreightLaunchClearance(currentState",
+            "rerouteFreightManifest(currentState",
+            "sealFreightCarrier(currentState",
+            "launchFreightManifest(currentState",
         ):
             self.assertIn(token, js)
 
@@ -80,6 +102,15 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             ".escalation-card",
             ".grid-panel",
             ".grid-siege-board",
+            ".freight-panel",
+            ".freight-board",
+            ".freight-summary",
+            ".freight-manifest-list",
+            ".freight-manifest-card",
+            ".freight-route",
+            ".freight-metrics",
+            ".freight-rail",
+            ".freight-actions",
             ".grid-sector-list",
             ".grid-sector-card",
             ".grid-directive-card",
@@ -96,7 +127,11 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             '.contract-card[data-family="breach"]',
             '.queue-item[data-emergency="true"]',
             '.queue-item[data-compromised="true"]',
+            '.queue-item[data-freight-directive="true"]',
             '.job-card[data-family="breach"]',
+            '.job-card[data-family="freight"]',
+            '.freight-manifest-card[data-status="available"]',
+            '.freight-manifest-card[data-route-alert="true"]',
             "@media (max-width: 720px)",
             "grid-template-areas:",
             "overflow-wrap: anywhere",
@@ -240,12 +275,15 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
 
         for token in (
             '"lanes grid grid"',
+            '"lanes freight freight"',
             '"controls controls log"',
             '"lanes lanes"',
             '"grid grid"',
+            '"freight freight"',
             '"controls log"',
             '"lanes"',
             '"grid"',
+            '"freight"',
             ".grid-summary,\n  .grid-sector-meta",
             ".grid-actions,\n  .directive-actions",
             ".breach-actions,\n  .contract-reward",
@@ -274,6 +312,9 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
 
         self.assertNotIn("job-stabilize-grid.png", combined)
         self.assertNotIn('"stabilize-grid": "assets/', combined)
+        self.assertNotIn("assets/freight-", combined)
+        self.assertNotIn("assets/dock-", combined)
+        self.assertNotIn("assets/carrier-", combined)
 
     def run_node(self, script: str) -> dict:
         completed = subprocess.run(

@@ -255,6 +255,7 @@ select {
   display: grid;
   grid-template-areas:
     "lanes grid grid"
+    "lanes freight freight"
     "lanes queue contracts"
     "lanes upgrades jobs"
     "controls controls log";
@@ -299,6 +300,10 @@ select {
   grid-area: grid;
 }
 
+.freight-panel {
+  grid-area: freight;
+}
+
 .queue-panel {
   grid-area: queue;
 }
@@ -325,6 +330,7 @@ select {
 
 .lane-board,
 .grid-siege-board,
+.freight-board,
 .job-catalog,
 .contract-board,
 .upgrade-board,
@@ -349,6 +355,7 @@ select {
 .grid-summary,
 .grid-sector-card,
 .grid-directive-card,
+.freight-manifest-card,
 .queue-item,
 .job-card,
 .contract-card,
@@ -372,7 +379,19 @@ select {
   padding: 10px;
 }
 
+.freight-board {
+  display: grid;
+  gap: 10px;
+}
+
+.freight-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .grid-summary > span,
+.freight-summary > span,
 .grid-directive-card > span {
   display: block;
   min-width: 0;
@@ -393,6 +412,18 @@ select {
 
 .grid-sector-card,
 .grid-directive-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.freight-manifest-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.freight-manifest-card {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -421,6 +452,31 @@ select {
   background: rgba(75, 214, 192, 0.055);
 }
 
+.freight-manifest-card[data-status="available"],
+.freight-manifest-card[data-status="staged"],
+.freight-manifest-card[data-status="sealed"],
+.queue-item[data-freight-directive="true"],
+.job-card[data-family="freight"] {
+  border-color: rgba(75, 214, 192, 0.68);
+  background: rgba(75, 214, 192, 0.055);
+}
+
+.freight-manifest-card[data-status="enroute"],
+.freight-manifest-card[data-risk="elevated"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.freight-manifest-card[data-status="failed"],
+.freight-manifest-card[data-route-alert="true"],
+.freight-manifest-card[data-risk="critical"] {
+  border-color: rgba(214, 96, 77, 0.78);
+}
+
+.freight-manifest-card[data-status="complete"] {
+  border-color: rgba(75, 214, 192, 0.82);
+}
+
 .grid-sector-card[data-breach="scarred"],
 .queue-item[data-breach-directive="true"] {
   border-color: rgba(215, 184, 103, 0.72);
@@ -428,7 +484,8 @@ select {
 }
 
 .grid-sector-title,
-.grid-directive-title {
+.grid-directive-title,
+.freight-title {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -436,7 +493,8 @@ select {
 }
 
 .grid-sector-title strong,
-.grid-directive-title strong {
+.grid-directive-title strong,
+.freight-title strong {
   min-width: 0;
   font-size: 0.9rem;
   overflow-wrap: anywhere;
@@ -458,15 +516,60 @@ select {
   text-transform: uppercase;
 }
 
+.freight-route,
+.freight-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.freight-route span,
+.freight-metrics span {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.freight-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  background:
+    repeating-linear-gradient(90deg, rgba(75, 214, 192, 0.08), rgba(75, 214, 192, 0.08) 1px, transparent 1px, transparent 12px),
+    #0b100e;
+}
+
+.freight-rail span {
+  display: block;
+  min-height: 20px;
+  border: 1px solid rgba(133, 145, 139, 0.32);
+  background: rgba(16, 20, 18, 0.92);
+}
+
+.freight-rail span[data-filled="true"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.2);
+}
+
 .grid-actions,
-.directive-actions {
+.directive-actions,
+.freight-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .grid-actions button,
-.directive-actions button {
+.directive-actions button,
+.freight-actions button {
   min-height: 2.1rem;
   font-size: 0.68rem;
 }
@@ -793,6 +896,7 @@ select {
     grid-template-areas:
       "lanes lanes"
       "grid grid"
+      "freight freight"
       "queue contracts"
       "upgrades jobs"
       "controls log";
@@ -808,6 +912,10 @@ select {
   }
 
   .grid-sector-list {
+    grid-template-columns: 1fr;
+  }
+
+  .freight-manifest-list {
     grid-template-columns: 1fr;
   }
 }
@@ -830,6 +938,7 @@ select {
     grid-template-areas:
       "lanes"
       "grid"
+      "freight"
       "queue"
       "contracts"
       "upgrades"
@@ -845,8 +954,14 @@ select {
 
   .escalation-strip,
   .control-selects,
+  .freight-summary,
   .grid-summary,
   .grid-sector-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .freight-route,
+  .freight-metrics {
     grid-template-columns: 1fr;
   }
 
@@ -857,6 +972,7 @@ select {
   .directive-actions,
   .breach-actions,
   .contract-reward,
+  .freight-actions,
   .job-io {
     grid-template-columns: 1fr;
   }

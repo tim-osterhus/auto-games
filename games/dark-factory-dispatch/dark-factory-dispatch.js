@@ -3406,6 +3406,7 @@ const DarkFactoryDispatch = (() => {
       resources: document.getElementById("resource-readouts"),
       escalation: document.getElementById("escalation-surface"),
       grid: document.getElementById("grid-siege-board"),
+      freight: document.getElementById("freight-lockdown-board"),
       lanes: document.getElementById("lane-board"),
       queue: document.getElementById("queue-list"),
       contracts: document.getElementById("contract-board"),
@@ -3485,6 +3486,37 @@ const DarkFactoryDispatch = (() => {
     });
     dom.restart.addEventListener("click", () => {
       currentState = resetFactoryState(currentState);
+      render(currentState);
+    });
+    dom.freight.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action][data-manifest]");
+      if (!button) {
+        return;
+      }
+      if (button.dataset.action === "freight-stage") {
+        currentState = stageFreightCargo(currentState, button.dataset.manifest);
+      }
+      if (button.dataset.action === "freight-hold") {
+        currentState = holdFreightManifest(currentState, button.dataset.manifest);
+      }
+      if (button.dataset.action === "freight-drones") {
+        currentState = assignFreightRouteSecurity(currentState, button.dataset.manifest, "drones");
+      }
+      if (button.dataset.action === "freight-defenses") {
+        currentState = assignFreightRouteSecurity(currentState, button.dataset.manifest, "defenses");
+      }
+      if (button.dataset.action === "freight-reserve") {
+        currentState = authorizeFreightLaunchClearance(currentState, button.dataset.manifest);
+      }
+      if (button.dataset.action === "freight-reroute") {
+        currentState = rerouteFreightManifest(currentState, button.dataset.manifest, button.dataset.sector);
+      }
+      if (button.dataset.action === "freight-seal") {
+        currentState = sealFreightCarrier(currentState, button.dataset.manifest);
+      }
+      if (button.dataset.action === "freight-launch") {
+        currentState = launchFreightManifest(currentState, button.dataset.manifest);
+      }
       render(currentState);
     });
     dom.lanes.addEventListener("click", (event) => {
@@ -3582,6 +3614,7 @@ const DarkFactoryDispatch = (() => {
     renderResources(state);
     renderEscalationSurface(state);
     renderGridSiege(state);
+    renderFreightLockdown(state);
     renderLanes(state);
     renderQueue(state);
     renderContracts(state);
@@ -3719,6 +3752,125 @@ const DarkFactoryDispatch = (() => {
           <button type="button" data-action="audit-defer" ${deferDisabled ? "disabled" : ""}>defer</button>
         </div>
       </article>
+    `;
+  }
+
+  function freightRiskLevel(manifest) {
+    const risk = manifest.route.currentRisk || 0;
+    if (risk >= 7) {
+      return "critical";
+    }
+    if (risk >= 5) {
+      return "elevated";
+    }
+    return "nominal";
+  }
+
+  function freightCargoRailMarkup(manifest) {
+    const requiredTotal = Object.values(manifest.cargo.required || {})
+      .reduce((total, amount) => total + amount, 0);
+    const stagedTotal = Object.values(manifest.cargo.staged || {})
+      .reduce((total, amount) => total + amount, 0);
+    const filled = requiredTotal ? Math.round(Math.min(1, stagedTotal / requiredTotal) * 6) : 0;
+    return Array.from({ length: 6 }, (_unused, index) => (
+      `<span data-filled="${index < filled ? "true" : "false"}"></span>`
+    )).join("");
+  }
+
+  function freightRouteText(manifest) {
+    const sector = manifest.sectorStatus;
+    const breach = sector && sector.breach ? sector.breach.status : "clean";
+    if (manifest.route.rerouted) {
+      return `rerouted ${manifest.route.reroutedAround || manifest.sectorId}`;
+    }
+    if (manifest.route.contaminatedExposure) {
+      return `route contaminated / ${breach}`;
+    }
+    return `route ${sector ? sector.route : "balanced"} / breach ${breach}`;
+  }
+
+  function freightLatestEvent(manifest) {
+    if (!manifest.events.length) {
+      return "no manifest events";
+    }
+    const event = manifest.events[0];
+    return `last ${titleCase(event.event)} / t${event.tick}`;
+  }
+
+  function renderFreightLockdown(state) {
+    const surface = freightSurfaceState(state);
+    if (!surface) {
+      dom.freight.innerHTML = `<div class="empty-note">freight lockdown offline</div>`;
+      return;
+    }
+
+    dom.freight.innerHTML = `
+      <div class="freight-summary" data-freight="summary">
+        <span>status ${surface.status}</span>
+        <span>route pressure ${surface.routeSecurity.pressure}</span>
+        <span>outcomes ${surface.outcomes.full} full / ${surface.outcomes.partial} partial / ${surface.outcomes.failed} failed</span>
+        <span>carryover scar ${surface.carryover.lockdownScar} / lost cargo ${surface.carryover.lostCargo}</span>
+      </div>
+      <div class="freight-manifest-list" data-freight="manifests">
+        ${surface.manifests.map((manifest) => {
+          const actionable = ["available", "staged", "sealed"].includes(manifest.status);
+          const stageable = ["available", "staged"].includes(manifest.status);
+          const remainingKeys = Object.keys(manifest.cargo.remaining);
+          const windowOpen = state.tick >= manifest.window.opensAtTick && state.tick <= manifest.window.closesAtTick;
+          const riskLevel = freightRiskLevel(manifest);
+          const stageDisabled = !stageable || !remainingKeys.length || !canPay(state.resources, manifest.cargo.remaining);
+          const holdDisabled = !actionable || !canPay(state.resources, GAME_DATA.freightLockdown.hold.cost);
+          const dronesDisabled = !actionable || !canPay(state.resources, GAME_DATA.freightLockdown.routeSecurity.drones.cost);
+          const defensesDisabled = !actionable || !canPay(state.resources, GAME_DATA.freightLockdown.routeSecurity.defenses.cost);
+          const reserveDisabled = !actionable || manifest.security.reserveClearance || !state.grid || state.grid.reserve.available <= 0;
+          const rerouteDisabled = !actionable || manifest.route.rerouted || !canPay(state.resources, GAME_DATA.freightLockdown.routeSecurity.reroute.cost);
+          const sealDisabled = manifest.status !== "staged" || remainingKeys.length > 0 || !manifest.dockReady || !windowOpen;
+          const launchDisabled = manifest.status !== "sealed" || !windowOpen;
+          const dockText = manifest.dockReady ? "dock ready" : "dock blocked";
+          const securityText = `security d${manifest.security.drones} / f${manifest.security.defenses} / reserve ${manifest.security.reserveClearance ? "yes" : "no"}`;
+          const timingText = manifest.arrivalTick !== null
+            ? `arrival t${manifest.arrivalTick}`
+            : manifest.launchedAtTick !== null ? `launched t${manifest.launchedAtTick}` : `window t${manifest.window.opensAtTick}-${manifest.window.closesAtTick}`;
+          return `
+            <article class="freight-manifest-card" data-manifest="${manifest.id}" data-status="${manifest.status}" data-risk="${riskLevel}" data-route-alert="${manifest.route.contaminatedExposure ? "true" : "false"}" data-dock-ready="${manifest.dockReady ? "true" : "false"}">
+              <div class="freight-title">
+                <strong>${manifest.name}</strong>
+                <span class="status-pill">${manifest.status}</span>
+              </div>
+              <div class="freight-route">
+                <span>${manifest.dockName} / ${manifest.laneName}</span>
+                <span>${manifest.sectorId} / ${dockText}</span>
+                <span>${timingText}</span>
+                <span>contract ${manifest.contractId}</span>
+              </div>
+              <div class="freight-rail" aria-label="${manifest.name} cargo staging">
+                ${freightCargoRailMarkup(manifest)}
+              </div>
+              <div class="freight-metrics">
+                <span>cargo ${formatBundle(manifest.cargo.required)}</span>
+                <span>staged ${formatBundle(manifest.cargo.staged)} / remaining ${formatBundle(manifest.cargo.remaining)}</span>
+                <span>integrity ${manifest.integrity}% / risk ${manifest.route.currentRisk}</span>
+                <span>inspection ${manifest.inspection.status}</span>
+                <span>${securityText}</span>
+                <span>${freightRouteText(manifest)}</span>
+                <span>payout ${formatBundle(manifest.payout)} / partial ${formatBundle(manifest.partialPayout)}</span>
+                <span>penalty ${formatBundle(manifest.penalty)}</span>
+                <span>${freightLatestEvent(manifest)}</span>
+              </div>
+              <div class="freight-actions">
+                <button type="button" data-action="freight-stage" data-manifest="${manifest.id}" ${stageDisabled ? "disabled" : ""}>stage</button>
+                <button type="button" data-action="freight-drones" data-manifest="${manifest.id}" ${dronesDisabled ? "disabled" : ""}>drones</button>
+                <button type="button" data-action="freight-defenses" data-manifest="${manifest.id}" ${defensesDisabled ? "disabled" : ""}>defenses</button>
+                <button type="button" data-action="freight-reserve" data-manifest="${manifest.id}" ${reserveDisabled ? "disabled" : ""}>reserve</button>
+                <button type="button" data-action="freight-reroute" data-manifest="${manifest.id}" data-sector="${manifest.sectorId}" ${rerouteDisabled ? "disabled" : ""}>reroute</button>
+                <button type="button" data-action="freight-hold" data-manifest="${manifest.id}" ${holdDisabled ? "disabled" : ""}>hold</button>
+                <button type="button" data-action="freight-seal" data-manifest="${manifest.id}" ${sealDisabled ? "disabled" : ""}>seal</button>
+                <button type="button" data-action="freight-launch" data-manifest="${manifest.id}" ${launchDisabled ? "disabled" : ""}>launch</button>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
     `;
   }
 
