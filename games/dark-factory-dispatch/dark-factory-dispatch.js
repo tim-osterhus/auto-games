@@ -124,6 +124,15 @@ const DarkFactoryDispatch = (() => {
         family: "breach",
         breachCountermeasure: true,
       },
+      {
+        id: "inspect-cargo-seals",
+        name: "Inspect Cargo Seals",
+        duration: 3,
+        inputs: { circuits: 1, power: 1 },
+        outputs: { stability: 2 },
+        family: "freight",
+        freightInspection: true,
+      },
     ],
     contracts: [
       {
@@ -347,8 +356,83 @@ const DarkFactoryDispatch = (() => {
         },
       ],
     },
+    freightLockdown: {
+      release: "v0.4.0 Freight Lockdown",
+      integrity: {
+        fullThreshold: 85,
+        partialThreshold: 45,
+      },
+      hold: {
+        extensionTicks: 3,
+        integrityLoss: 6,
+        riskIncrease: 1,
+        cost: { stability: 2 },
+      },
+      routeSecurity: {
+        drones: {
+          cost: { drones: 1 },
+          riskRelief: 2,
+          integrityGuard: 10,
+        },
+        defenses: {
+          cost: { defenses: 1 },
+          riskRelief: 2,
+          integrityGuard: 8,
+          breachRelief: 1,
+        },
+        reserveClearance: {
+          riskRelief: 1,
+          integrityGuard: 8,
+          gridPressureRelief: 1,
+        },
+        reroute: {
+          cost: { power: 1, stability: 2 },
+          riskRelief: 3,
+          delayTicks: 1,
+          integrityLoss: 2,
+        },
+      },
+      manifests: [
+        {
+          id: "ashline-spare-crates",
+          name: "Ashline Spare Crates",
+          dockId: "dock-alpha",
+          dockName: "Dock Alpha",
+          laneId: "forge-line",
+          sectorId: "forge-bus",
+          contractId: "perimeter-grid",
+          availableShift: 1,
+          window: { opensAtTick: 2, closesAtTick: 16 },
+          inspectionJobTypeId: "inspect-cargo-seals",
+          cargo: { circuits: 3, modules: 1 },
+          routeRisk: 3,
+          travelTicks: 2,
+          payout: { reputation: 1, scrap: 6, stability: 3 },
+          partialPayout: { scrap: 3, stability: 1 },
+          penalty: { stability: -7, reputation: -1 },
+        },
+        {
+          id: "blackout-relay-carrier",
+          name: "Blackout Relay Carrier",
+          dockId: "dock-beta",
+          dockName: "Dock Beta",
+          laneId: "clean-room",
+          sectorId: "clean-bus",
+          contractId: "signal-firewall",
+          availableShift: 2,
+          window: { opensAtTick: 3, closesAtTick: 17 },
+          inspectionJobTypeId: "inspect-cargo-seals",
+          cargo: { modules: 2, drones: 2, defenses: 1 },
+          routeRisk: 5,
+          travelTicks: 3,
+          payout: { reputation: 2, power: 2, stability: 5 },
+          partialPayout: { reputation: 1, stability: 2 },
+          penalty: { stability: -11, power: -1 },
+        },
+      ],
+    },
     campaign: {
-      release: "v0.3.0 Signal Breach",
+      release: "v0.4.0 Freight Lockdown",
       shifts: [
         {
           shift: 1,
@@ -506,6 +590,10 @@ const DarkFactoryDispatch = (() => {
     return byId(GAME_DATA.signalBreach.sources, sourceId);
   }
 
+  function freightManifestDefinition(manifestId) {
+    return byId(GAME_DATA.freightLockdown.manifests, manifestId);
+  }
+
   function selectBreachSource(campaign) {
     const sources = GAME_DATA.signalBreach.sources;
     const index = Math.max(0, campaign.demand - 1) % sources.length;
@@ -649,6 +737,99 @@ const DarkFactoryDispatch = (() => {
     };
   }
 
+  function createFreightState(campaign, options = {}, purchased = []) {
+    const incoming = options.campaign || {};
+    const carryover = incoming.freightCarryover || {};
+    const lockdownScar = Math.max(0, carryover.lockdownScar || 0);
+    const upgradedRiskRelief = purchased.includes("fault-guards") ? 1 : 0;
+    const integrityScar = Math.min(24, lockdownScar * 3);
+    return {
+      release: GAME_DATA.freightLockdown.release,
+      status: lockdownScar > 0 ? "scarred" : "ready",
+      routeSecurity: {
+        pressure: Math.max(0, lockdownScar),
+        events: [],
+      },
+      outcomes: {
+        full: 0,
+        partial: 0,
+        failed: 0,
+      },
+      choices: {
+        cargoStages: 0,
+        carrierSeals: 0,
+        escortDrones: 0,
+        defenseScreens: 0,
+        reserveClearances: 0,
+        reroutes: 0,
+        holds: 0,
+        launches: 0,
+      },
+      carryover: {
+        lockdownScar,
+        lostCargo: Math.max(0, carryover.lostCargo || 0),
+        delayedManifests: Math.max(0, carryover.delayedManifests || 0),
+        completedShipments: Math.max(0, carryover.completedShipments || 0),
+      },
+      manifests: GAME_DATA.freightLockdown.manifests.map((manifest) => {
+        const shiftReady = campaign.shift >= manifest.availableShift;
+        const risk = Math.max(0, manifest.routeRisk + Math.max(0, campaign.demand - 1) - upgradedRiskRelief);
+        return {
+          id: manifest.id,
+          name: manifest.name,
+          dockId: manifest.dockId,
+          dockName: manifest.dockName,
+          laneId: manifest.laneId,
+          sectorId: manifest.sectorId,
+          contractId: manifest.contractId,
+          availableShift: manifest.availableShift,
+          status: shiftReady ? "scheduled" : "pending",
+          openedAtTick: null,
+          sealedAtTick: null,
+          launchedAtTick: null,
+          arrivalTick: null,
+          window: {
+            opensAtTick: manifest.window.opensAtTick,
+            closesAtTick: Math.max(
+              manifest.window.opensAtTick + 4,
+              manifest.window.closesAtTick - Math.min(3, lockdownScar)
+            ),
+          },
+          cargo: {
+            required: clone(manifest.cargo),
+            staged: {},
+            stagedAtTick: null,
+          },
+          inspection: {
+            status: "waiting",
+            jobTypeId: manifest.inspectionJobTypeId,
+            queued: false,
+            completedAtTick: null,
+          },
+          route: {
+            baseRisk: risk,
+            currentRisk: risk,
+            rerouted: false,
+            reroutedAround: null,
+            contaminatedExposure: false,
+            delayTicks: 0,
+          },
+          security: {
+            drones: 0,
+            defenses: 0,
+            reserveClearance: false,
+            riskRelief: 0,
+            integrityGuard: 0,
+          },
+          integrity: Math.max(40, 100 - integrityScar),
+          outcome: null,
+          payoutApplied: false,
+          events: [],
+        };
+      }),
+    };
+  }
+
   function applyGridCarryoverResources(resources, grid) {
     if (!grid || !grid.carryover) {
       return;
@@ -664,6 +845,15 @@ const DarkFactoryDispatch = (() => {
     }
     resources.stability -= breach.carryover.signalScar || 0;
     resources.power -= Math.min(2, breach.carryover.escapedSources || 0);
+    clampResourceFloor(resources);
+  }
+
+  function applyFreightCarryoverResources(resources, freight) {
+    if (!freight || !freight.carryover) {
+      return;
+    }
+    resources.stability -= freight.carryover.lockdownScar || 0;
+    resources.reputation -= Math.min(2, freight.carryover.lostCargo || 0);
     clampResourceFloor(resources);
   }
 
@@ -724,6 +914,14 @@ const DarkFactoryDispatch = (() => {
         breachTraces: 0,
         breachDeferrals: 0,
         breachCountermeasures: 0,
+        freightStages: 0,
+        freightSeals: 0,
+        freightLaunches: 0,
+        freightEscorts: 0,
+        freightDefenseScreens: 0,
+        freightReserveClearances: 0,
+        freightReroutes: 0,
+        freightHolds: 0,
       },
     };
   }
@@ -793,6 +991,8 @@ const DarkFactoryDispatch = (() => {
       sourceDirectiveId: options.sourceDirectiveId || null,
       breachDirective: Boolean(options.breachDirective),
       sourceBreachId: options.sourceBreachId || null,
+      freightDirective: Boolean(options.freightDirective),
+      sourceFreightId: options.sourceFreightId || null,
       compromised: options.compromised ? clone(options.compromised) : null,
       heldReason: options.heldReason || null,
       createdAtTick: state.tick,
@@ -809,10 +1009,12 @@ const DarkFactoryDispatch = (() => {
     const campaign = createCampaignState(run, options);
     const grid = createGridState(campaign, options);
     const breach = createBreachState(campaign, options);
+    const freight = createFreightState(campaign, options, purchased);
     const resources = baseResources();
     applyBundle(resources, upgradeEffects.startResources, 1);
     applyGridCarryoverResources(resources, grid);
     applyBreachCarryoverResources(resources, breach);
+    applyFreightCarryoverResources(resources, freight);
     const state = {
       tick: 0,
       seed,
@@ -822,6 +1024,7 @@ const DarkFactoryDispatch = (() => {
       queue: [],
       grid,
       breach,
+      freight,
       lanes: GAME_DATA.lanes.map((lane) => {
         const performance = lanePerformance(lane, upgradeEffects, null, gridEffectForLane(grid, lane.id));
         return {
@@ -1175,6 +1378,581 @@ const DarkFactoryDispatch = (() => {
     return withLog(next, `Reserve batteries drew ${reserve.drawAmount} power into ${sector ? sector.name : "the grid"}.`);
   }
 
+  function freightManifestState(state, manifestId) {
+    return state.freight && Array.isArray(state.freight.manifests)
+      ? byId(state.freight.manifests, manifestId)
+      : null;
+  }
+
+  function freightCargoRemaining(manifest) {
+    const remaining = {};
+    Object.entries(manifest.cargo.required || {}).forEach(([resource, amount]) => {
+      const staged = manifest.cargo.staged[resource] || 0;
+      if (staged < amount) {
+        remaining[resource] = amount - staged;
+      }
+    });
+    return remaining;
+  }
+
+  function freightCargoFullyStaged(manifest) {
+    return Object.keys(freightCargoRemaining(manifest)).length === 0;
+  }
+
+  function freightStatusTerminal(manifest) {
+    return ["complete", "partial", "failed"].includes(manifest.status);
+  }
+
+  function freightWindowOpen(state, manifest) {
+    return state.tick >= manifest.window.opensAtTick && state.tick <= manifest.window.closesAtTick;
+  }
+
+  function freightDockLane(state, manifest) {
+    return byId(state.lanes, manifest.laneId);
+  }
+
+  function freightDockReady(state, manifest) {
+    const lane = freightDockLane(state, manifest);
+    const sector = gridSectorState(state, manifest.sectorId);
+    if (!lane || !sector) {
+      return false;
+    }
+    const dockSealed = lane.gridLock
+      && lane.gridLock.reason === "freight-lockdown"
+      && manifest.status === "sealed";
+    return (dockSealed || (lane.status === "idle" && laneGridAvailable(state, lane)))
+      && !sector.isolated
+      && sector.blackoutLockedUntil === null
+      && sector.powered;
+  }
+
+  function releaseFreightDockLock(state, manifest) {
+    const lane = freightDockLane(state, manifest);
+    if (lane && lane.gridLock && lane.gridLock.reason === "freight-lockdown") {
+      restoreLaneGridLock(lane, "freight-lockdown");
+    }
+  }
+
+  function queueFreightInspection(state, manifest) {
+    if (!manifest.inspection.jobTypeId || manifest.inspection.status === "complete") {
+      return false;
+    }
+    const alreadyQueued = state.queue.some((entry) => (
+      entry.freightDirective && entry.sourceFreightId === manifest.id
+    ));
+    const alreadyAssigned = state.lanes.some((lane) => (
+      lane.currentJob && lane.currentJob.freightDirective && lane.currentJob.sourceFreightId === manifest.id
+    ));
+    if (alreadyQueued || alreadyAssigned) {
+      manifest.inspection.queued = true;
+      manifest.inspection.status = "queued";
+      return false;
+    }
+    state.queue.unshift(createQueueEntry(state, manifest.inspection.jobTypeId, 1, {
+      freightDirective: true,
+      sourceFreightId: manifest.id,
+    }));
+    manifest.inspection.queued = true;
+    manifest.inspection.status = "queued";
+    applyQueuePolicy(state);
+    return true;
+  }
+
+  function clearFreightInspectionQueueInPlace(state, manifest, status = "skipped") {
+    const beforeLength = state.queue.length;
+    state.queue = state.queue.filter((entry) => !(
+      entry.freightDirective && entry.sourceFreightId === manifest.id
+    ));
+    if (state.queue.length !== beforeLength) {
+      normalizeQueuePriorities(state);
+    }
+    if (manifest.inspection.status !== "complete") {
+      manifest.inspection.status = status;
+    }
+    manifest.inspection.queued = false;
+  }
+
+  function openFreightManifestsInPlace(state) {
+    if (!state.freight) {
+      return;
+    }
+    state.freight.manifests.forEach((manifest) => {
+      if (state.campaign.shift < manifest.availableShift) {
+        return;
+      }
+      if (manifest.status === "pending") {
+        manifest.status = "scheduled";
+      }
+      if (manifest.status !== "scheduled" || state.tick < manifest.window.opensAtTick) {
+        return;
+      }
+      manifest.status = "available";
+      manifest.openedAtTick = state.tick;
+      queueFreightInspection(state, manifest);
+      state.freight.status = "manifest-open";
+      state.log.unshift({ tick: state.tick, message: `${manifest.name} freight manifest opened at ${manifest.dockName}.` });
+    });
+  }
+
+  function freightRiskForManifest(state, manifest) {
+    let risk = manifest.route.baseRisk - manifest.security.riskRelief;
+    if (state.upgrades && state.upgrades.purchased.includes("buffer-cache")) {
+      risk -= 1;
+    }
+    if (manifest.inspection.status !== "complete") {
+      risk += 1;
+    }
+    if (state.queue.filter((entry) => ["queued", "held"].includes(entry.status)).length > 4) {
+      risk += 1;
+    }
+    if (hasActiveEmergency(state)) {
+      risk += 1;
+    }
+    if (state.grid) {
+      if (state.grid.audit.status === "active") {
+        risk += 1;
+      }
+      if (state.grid.audit.status === "failed") {
+        risk += 2;
+      }
+      if (state.grid.pressure >= state.grid.threshold) {
+        risk += 2;
+      } else if (state.grid.pressure >= Math.max(5, state.grid.threshold - 4)) {
+        risk += 1;
+      }
+      const sector = gridSectorState(state, manifest.sectorId);
+      if (sector) {
+        if (sector.isolated || sector.blackoutLockedUntil !== null || !sector.powered) {
+          risk += 2;
+        }
+        if (sector.breach && ["contaminated", "quarantined", "scarred"].includes(sector.breach.status)) {
+          risk += manifest.route.rerouted ? 0 : (sector.breach.severity || 1) + 1;
+        }
+      }
+    }
+    if (state.breach && state.breach.status === "active") {
+      risk += 1;
+    }
+    if (state.breach && state.breach.status === "escaped") {
+      risk += 2;
+    }
+    const lane = freightDockLane(state, manifest);
+    if (lane && lane.overdrive && lane.overdrive.active) {
+      risk += 1;
+    }
+    return Math.max(0, risk);
+  }
+
+  function refreshFreightRiskInPlace(state, manifest) {
+    const sector = gridSectorState(state, manifest.sectorId);
+    manifest.route.contaminatedExposure = Boolean(
+      sector
+        && sector.breach
+        && ["contaminated", "quarantined", "scarred"].includes(sector.breach.status)
+        && !manifest.route.rerouted
+    );
+    manifest.route.currentRisk = freightRiskForManifest(state, manifest);
+    return manifest.route.currentRisk;
+  }
+
+  function recordFreightContractOutcomeInPlace(state, manifest, outcome) {
+    const contract = byId(state.contracts, manifest.contractId);
+    if (!contract) {
+      return;
+    }
+    if (!Array.isArray(contract.freightOutcomes)) {
+      contract.freightOutcomes = [];
+    }
+    contract.freightOutcomes.unshift({
+      manifestId: manifest.id,
+      outcome,
+      integrity: manifest.integrity,
+      tick: state.tick,
+    });
+    if (outcome === "full") {
+      if (contract.status === "active") {
+        contract.timeRemaining += 2;
+      }
+      if (state.breach && contract.family === "breach") {
+        state.breach.intensity = Math.max(0, state.breach.intensity - 1);
+      }
+      return;
+    }
+    if (outcome === "partial") {
+      if (contract.status === "active") {
+        contract.timeRemaining += 1;
+      }
+      return;
+    }
+    if (contract.status === "active") {
+      contract.timeRemaining = Math.max(0, contract.timeRemaining - 2);
+    }
+    if (state.breach && contract.family === "breach") {
+      state.breach.intensity += 1;
+    }
+  }
+
+  function applyFreightOutcomeInPlace(state, manifest, outcome, reason = "route-resolved") {
+    if (!state.freight || freightStatusTerminal(manifest) || manifest.payoutApplied) {
+      return false;
+    }
+    const definition = freightManifestDefinition(manifest.id);
+    if (!definition) {
+      return false;
+    }
+    const status = outcome === "full" ? "complete" : outcome === "partial" ? "partial" : "failed";
+    const bundle = outcome === "full"
+      ? definition.payout
+      : outcome === "partial" ? definition.partialPayout : definition.penalty;
+    applyBundle(state.resources, bundle, 1);
+    clampResourceFloor(state.resources);
+    manifest.status = status;
+    manifest.outcome = outcome;
+    manifest.resolvedAtTick = state.tick;
+    manifest.payoutApplied = true;
+    manifest.events.unshift({ tick: state.tick, event: status, reason, integrity: manifest.integrity });
+    clearFreightInspectionQueueInPlace(state, manifest, reason === "window-missed" ? "missed" : "closed");
+    state.freight.outcomes[outcome === "full" ? "full" : outcome] += 1;
+    if (outcome === "full") {
+      state.freight.carryover.completedShipments += 1;
+    } else {
+      state.freight.routeSecurity.pressure += outcome === "partial" ? 1 : 2;
+      state.freight.carryover.lostCargo += Object.values(manifest.cargo.staged).reduce((total, amount) => total + amount, 0);
+    }
+    if (outcome === "failed") {
+      if (state.grid) {
+        state.grid.pressure += 1;
+      }
+      if (state.breach && ["active", "escaped"].includes(state.breach.status)) {
+        state.breach.intensity += 1;
+      }
+    }
+    releaseFreightDockLock(state, manifest);
+    recordFreightContractOutcomeInPlace(state, manifest, outcome);
+    state.log.unshift({ tick: state.tick, message: `${manifest.name} freight ${status}; ${formatBundle(bundle)} applied.` });
+    return true;
+  }
+
+  function resolveFreightByIntegrityInPlace(state, manifest, reason = "route-resolved") {
+    const thresholds = GAME_DATA.freightLockdown.integrity;
+    if (manifest.integrity >= thresholds.fullThreshold) {
+      return applyFreightOutcomeInPlace(state, manifest, "full", reason);
+    }
+    if (manifest.integrity >= thresholds.partialThreshold) {
+      return applyFreightOutcomeInPlace(state, manifest, "partial", reason);
+    }
+    return applyFreightOutcomeInPlace(state, manifest, "failed", reason);
+  }
+
+  function completeFreightInspectionInPlace(state, completedJob) {
+    if (!state.freight || !completedJob.freightDirective) {
+      return false;
+    }
+    const manifest = freightManifestState(state, completedJob.sourceFreightId);
+    if (!manifest || freightStatusTerminal(manifest)) {
+      return false;
+    }
+    manifest.inspection.status = "complete";
+    manifest.inspection.queued = false;
+    manifest.inspection.completedAtTick = state.tick;
+    manifest.security.riskRelief += 1;
+    manifest.integrity = Math.min(100, manifest.integrity + 4);
+    refreshFreightRiskInPlace(state, manifest);
+    manifest.events.unshift({ tick: state.tick, event: "inspection-complete" });
+    state.log.unshift({ tick: state.tick, message: `${manifest.name} cargo seals inspected.` });
+    return true;
+  }
+
+  function damageEnrouteFreightInPlace(state, manifest) {
+    const risk = refreshFreightRiskInPlace(state, manifest);
+    const damage = Math.max(1, Math.ceil(risk / 2));
+    manifest.integrity = Math.max(0, manifest.integrity - damage);
+    manifest.events.unshift({ tick: state.tick, event: "route-pressure", risk, damage });
+    if (risk >= 6 && state.grid) {
+      state.grid.pressure += 1;
+    }
+    if (risk >= 7 && state.breach && state.breach.status === "active") {
+      state.breach.intensity += 1;
+    }
+  }
+
+  function expireFreightWindowsInPlace(state) {
+    if (!state.freight) {
+      return;
+    }
+    state.freight.manifests.forEach((manifest) => {
+      if (!["available", "staged", "sealed"].includes(manifest.status)) {
+        return;
+      }
+      if (state.tick <= manifest.window.closesAtTick) {
+        return;
+      }
+      manifest.integrity = Math.max(0, manifest.integrity - 20);
+      applyFreightOutcomeInPlace(state, manifest, "failed", "window-missed");
+    });
+  }
+
+  function refreshFreightStatusInPlace(state) {
+    if (!state.freight) {
+      return;
+    }
+    if (state.freight.manifests.some((manifest) => manifest.status === "enroute")) {
+      state.freight.status = "carrier-enroute";
+    } else if (state.freight.manifests.some((manifest) => manifest.status === "sealed")) {
+      state.freight.status = "carrier-sealed";
+    } else if (state.freight.manifests.some((manifest) => manifest.status === "staged")) {
+      state.freight.status = "cargo-staged";
+    } else if (state.freight.manifests.some((manifest) => manifest.status === "available")) {
+      state.freight.status = "manifest-open";
+    } else if (state.freight.carryover.lockdownScar > 0) {
+      state.freight.status = "scarred";
+    } else {
+      state.freight.status = "ready";
+    }
+  }
+
+  function advanceFreightState(state) {
+    if (!state.freight) {
+      return;
+    }
+    openFreightManifestsInPlace(state);
+    expireFreightWindowsInPlace(state);
+    state.freight.manifests.forEach((manifest) => {
+      if (freightStatusTerminal(manifest)) {
+        return;
+      }
+      refreshFreightRiskInPlace(state, manifest);
+      if (manifest.status !== "enroute") {
+        return;
+      }
+      damageEnrouteFreightInPlace(state, manifest);
+      if (state.tick >= manifest.arrivalTick) {
+        resolveFreightByIntegrityInPlace(state, manifest);
+      }
+    });
+    refreshFreightStatusInPlace(state);
+  }
+
+  function stageFreightCargo(state, manifestId) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    if (!manifest) {
+      return withLog(next, "Unknown freight manifest.");
+    }
+    if (manifest.status === "pending") {
+      return withLog(next, `${manifest.name} is not available this shift.`);
+    }
+    if (manifest.status === "scheduled" || next.tick < manifest.window.opensAtTick) {
+      return withLog(next, `${manifest.name} cargo window opens at t${manifest.window.opensAtTick}.`);
+    }
+    if (!["available", "staged"].includes(manifest.status)) {
+      return withLog(next, `${manifest.name} cannot stage cargo while ${manifest.status}.`);
+    }
+    const remaining = freightCargoRemaining(manifest);
+    if (!Object.keys(remaining).length) {
+      return withLog(next, `${manifest.name} cargo already staged.`);
+    }
+    if (!canPay(next.resources, remaining)) {
+      return withLog(next, `${manifest.name} staging lacks ${formatBundle(remaining)}.`);
+    }
+    applyBundle(next.resources, remaining, -1);
+    Object.entries(remaining).forEach(([resource, amount]) => {
+      manifest.cargo.staged[resource] = (manifest.cargo.staged[resource] || 0) + amount;
+    });
+    manifest.cargo.stagedAtTick = next.tick;
+    manifest.status = "staged";
+    manifest.events.unshift({ tick: next.tick, event: "cargo-staged", cargo: clone(remaining) });
+    next.freight.choices.cargoStages += 1;
+    next.campaign.choices.freightStages += 1;
+    refreshFreightRiskInPlace(next, manifest);
+    refreshFreightStatusInPlace(next);
+    return withLog(next, `${manifest.name} cargo staged from factory stock.`);
+  }
+
+  function sealFreightCarrier(state, manifestId) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    if (!manifest) {
+      return withLog(next, "Unknown freight carrier.");
+    }
+    if (manifest.status !== "staged") {
+      return withLog(next, `${manifest.name} requires staged cargo before seal.`);
+    }
+    if (!freightCargoFullyStaged(manifest)) {
+      return withLog(next, `${manifest.name} cargo is incomplete.`);
+    }
+    if (!freightWindowOpen(next, manifest)) {
+      return withLog(next, `${manifest.name} launch window is closed.`);
+    }
+    if (!freightDockReady(next, manifest)) {
+      return withLog(next, `${manifest.name} dock lane is not ready.`);
+    }
+    const lane = freightDockLane(next, manifest);
+    manifest.status = "sealed";
+    manifest.sealedAtTick = next.tick;
+    manifest.events.unshift({ tick: next.tick, event: "carrier-sealed", dockId: manifest.dockId });
+    markLaneGridLocked(lane, "freight-lockdown");
+    if (next.grid) {
+      next.grid.pressure += 1;
+    }
+    next.freight.choices.carrierSeals += 1;
+    next.campaign.choices.freightSeals += 1;
+    refreshFreightRiskInPlace(next, manifest);
+    refreshFreightStatusInPlace(next);
+    return withLog(next, `${manifest.name} sealed on ${manifest.dockName}.`);
+  }
+
+  function holdFreightManifest(state, manifestId) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    const hold = GAME_DATA.freightLockdown.hold;
+    if (!manifest || !["available", "staged", "sealed"].includes(manifest.status)) {
+      return withLog(next, "No holdable freight manifest.");
+    }
+    if (!canPay(next.resources, hold.cost)) {
+      return withLog(next, `${manifest.name} hold lacks ${formatBundle(hold.cost)}.`);
+    }
+    applyBundle(next.resources, hold.cost, -1);
+    manifest.window.closesAtTick += hold.extensionTicks;
+    manifest.route.baseRisk += hold.riskIncrease;
+    manifest.integrity = Math.max(0, manifest.integrity - hold.integrityLoss);
+    manifest.events.unshift({ tick: next.tick, event: "carrier-held", closesAtTick: manifest.window.closesAtTick });
+    next.freight.choices.holds += 1;
+    next.campaign.choices.freightHolds += 1;
+    next.freight.routeSecurity.pressure += 1;
+    refreshFreightRiskInPlace(next, manifest);
+    return withLog(next, `${manifest.name} held until t${manifest.window.closesAtTick}.`);
+  }
+
+  function assignFreightRouteSecurity(state, manifestId, mode = "drones") {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    const security = GAME_DATA.freightLockdown.routeSecurity[mode];
+    if (!manifest || !["available", "staged", "sealed"].includes(manifest.status)) {
+      return withLog(next, "No freight route ready for security assignment.");
+    }
+    if (!security || !["drones", "defenses"].includes(mode)) {
+      return withLog(next, "Unknown freight security assignment.");
+    }
+    if (!canPay(next.resources, security.cost)) {
+      return withLog(next, `${manifest.name} ${mode} assignment lacks ${formatBundle(security.cost)}.`);
+    }
+    applyBundle(next.resources, security.cost, -1);
+    manifest.security[mode] += 1;
+    manifest.security.riskRelief += security.riskRelief;
+    manifest.security.integrityGuard += security.integrityGuard;
+    if (mode === "defenses" && next.breach && next.breach.status === "active") {
+      next.breach.intensity = Math.max(0, next.breach.intensity - (security.breachRelief || 0));
+    }
+    manifest.events.unshift({ tick: next.tick, event: `route-${mode}`, riskRelief: security.riskRelief });
+    if (mode === "drones") {
+      next.freight.choices.escortDrones += 1;
+      next.campaign.choices.freightEscorts += 1;
+    } else {
+      next.freight.choices.defenseScreens += 1;
+      next.campaign.choices.freightDefenseScreens += 1;
+    }
+    refreshFreightRiskInPlace(next, manifest);
+    return withLog(next, `${manifest.name} route security assigned: ${mode}.`);
+  }
+
+  function authorizeFreightLaunchClearance(state, manifestId) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    const clearance = GAME_DATA.freightLockdown.routeSecurity.reserveClearance;
+    if (!manifest || !["available", "staged", "sealed"].includes(manifest.status)) {
+      return withLog(next, "No freight launch awaiting clearance.");
+    }
+    if (manifest.security.reserveClearance) {
+      return withLog(next, `${manifest.name} reserve clearance already authorized.`);
+    }
+    if (!next.grid || next.grid.reserve.available <= 0) {
+      return withLog(next, "Reserve batteries are empty.");
+    }
+    const reserve = GAME_DATA.grid.reserve;
+    const sector = gridSectorState(next, manifest.sectorId);
+    next.grid.reserve.available -= 1;
+    next.grid.reserve.drawn += reserve.drawAmount;
+    next.grid.reserve.draws += 1;
+    next.grid.reserve.debt += 1;
+    next.grid.pressure = Math.max(0, next.grid.pressure - clearance.gridPressureRelief);
+    next.grid.choices.reserveDraws += 1;
+    next.campaign.choices.reserveDraws += 1;
+    if (sector) {
+      sector.reserveDraws += 1;
+      sector.powered = true;
+    }
+    manifest.security.reserveClearance = true;
+    manifest.security.riskRelief += clearance.riskRelief;
+    manifest.security.integrityGuard += clearance.integrityGuard;
+    manifest.events.unshift({ tick: next.tick, event: "reserve-clearance" });
+    next.freight.choices.reserveClearances += 1;
+    next.campaign.choices.freightReserveClearances += 1;
+    refreshFreightRiskInPlace(next, manifest);
+    return withLog(next, `${manifest.name} reserve launch clearance authorized.`);
+  }
+
+  function rerouteFreightManifest(state, manifestId, sectorId = null) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    const reroute = GAME_DATA.freightLockdown.routeSecurity.reroute;
+    if (!manifest || !["available", "staged", "sealed"].includes(manifest.status)) {
+      return withLog(next, "No freight route available to reroute.");
+    }
+    if (manifest.route.rerouted) {
+      return withLog(next, `${manifest.name} route already rerouted.`);
+    }
+    if (!canPay(next.resources, reroute.cost)) {
+      return withLog(next, `${manifest.name} reroute lacks ${formatBundle(reroute.cost)}.`);
+    }
+    applyBundle(next.resources, reroute.cost, -1);
+    manifest.route.rerouted = true;
+    manifest.route.reroutedAround = sectorId || manifest.sectorId;
+    manifest.route.delayTicks += reroute.delayTicks;
+    manifest.window.closesAtTick += reroute.delayTicks;
+    manifest.security.riskRelief += reroute.riskRelief;
+    manifest.integrity = Math.max(0, manifest.integrity - reroute.integrityLoss);
+    manifest.events.unshift({ tick: next.tick, event: "route-rerouted", sectorId: manifest.route.reroutedAround });
+    next.freight.choices.reroutes += 1;
+    next.campaign.choices.freightReroutes += 1;
+    refreshFreightRiskInPlace(next, manifest);
+    return withLog(next, `${manifest.name} rerouted around ${titleCase(manifest.route.reroutedAround)}.`);
+  }
+
+  function launchFreightManifest(state, manifestId) {
+    const next = clone(state);
+    const manifest = freightManifestState(next, manifestId);
+    const definition = manifest ? freightManifestDefinition(manifest.id) : null;
+    if (!manifest || !definition) {
+      return withLog(next, "Unknown freight launch.");
+    }
+    if (manifest.status !== "sealed") {
+      return withLog(next, `${manifest.name} is not sealed for launch.`);
+    }
+    if (!freightWindowOpen(next, manifest)) {
+      return withLog(next, `${manifest.name} launch window is closed.`);
+    }
+    const risk = refreshFreightRiskInPlace(next, manifest);
+    const launchDamage = Math.max(0, risk * 3 - manifest.security.integrityGuard);
+    manifest.integrity = Math.max(0, Math.min(100, manifest.integrity - launchDamage));
+    manifest.status = "enroute";
+    manifest.launchedAtTick = next.tick;
+    manifest.arrivalTick = next.tick + definition.travelTicks + manifest.route.delayTicks;
+    clearFreightInspectionQueueInPlace(next, manifest, "launched");
+    manifest.events.unshift({ tick: next.tick, event: "carrier-launched", risk, launchDamage, arrivalTick: manifest.arrivalTick });
+    if (next.grid) {
+      next.grid.pressure += Math.ceil(risk / 4);
+    }
+    if (next.breach && next.breach.status === "active") {
+      next.breach.intensity += Math.floor(risk / 6);
+    }
+    next.freight.choices.launches += 1;
+    next.campaign.choices.freightLaunches += 1;
+    releaseFreightDockLock(next, manifest);
+    refreshFreightStatusInPlace(next);
+    return withLog(next, `${manifest.name} launched; route risk ${risk}.`);
+  }
+
   function activeBreachSource(state) {
     return state.breach ? breachSourceDefinition(state.breach.sourceId) : null;
   }
@@ -1203,7 +1981,7 @@ const DarkFactoryDispatch = (() => {
   }
 
   function compromiseQueueEntry(state, entry, source) {
-    if (!entry || entry.compromised || entry.breachDirective || entry.gridDirective || entry.emergency) {
+    if (!entry || entry.compromised || entry.breachDirective || entry.gridDirective || entry.freightDirective || entry.emergency) {
       return false;
     }
     entry.compromised = {
@@ -1868,6 +2646,8 @@ const DarkFactoryDispatch = (() => {
       sourceDirectiveId: entry.sourceDirectiveId,
       breachDirective: entry.breachDirective,
       sourceBreachId: entry.sourceBreachId,
+      freightDirective: entry.freightDirective,
+      sourceFreightId: entry.sourceFreightId,
       compromised: entry.compromised ? clone(entry.compromised) : null,
     };
     lane.status = "assigned";
@@ -1942,6 +2722,9 @@ const DarkFactoryDispatch = (() => {
     }
     if (completedJob.breachDirective) {
       completeBreachCountermeasureInPlace(state, completedJob);
+    }
+    if (completedJob.freightDirective) {
+      completeFreightInspectionInPlace(state, completedJob);
     }
     if (completedJob.compromised) {
       applyCompromisedJobCompletion(state, lane, completedJob);
@@ -2036,6 +2819,7 @@ const DarkFactoryDispatch = (() => {
       maybeActivateEmergencyContracts(next);
       advanceBreachState(next);
       advanceGridState(next);
+      advanceFreightState(next);
       next.lanes.forEach((lane) => {
         advanceLaneRecovery(next, lane);
         if (lane.status !== "running" || !lane.currentJob) {
@@ -2345,6 +3129,69 @@ const DarkFactoryDispatch = (() => {
     };
   }
 
+  function freightSurfaceState(state) {
+    const freight = state.freight;
+    if (!freight) {
+      return null;
+    }
+    return {
+      release: freight.release,
+      status: freight.status,
+      routeSecurity: {
+        pressure: freight.routeSecurity.pressure,
+        events: freight.routeSecurity.events.slice(0, 6),
+      },
+      outcomes: clone(freight.outcomes),
+      choices: clone(freight.choices),
+      carryover: clone(freight.carryover),
+      manifests: freight.manifests.map((manifest) => {
+        const definition = freightManifestDefinition(manifest.id);
+        const lane = freightDockLane(state, manifest);
+        const sector = gridSectorState(state, manifest.sectorId);
+        return {
+          id: manifest.id,
+          name: manifest.name,
+          dockId: manifest.dockId,
+          dockName: manifest.dockName,
+          laneId: manifest.laneId,
+          laneName: lane ? lane.name : titleCase(manifest.laneId),
+          sectorId: manifest.sectorId,
+          sectorStatus: sector ? {
+            route: sector.route,
+            isolated: sector.isolated,
+            powered: sector.powered,
+            blackoutLockedUntil: sector.blackoutLockedUntil,
+            breach: sector.breach ? clone(sector.breach) : cleanBreachSectorState(sector.id),
+          } : null,
+          contractId: manifest.contractId,
+          availableShift: manifest.availableShift,
+          status: manifest.status,
+          outcome: manifest.outcome,
+          window: clone(manifest.window),
+          cargo: {
+            required: clone(manifest.cargo.required),
+            staged: clone(manifest.cargo.staged),
+            remaining: freightCargoRemaining(manifest),
+            stagedAtTick: manifest.cargo.stagedAtTick,
+          },
+          inspection: clone(manifest.inspection),
+          route: clone(manifest.route),
+          security: clone(manifest.security),
+          integrity: manifest.integrity,
+          payout: definition ? clone(definition.payout) : {},
+          partialPayout: definition ? clone(definition.partialPayout) : {},
+          penalty: definition ? clone(definition.penalty) : {},
+          dockReady: freightDockReady(state, manifest),
+          openedAtTick: manifest.openedAtTick,
+          sealedAtTick: manifest.sealedAtTick,
+          launchedAtTick: manifest.launchedAtTick,
+          arrivalTick: manifest.arrivalTick,
+          events: manifest.events.slice(0, 6),
+        };
+      }),
+    };
+  }
+
   function campaignSurfaceState(state) {
     const campaign = state.campaign;
     const policy = byId(GAME_DATA.campaign.queuePolicies, campaign.queuePolicy) || GAME_DATA.campaign.queuePolicies[0];
@@ -2409,9 +3256,18 @@ const DarkFactoryDispatch = (() => {
         breachTraces: campaign.choices.breachTraces,
         breachDeferrals: campaign.choices.breachDeferrals,
         breachCountermeasures: campaign.choices.breachCountermeasures,
+        freightStages: campaign.choices.freightStages,
+        freightSeals: campaign.choices.freightSeals,
+        freightLaunches: campaign.choices.freightLaunches,
+        freightEscorts: campaign.choices.freightEscorts,
+        freightDefenseScreens: campaign.choices.freightDefenseScreens,
+        freightReserveClearances: campaign.choices.freightReserveClearances,
+        freightReroutes: campaign.choices.freightReroutes,
+        freightHolds: campaign.choices.freightHolds,
       },
       grid: gridSurfaceState(state),
       breach: breachSurfaceState(state),
+      freight: freightSurfaceState(state),
     };
   }
 
@@ -2460,6 +3316,39 @@ const DarkFactoryDispatch = (() => {
         ...contaminatedSectors,
       ])).slice(0, GAME_DATA.grid.sectors.length),
     };
+    const previousFreightCarryover = state.freight && state.freight.carryover ? state.freight.carryover : {};
+    const freightManifests = state.freight && Array.isArray(state.freight.manifests) ? state.freight.manifests : [];
+    const unresolvedFreight = freightManifests.filter((manifest) => (
+      ["available", "staged", "sealed", "enroute"].includes(manifest.status)
+    ));
+    const partialFreight = freightManifests.filter((manifest) => manifest.outcome === "partial");
+    const failedFreight = freightManifests.filter((manifest) => manifest.outcome === "failed");
+    const unresolvedLostCargo = unresolvedFreight
+      .reduce((total, manifest) => (
+        total + Object.values(manifest.cargo.staged || {}).reduce((sum, amount) => sum + amount, 0)
+      ), 0);
+    const freightCarryover = {
+      lockdownScar: Math.min(
+        12,
+        (previousFreightCarryover.lockdownScar || 0)
+          + failedFreight.length * 2
+          + partialFreight.length
+          + unresolvedFreight.length
+          + Math.min(3, state.freight ? state.freight.routeSecurity.pressure : 0)
+      ),
+      lostCargo: Math.min(
+        24,
+        (previousFreightCarryover.lostCargo || 0) + unresolvedLostCargo
+      ),
+      delayedManifests: Math.min(
+        12,
+        (previousFreightCarryover.delayedManifests || 0) + unresolvedFreight.length
+      ),
+      completedShipments: Math.min(
+        24,
+        previousFreightCarryover.completedShipments || 0
+      ),
+    };
     ledger.push({
       shift: state.campaign.shift,
       phase: state.campaign.phase,
@@ -2484,6 +3373,19 @@ const DarkFactoryDispatch = (() => {
         countermeasures: state.breach.containment.countermeasures,
         carryover: breachCarryover,
       } : null,
+      freight: state.freight ? {
+        status: state.freight.status,
+        outcomes: clone(state.freight.outcomes),
+        routeSecurityPressure: state.freight.routeSecurity.pressure,
+        manifests: freightManifests.map((manifest) => ({
+          id: manifest.id,
+          status: manifest.status,
+          outcome: manifest.outcome,
+          integrity: manifest.integrity,
+          stagedCargo: clone(manifest.cargo.staged),
+        })),
+        carryover: freightCarryover,
+      } : null,
       finishedAtTick: state.tick,
     });
     return {
@@ -2491,6 +3393,7 @@ const DarkFactoryDispatch = (() => {
       ledger,
       gridCarryover,
       breachCarryover,
+      freightCarryover,
     };
   }
 
@@ -2892,10 +3795,14 @@ const DarkFactoryDispatch = (() => {
     dom.queue.innerHTML = state.queue.map((entry) => {
       const jobType = byId(GAME_DATA.jobTypes, entry.jobTypeId);
       const compromised = entry.compromised && entry.compromised.status === "compromised";
-      const statusText = compromised ? "compromised" : entry.breachDirective ? "countermeasure" : entry.status === "held" ? "held" : `p${entry.priority}`;
+      const statusText = compromised
+        ? "compromised"
+        : entry.breachDirective ? "countermeasure"
+          : entry.freightDirective ? "inspection"
+            : entry.status === "held" ? "held" : `p${entry.priority}`;
       const cleanseDisabled = !compromised || !canPay(state.resources, GAME_DATA.signalBreach.cleanse.cost);
       return `
-        <li class="queue-item" data-emergency="${entry.emergency ? "true" : "false"}" data-compromised="${compromised ? "true" : "false"}" data-breach-directive="${entry.breachDirective ? "true" : "false"}">
+        <li class="queue-item" data-emergency="${entry.emergency ? "true" : "false"}" data-compromised="${compromised ? "true" : "false"}" data-breach-directive="${entry.breachDirective ? "true" : "false"}" data-freight-directive="${entry.freightDirective ? "true" : "false"}">
           <div class="queue-title">
             <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[entry.jobTypeId], "asset-icon queue-icon")}<strong>${jobType.name}</strong></span>
             <span class="status-pill">${statusText}</span>
@@ -2906,6 +3813,7 @@ const DarkFactoryDispatch = (() => {
             ${entry.sourceContractId ? `<span>${entry.sourceContractId}</span>` : ""}
             ${entry.sourceDirectiveId ? `<span>${entry.sourceDirectiveId}</span>` : ""}
             ${entry.breachDirective ? `<span>countermeasure ${entry.sourceBreachId}</span>` : ""}
+            ${entry.freightDirective ? `<span>freight ${entry.sourceFreightId}</span>` : ""}
             ${compromised ? `<span>compromised ${entry.compromised.sourceId} / severity ${entry.compromised.severity}</span>` : ""}
           </div>
           <div class="queue-actions">
@@ -2967,7 +3875,7 @@ const DarkFactoryDispatch = (() => {
 
   function renderJobs() {
     dom.jobs.innerHTML = GAME_DATA.jobTypes.map((jobType) => `
-      <article class="job-card" data-family="${jobType.family || "standard"}" data-breach-countermeasure="${jobType.breachCountermeasure ? "true" : "false"}">
+      <article class="job-card" data-family="${jobType.family || "standard"}" data-breach-countermeasure="${jobType.breachCountermeasure ? "true" : "false"}" data-freight-inspection="${jobType.freightInspection ? "true" : "false"}">
         <div class="job-title">
           <span class="asset-title">${iconMarkup(ASSET_PATHS.jobs[jobType.id], "asset-icon job-icon")}<strong>${jobType.name}</strong></span>
           <span class="status-pill">${jobType.duration} ticks</span>
@@ -2976,6 +3884,7 @@ const DarkFactoryDispatch = (() => {
           <span>in ${formatBundle(jobType.inputs)}</span>
           <span>out ${formatBundle(jobType.outputs)}</span>
           ${jobType.breachCountermeasure ? `<span>breach countermeasure</span>` : ""}
+          ${jobType.freightInspection ? `<span>freight inspection</span>` : ""}
         </div>
         <button type="button" data-job="${jobType.id}">enqueue</button>
       </article>
@@ -3012,16 +3921,25 @@ const DarkFactoryDispatch = (() => {
     quarantineBreachLane,
     traceBreachSource,
     deferBreachTrace,
+    stageFreightCargo,
+    sealFreightCarrier,
+    holdFreightManifest,
+    assignFreightRouteSecurity,
+    authorizeFreightLaunchClearance,
+    rerouteFreightManifest,
+    launchFreightManifest,
     evaluateContracts,
     maybeActivateEmergencyContracts,
     advanceGridState,
     advanceBreachState,
+    advanceFreightState,
     resetFactoryState,
     canPay,
     applyBundle,
     contractProgress,
     gridSurfaceState,
     breachSurfaceState,
+    freightSurfaceState,
     campaignSurfaceState,
   };
 

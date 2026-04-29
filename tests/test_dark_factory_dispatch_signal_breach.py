@@ -36,7 +36,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
             """
         )
 
-        self.assertEqual("v0.3.0 Signal Breach", result["release"])
+        self.assertEqual("v0.4.0 Freight Lockdown", result["release"])
         self.assertGreaterEqual(result["sourceCount"], 2)
         self.assertTrue(result["hasCountermeasureJob"])
         self.assertEqual("active", result["breachStatus"])

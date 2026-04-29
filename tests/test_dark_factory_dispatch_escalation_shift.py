@@ -37,7 +37,7 @@ class DarkFactoryDispatchEscalationShiftTests(unittest.TestCase):
             """
         )
 
-        self.assertEqual("v0.3.0 Signal Breach", result["release"])
+        self.assertEqual("v0.4.0 Freight Lockdown", result["release"])
         self.assertEqual(1, result["firstShift"])
         self.assertEqual(1, result["firstDemand"])
         self.assertEqual(20, result["firstContractDeadline"])
