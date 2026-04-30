@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.4.0 Freight Lockdown, and Void Prospector's v0.4.0 Storm Cartography route-window release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.5.0 Rail Sabotage rail-security release, and Void Prospector's v0.4.0 Storm Cartography route-window release."
   },
   "games": [
     {
@@ -71,16 +71,23 @@
     {
       "slug": "dark-factory-dispatch",
       "title": "Dark Factory Dispatch",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "status": "playable",
-      "summary": "Run a compact machine-intelligence factory through Freight Lockdown shifts with outbound freight manifests, dock loading windows, staged cargo, carrier seals, launch clearance, route-security escorts, reroute decisions, cargo-integrity outcomes, Signal Breach intrusion, Grid Siege power routing, audit relay directives, emergency coolant-diversion orders, lane overdrive calls, persistent scars, and upgrade decisions between shifts.",
+      "summary": "Run a compact machine-intelligence factory through Rail Sabotage shifts with hostile rail cells, suspect cargo manifests, dock patrols, decoy routing, sabotage scans and interceptions, lane repairs, compromised carrier reroutes, Freight Lockdown cargo windows, Signal Breach intrusion, Grid Siege power routing, audit relay directives, emergency coolant-diversion orders, lane overdrive calls, persistent scars, and upgrade decisions between shifts.",
       "path": "games/dark-factory-dispatch/",
       "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.4.0 Freight Lockdown",
-        "copy": "Freight Lockdown adds outbound logistics pressure to Signal Breach: stage cargo into freight manifests, inspect dock seals, assign escort drones or defense screens, spend reserve clearance, reroute contaminated sectors, hold launch windows, seal carriers, and resolve full, partial, or failed cargo outcomes while Grid Siege, breach containment, emergency queue policy, and lane overdrive calls keep pushing back."
+        "label": "v0.5.0 Rail Sabotage",
+        "copy": "Rail Sabotage extends Freight Lockdown with hostile rail cells, suspect cargo tags, scan queues, dock patrol drones or defense screens, decoy manifests, dock lockdown and reopen timing, compromised carrier reroutes, sabotage interceptions, lane repair, and full, partial, or failed containment outcomes that feed carrier integrity, route risk, grid pressure, breach intensity, stability, reputation, and restart scars."
       },
       "versions": [
+        {
+          "version": "0.5.0",
+          "path": "games/dark-factory-dispatch/versions/0.5.0/",
+          "releasedAt": "2026-04-30",
+          "label": "v0.5.0 Rail Sabotage",
+          "summary": "Hostile rail cells, suspect cargo manifests, dock patrol and decoy decisions, sabotage scans, carrier reroutes, interceptions, lane repairs, containment outcomes, and restart scars publish on top of Freight Lockdown."
+        },
         {
           "version": "0.4.0",
           "path": "games/dark-factory-dispatch/versions/0.4.0/",

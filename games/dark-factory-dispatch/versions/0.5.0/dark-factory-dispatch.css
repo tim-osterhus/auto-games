@@ -1,0 +1,1091 @@
+:root {
+  color-scheme: dark;
+  --bg: #080b0a;
+  --panel: #101412;
+  --panel-strong: #151b18;
+  --line: #2a3430;
+  --line-hot: #4bd6c0;
+  --text: #dde5df;
+  --muted: #85918b;
+  --dim: #59655f;
+  --warn: #d7b867;
+  --danger: #d6604d;
+  --cool: #9ca7ff;
+  --shadow: rgba(0, 0, 0, 0.35);
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    var(--bg);
+  background-size: 32px 32px;
+  color: var(--text);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 2.5rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #111815;
+  color: var(--text);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+button:hover,
+button:focus-visible {
+  border-color: var(--line-hot);
+  color: #f5fffb;
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(75, 214, 192, 0.18);
+}
+
+button:disabled {
+  border-color: rgba(89, 101, 95, 0.45);
+  color: var(--dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+select {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #0d1210;
+  color: var(--text);
+}
+
+.dispatch-shell {
+  width: min(1440px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.topline {
+  display: grid;
+  grid-template-columns: minmax(112px, auto) 1fr minmax(148px, auto);
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.backlink,
+.run-chip,
+.eyebrow,
+.panel-head span,
+.readout span,
+.lane-meta,
+.queue-meta,
+.job-meta,
+.contract-meta,
+.log-tick {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.backlink {
+  text-decoration: none;
+}
+
+.backlink:hover,
+.backlink:focus-visible {
+  color: var(--line-hot);
+}
+
+.identity h1 {
+  margin: 2px 0 0;
+  font-size: clamp(1.6rem, 4vw, 3.6rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 0.95;
+}
+
+.run-chip {
+  justify-self: end;
+  min-width: 148px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: #0d1210;
+  color: var(--line-hot);
+  text-align: center;
+}
+
+.resource-strip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(86px, 1fr));
+  gap: 8px;
+  padding: 16px 0;
+}
+
+.escalation-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 8px;
+  padding: 0 0 14px;
+}
+
+.title-card-band {
+  height: clamp(118px, 17vw, 210px);
+  margin: 0 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #090d0b;
+  box-shadow: 0 18px 42px var(--shadow);
+}
+
+.title-card-band img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.readout {
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(16, 20, 18, 0.92);
+  box-shadow: 0 12px 36px var(--shadow);
+}
+
+.escalation-card {
+  min-width: 0;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(13, 18, 16, 0.96);
+  box-shadow: 0 12px 36px var(--shadow);
+}
+
+.escalation-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.readout strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.escalation-card strong {
+  display: block;
+  margin: 5px 0 7px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.escalation-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.escalation-card p + p {
+  margin-top: 4px;
+}
+
+.escalation-card[data-alert="active"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.07);
+}
+
+.escalation-card[data-alert="pending"],
+.escalation-card[data-alert="armed"] {
+  border-color: rgba(215, 184, 103, 0.72);
+}
+
+.escalation-card[data-surface="breach"][data-alert="dormant"],
+.escalation-card[data-surface="breach"][data-alert="contained"] {
+  border-color: rgba(75, 214, 192, 0.5);
+}
+
+.escalation-card[data-surface="breach"][data-alert="active"] {
+  border-color: rgba(75, 214, 192, 0.82);
+  background: rgba(75, 214, 192, 0.08);
+}
+
+.escalation-card[data-surface="breach"][data-alert="escaped"] {
+  border-color: rgba(214, 96, 77, 0.82);
+  background: rgba(214, 96, 77, 0.08);
+}
+
+.escalation-card[data-surface="rail-sabotage"][data-alert="incident-open"],
+.escalation-card[data-surface="rail-sabotage"][data-alert="contained"] {
+  border-color: rgba(75, 214, 192, 0.82);
+  background: rgba(75, 214, 192, 0.08);
+}
+
+.escalation-card[data-surface="rail-sabotage"][data-alert="tampered"],
+.escalation-card[data-surface="rail-sabotage"][data-alert="scarred"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.escalation-card[data-surface="rail-sabotage"][data-alert="sabotaged"] {
+  border-color: rgba(214, 96, 77, 0.82);
+  background: rgba(214, 96, 77, 0.08);
+}
+
+.breach-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.breach-actions button {
+  min-height: 2rem;
+  font-size: 0.68rem;
+}
+
+.factory-grid {
+  display: grid;
+  grid-template-areas:
+    "lanes grid grid"
+    "lanes freight freight"
+    "lanes sabotage sabotage"
+    "lanes queue contracts"
+    "lanes upgrades jobs"
+    "controls controls log";
+  grid-template-columns: minmax(360px, 1.6fr) minmax(280px, 0.85fr) minmax(300px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.factory-grid > * {
+  min-width: 0;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(12, 16, 14, 0.95);
+  box-shadow: 0 18px 42px var(--shadow);
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  min-height: 46px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-strong);
+}
+
+.panel-head strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.lane-panel {
+  grid-area: lanes;
+}
+
+.grid-panel {
+  grid-area: grid;
+}
+
+.freight-panel {
+  grid-area: freight;
+}
+
+.sabotage-panel {
+  grid-area: sabotage;
+}
+
+.queue-panel {
+  grid-area: queue;
+}
+
+.contract-panel {
+  grid-area: contracts;
+}
+
+.upgrade-panel {
+  grid-area: upgrades;
+}
+
+.job-panel {
+  grid-area: jobs;
+}
+
+.controls-panel {
+  grid-area: controls;
+}
+
+.log-panel {
+  grid-area: log;
+}
+
+.lane-board,
+.grid-siege-board,
+.freight-board,
+.rail-sabotage-board,
+.job-catalog,
+.contract-board,
+.upgrade-board,
+.control-stack,
+.operator-log,
+.queue-list {
+  margin: 0;
+  padding: 10px;
+}
+
+.lane-board {
+  display: grid;
+  gap: 10px;
+}
+
+.grid-siege-board {
+  display: grid;
+  gap: 10px;
+}
+
+.lane-card,
+.grid-summary,
+.grid-sector-card,
+.grid-directive-card,
+.rail-sabotage-summary,
+.rail-incident-card,
+.freight-manifest-card,
+.queue-item,
+.job-card,
+.contract-card,
+.upgrade-card {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.lane-card {
+  display: grid;
+  gap: 10px;
+  min-height: 170px;
+  padding: 12px;
+}
+
+.grid-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.freight-board {
+  display: grid;
+  gap: 10px;
+}
+
+.rail-sabotage-board {
+  display: grid;
+  gap: 10px;
+}
+
+.freight-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rail-sabotage-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.grid-summary > span,
+.rail-sabotage-summary > span,
+.freight-summary > span,
+.grid-directive-card > span {
+  display: block;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.grid-sector-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grid-sector-card,
+.grid-directive-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.freight-manifest-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rail-incident-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.freight-manifest-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.rail-incident-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.grid-sector-card[data-powered="false"],
+.grid-directive-card[data-audit="active"],
+.grid-directive-card[data-audit="failed"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.grid-sector-card[data-isolated="true"],
+.grid-sector-card[data-blackout="true"] {
+  border-color: rgba(214, 96, 77, 0.75);
+}
+
+.grid-sector-card[data-breach="contaminated"],
+.grid-sector-card[data-breach="quarantined"],
+.queue-item[data-compromised="true"],
+.lane-card[data-breach="contaminated"],
+.lane-card[data-breach-quarantine="true"],
+.job-card[data-family="breach"],
+.contract-card[data-family="breach"] {
+  border-color: rgba(75, 214, 192, 0.68);
+  background: rgba(75, 214, 192, 0.055);
+}
+
+.freight-manifest-card[data-status="available"],
+.freight-manifest-card[data-status="staged"],
+.freight-manifest-card[data-status="sealed"],
+.rail-incident-card[data-actionable="true"],
+.rail-incident-card[data-patrol-ready="true"],
+.rail-incident-card[data-decoy="true"],
+.queue-item[data-freight-directive="true"],
+.queue-item[data-sabotage-directive="true"],
+.job-card[data-family="freight"],
+.job-card[data-family="sabotage"] {
+  border-color: rgba(75, 214, 192, 0.68);
+  background: rgba(75, 214, 192, 0.055);
+}
+
+.freight-manifest-card[data-status="enroute"],
+.freight-manifest-card[data-risk="elevated"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.freight-manifest-card[data-status="failed"],
+.freight-manifest-card[data-route-alert="true"],
+.freight-manifest-card[data-risk="critical"],
+.rail-incident-card[data-status="failed"],
+.rail-incident-card[data-lane-damage="sabotaged"],
+.rail-incident-card[data-dock-ready="false"][data-actionable="true"] {
+  border-color: rgba(214, 96, 77, 0.78);
+}
+
+.freight-manifest-card[data-status="complete"] {
+  border-color: rgba(75, 214, 192, 0.82);
+}
+
+.grid-sector-card[data-breach="scarred"],
+.rail-incident-card[data-status="partial"],
+.rail-incident-card[data-lane-damage="scarred"],
+.queue-item[data-breach-directive="true"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.grid-sector-title,
+.grid-directive-title,
+.rail-incident-title,
+.freight-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.grid-sector-title strong,
+.grid-directive-title strong,
+.rail-incident-title strong,
+.freight-title strong {
+  min-width: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.grid-sector-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.grid-sector-meta span {
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.freight-route,
+.freight-metrics,
+.rail-incident-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.freight-route span,
+.freight-metrics span,
+.rail-incident-meta span {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.freight-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  background:
+    repeating-linear-gradient(90deg, rgba(75, 214, 192, 0.08), rgba(75, 214, 192, 0.08) 1px, transparent 1px, transparent 12px),
+    #0b100e;
+}
+
+.freight-rail span {
+  display: block;
+  min-height: 20px;
+  border: 1px solid rgba(133, 145, 139, 0.32);
+  background: rgba(16, 20, 18, 0.92);
+}
+
+.freight-rail span[data-filled="true"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.2);
+}
+
+.sabotage-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
+  gap: 4px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  background:
+    repeating-linear-gradient(90deg, rgba(214, 96, 77, 0.08), rgba(214, 96, 77, 0.08) 1px, transparent 1px, transparent 12px),
+    #0b100e;
+}
+
+.sabotage-rail span {
+  display: block;
+  min-height: 20px;
+  border: 1px solid rgba(133, 145, 139, 0.32);
+  background: rgba(16, 20, 18, 0.92);
+}
+
+.sabotage-rail span[data-state="hot"] {
+  border-color: rgba(214, 96, 77, 0.72);
+  background: rgba(214, 96, 77, 0.22);
+}
+
+.sabotage-rail span[data-state="sealed"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.2);
+}
+
+.grid-actions,
+.directive-actions,
+.freight-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grid-actions button,
+.directive-actions button,
+.freight-actions button,
+.rail-actions button {
+  min-height: 2.1rem;
+  font-size: 0.68rem;
+}
+
+.lane-card[data-overdrive="true"] {
+  border-color: rgba(75, 214, 192, 0.68);
+  background:
+    linear-gradient(90deg, rgba(75, 214, 192, 0.08), rgba(16, 20, 18, 0) 46%),
+    var(--panel);
+}
+
+.lane-title,
+.queue-title,
+.job-title,
+.contract-title,
+.upgrade-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.asset-title,
+.job-inline {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-title strong,
+.job-inline strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(75, 214, 192, 0.12));
+}
+
+.lane-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+
+.fault-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
+.lane-title strong,
+.queue-title strong,
+.job-title strong,
+.contract-title strong,
+.upgrade-title strong {
+  font-size: 1rem;
+}
+
+.status-pill {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.fault-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.breach-readout {
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.breach-readout[data-active="true"] {
+  border-color: rgba(75, 214, 192, 0.64);
+  background: rgba(75, 214, 192, 0.06);
+  color: var(--text);
+}
+
+.fault-readout[data-active="true"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.08);
+  color: var(--text);
+}
+
+.lane-card[data-status="running"] .status-pill,
+.contract-card[data-status="active"] .status-pill {
+  border-color: rgba(75, 214, 192, 0.7);
+  color: var(--line-hot);
+}
+
+.contract-card[data-emergency="true"] {
+  border-color: rgba(215, 184, 103, 0.64);
+}
+
+.lane-card[data-status="assigned"] .status-pill {
+  border-color: rgba(156, 167, 255, 0.65);
+  color: var(--cool);
+}
+
+.lane-card[data-status="blocked"] .status-pill,
+.lane-card[data-status="recovering"] .status-pill,
+.contract-card[data-status="complete"] .status-pill,
+.upgrade-card[data-installed="true"] .status-pill {
+  border-color: rgba(215, 184, 103, 0.75);
+  color: var(--warn);
+}
+
+.contract-card[data-status="failed"] .status-pill {
+  border-color: rgba(214, 96, 77, 0.82);
+  color: var(--danger);
+}
+
+.lane-card[data-status="idle"] .status-pill {
+  color: var(--dim);
+}
+
+.lane-job {
+  min-height: 42px;
+  color: var(--text);
+}
+
+.lane-job span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.lane-meta,
+.job-meta,
+.contract-meta,
+.queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lane-meta span,
+.job-meta span,
+.contract-meta span,
+.queue-meta span {
+  padding: 3px 6px;
+  border: 1px solid rgba(133, 145, 139, 0.3);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #090d0b;
+}
+
+.progress-track span {
+  display: block;
+  width: var(--progress, 0%);
+  height: 100%;
+  background: linear-gradient(90deg, var(--line-hot), var(--warn));
+}
+
+.lane-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.queue-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lane-actions button,
+.queue-actions button {
+  min-height: 2.1rem;
+  font-size: 0.72rem;
+}
+
+.queue-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.queue-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.queue-item[data-emergency="true"],
+.job-card[data-family="emergency"] {
+  border-color: rgba(215, 184, 103, 0.68);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.empty-note {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.contract-board,
+.job-catalog,
+.upgrade-board {
+  display: grid;
+  gap: 10px;
+}
+
+.contract-card,
+.job-card,
+.upgrade-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.contract-reward,
+.job-io {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.contract-reward {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.job-io {
+  grid-template-columns: 1fr 1fr;
+}
+
+.job-io span,
+.contract-reward span {
+  display: block;
+  padding: 7px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+}
+
+.job-card button {
+  width: 100%;
+}
+
+.upgrade-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.select-line {
+  display: grid;
+  gap: 6px;
+}
+
+.select-line span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.control-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.operator-log {
+  display: grid;
+  gap: 7px;
+  max-height: 270px;
+  overflow: auto;
+  list-style: none;
+}
+
+.operator-log li {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(133, 145, 139, 0.24);
+  background: #0d1210;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1100px) {
+  .factory-grid {
+    grid-template-areas:
+      "lanes lanes"
+      "grid grid"
+      "freight freight"
+      "sabotage sabotage"
+      "queue contracts"
+      "upgrades jobs"
+      "controls log";
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .resource-strip {
+    grid-template-columns: repeat(4, minmax(82px, 1fr));
+  }
+
+  .escalation-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid-sector-list {
+    grid-template-columns: 1fr;
+  }
+
+  .freight-manifest-list {
+    grid-template-columns: 1fr;
+  }
+
+  .rail-incident-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .dispatch-shell {
+    padding: 12px;
+  }
+
+  .topline {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .run-chip {
+    justify-self: stretch;
+  }
+
+  .factory-grid {
+    grid-template-areas:
+      "lanes"
+      "grid"
+      "freight"
+      "sabotage"
+      "queue"
+      "contracts"
+      "upgrades"
+      "jobs"
+      "controls"
+      "log";
+    grid-template-columns: 1fr;
+  }
+
+  .resource-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-selects,
+  .freight-summary,
+  .grid-summary,
+  .grid-sector-meta,
+  .rail-sabotage-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .escalation-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .freight-route,
+  .freight-metrics,
+  .rail-incident-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .button-grid,
+  .lane-actions,
+  .queue-actions,
+  .grid-actions,
+  .directive-actions,
+  .breach-actions,
+  .contract-reward,
+  .freight-actions,
+  .rail-actions,
+  .job-io {
+    grid-template-columns: 1fr;
+  }
+}
