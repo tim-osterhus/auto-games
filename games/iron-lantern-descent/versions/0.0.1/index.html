@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050706" />
+  <title>Iron Lantern Descent</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="iron-lantern-descent.css" />
+</head>
+<body>
+  <main class="lantern-shell" id="iron-lantern-descent" tabindex="-1">
+    <canvas id="iron-lantern-scene" class="scene-canvas" aria-label="Iron Lantern Descent 3D cave scene"></canvas>
+    <div class="scene-vignette" aria-hidden="true"></div>
+
+    <header class="topline">
+      <a class="backlink" href="../../">Millrace Arcade</a>
+      <div class="identity">
+        <span class="eyebrow">v0.0.1 survival loop</span>
+        <h1>Iron Lantern Descent</h1>
+      </div>
+      <div class="run-chip" id="run-status">boot / pending</div>
+    </header>
+
+    <section class="hud-grid" id="lantern-hud" aria-label="Descent telemetry">
+      <article class="readout readout-wide">
+        <span>Objective</span>
+        <strong id="objective-readout">Descend, mark the route, sample ore, return to the lift.</strong>
+      </article>
+      <article class="readout">
+        <span class="readout-label"><span class="readout-icon readout-icon-oxygen" aria-hidden="true"></span>Oxygen</span>
+        <strong id="oxygen-readout">96 / 96</strong>
+      </article>
+      <article class="readout">
+        <span class="readout-label"><span class="readout-icon readout-icon-light" aria-hidden="true"></span>Light</span>
+        <strong id="light-readout">lamp stable</strong>
+      </article>
+      <article class="readout">
+        <span>Lanterns</span>
+        <strong id="lantern-readout">3 / 3</strong>
+      </article>
+      <article class="readout">
+        <span>Samples</span>
+        <strong id="samples-readout">0 / 4</strong>
+      </article>
+      <article class="readout">
+        <span>Credits</span>
+        <strong id="credits-readout">0cr</strong>
+      </article>
+      <article class="readout">
+        <span>Lift</span>
+        <strong id="lift-readout">bearing 000 / 0m</strong>
+      </article>
+      <article class="readout">
+        <span>Route</span>
+        <strong id="route-readout">lift safe / 100%</strong>
+      </article>
+      <article class="readout">
+        <span class="readout-label"><span class="readout-icon readout-icon-scanner" aria-hidden="true"></span>Scanner</span>
+        <strong id="scanner-readout">ready / node</strong>
+      </article>
+      <article class="readout">
+        <span>Hazard</span>
+        <strong id="hazard-readout">clear</strong>
+      </article>
+      <article class="readout">
+        <span>Upgrade</span>
+        <strong id="upgrade-readout">tank weave / 60cr</strong>
+      </article>
+    </section>
+
+    <aside class="target-panel" aria-label="Cave state">
+      <div class="panel-head">
+        <span>Return route</span>
+        <strong id="target-name">Lift Bay</strong>
+      </div>
+      <section class="title-card-band" aria-label="Iron Lantern Descent title art">
+        <img src="assets/arcade-title-card.png" alt="" />
+      </section>
+      <div class="target-data">
+        <span id="player-position-readout">pos 0 / 8</span>
+        <span id="player-facing-readout">facing 000</span>
+        <span id="collision-readout">collision clear</span>
+        <span id="mining-readout">drill idle</span>
+      </div>
+      <ol class="sample-list" id="sample-list" aria-label="Sample nodes"></ol>
+      <div class="action-panel" aria-label="Action controls">
+        <button type="button" id="lantern-action">Lantern</button>
+        <button type="button" id="mine-action">Mine</button>
+        <button type="button" id="scan-action">Scan</button>
+        <button type="button" id="lift-action">Lift</button>
+        <button type="button" id="upgrade-action">Upgrade</button>
+        <button type="button" id="restart-action">Restart</button>
+      </div>
+    </aside>
+
+    <footer class="control-strip" id="control-strip" aria-label="Descent controls">
+      <span>W/S move</span>
+      <span>A/D or mouse look</span>
+      <span>Q/E strafe</span>
+      <span>L/Space lantern</span>
+      <span>M hold mine</span>
+      <span>C scan</span>
+      <span>F/Enter lift</span>
+      <span>U upgrade</span>
+      <span>R restart</span>
+    </footer>
+  </main>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="iron-lantern-descent.js"></script>
+</body>
+</html>

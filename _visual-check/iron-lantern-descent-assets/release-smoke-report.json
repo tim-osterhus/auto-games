@@ -1,0 +1,97 @@
+{
+  "base": "http://127.0.0.1:8123",
+  "arcade": {
+    "desktop": {
+      "title": "Millrace Arcade",
+      "hasIronCard": 1,
+      "hasDirectLaunch": 1,
+      "hasSnapshotLink": 1,
+      "overflow": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "overflowing": false
+      }
+    },
+    "narrow": {
+      "hasIronCard": 1,
+      "hasSnapshotLink": 1,
+      "overflow": {
+        "width": 390,
+        "scrollWidth": 390,
+        "overflowing": false
+      }
+    }
+  },
+  "direct": {
+    "desktop": {
+      "renderer": "EXTRACTED / LOCAL RENDERER + ASSETS",
+      "canvas": {
+        "width": 1280,
+        "height": 800,
+        "sampled": 4960,
+        "nonDark": 2199,
+        "bright": 935,
+        "nonDarkRatio": 0.4433467741935484,
+        "brightRatio": 0.18850806451612903
+      },
+      "startPosition": {
+        "x": 0,
+        "z": 8
+      },
+      "afterMovePosition": {
+        "x": 0,
+        "z": 5
+      },
+      "moved": 3,
+      "lanternReadout": "2 / 3 1 set",
+      "lightReadout": "lantern safe / 20m",
+      "samplesAfterMine": "1 / 4 32cr",
+      "miningAfterMine": "IDLE",
+      "creditsAfterLift": "32cr",
+      "runAfterLift": "EXTRACTED / LOCAL RENDERER + ASSETS",
+      "failurePath": {
+        "runStatus": "failed",
+        "failureReason": "oxygen depleted",
+        "objective": "Oxygen depleted. Restart from the lift.",
+        "oxygen": 0
+      },
+      "overflow": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "overflowing": false
+      }
+    },
+    "narrow": {
+      "renderer": "ACTIVE / LOCAL RENDERER + ASSETS",
+      "canvas": {
+        "width": 390,
+        "height": 780,
+        "sampled": 5880,
+        "nonDark": 3556,
+        "bright": 1740,
+        "nonDarkRatio": 0.6047619047619047,
+        "brightRatio": 0.29591836734693877
+      },
+      "overflow": {
+        "width": 390,
+        "scrollWidth": 390,
+        "overflowing": false
+      }
+    }
+  },
+  "consoleErrors": [],
+  "checks": {
+    "arcadeDesktop": true,
+    "arcadeNarrow": true,
+    "desktopCanvasNonblank": true,
+    "narrowCanvasNonblank": true,
+    "movement": true,
+    "lantern": true,
+    "mining": true,
+    "liftReturn": true,
+    "failure": true,
+    "consoleClean": true,
+    "directOverflow": true
+  },
+  "ok": true
+}

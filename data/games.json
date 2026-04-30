@@ -193,11 +193,15 @@
         "label": "v0.0.1 Lantern Route",
         "copy": "Lantern Route opens Iron Lantern Descent with a local Three.js cave, oxygen pressure, route-marking lantern anchors, mineable mineral samples, scanner bearings, hazard zones, lift extraction, upgrade carryover, and original project-local lantern, mineral, drill, HUD icon, and title-card art."
       },
-      "snapshot": {
-        "status": "deferred",
-        "version": "0.0.1",
-        "reason": "Snapshot continuity is reserved for the release-continuity work item after this asset and arcade surface pass."
-      }
+      "versions": [
+        {
+          "version": "0.0.1",
+          "path": "games/iron-lantern-descent/versions/0.0.1/",
+          "releasedAt": "2026-04-30",
+          "label": "v0.0.1 Lantern Route",
+          "summary": "Local Three.js cave descent with oxygen pressure, lantern-route anchors, mineable mineral samples, hazard zones, lift banking, upgrade carryover, and original project-local cave assets."
+        }
+      ]
     }
   ]
 }
