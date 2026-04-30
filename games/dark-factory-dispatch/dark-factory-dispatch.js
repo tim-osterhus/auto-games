@@ -4164,6 +4164,9 @@ const DarkFactoryDispatch = (() => {
           manifestId: incident.manifestId,
           manifestStatus: manifest ? manifest.status : "missing",
           manifestIntegrity: manifest ? manifest.integrity : null,
+          manifestRoute: manifest ? clone(manifest.route) : null,
+          manifestSabotage: manifest && manifest.sabotage ? clone(manifest.sabotage) : null,
+          dockReady: manifest ? freightDockReady(state, manifest) : false,
           contractId: incident.contractId,
           availableShift: incident.availableShift,
           status: incident.status,
@@ -4461,6 +4464,7 @@ const DarkFactoryDispatch = (() => {
       escalation: document.getElementById("escalation-surface"),
       grid: document.getElementById("grid-siege-board"),
       freight: document.getElementById("freight-lockdown-board"),
+      sabotage: document.getElementById("rail-sabotage-board"),
       lanes: document.getElementById("lane-board"),
       queue: document.getElementById("queue-list"),
       contracts: document.getElementById("contract-board"),
@@ -4573,6 +4577,40 @@ const DarkFactoryDispatch = (() => {
       }
       render(currentState);
     });
+    dom.sabotage.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action][data-incident]");
+      if (!button) {
+        return;
+      }
+      if (button.dataset.action === "sabotage-scan") {
+        currentState = scanSabotageManifest(currentState, button.dataset.incident);
+      }
+      if (button.dataset.action === "sabotage-drones") {
+        currentState = assignSabotagePatrol(currentState, button.dataset.incident, "drones");
+      }
+      if (button.dataset.action === "sabotage-defenses") {
+        currentState = assignSabotagePatrol(currentState, button.dataset.incident, "defenses");
+      }
+      if (button.dataset.action === "sabotage-decoy") {
+        currentState = deploySabotageDecoy(currentState, button.dataset.incident, button.dataset.sector);
+      }
+      if (button.dataset.action === "sabotage-lockdown") {
+        currentState = lockdownSabotageDock(currentState, button.dataset.incident);
+      }
+      if (button.dataset.action === "sabotage-reopen") {
+        currentState = reopenSabotageDock(currentState, button.dataset.incident);
+      }
+      if (button.dataset.action === "sabotage-intercept") {
+        currentState = interceptSabotageCell(currentState, button.dataset.incident);
+      }
+      if (button.dataset.action === "sabotage-reroute") {
+        currentState = rerouteSabotagedCarrier(currentState, button.dataset.incident, button.dataset.sector);
+      }
+      if (button.dataset.action === "sabotage-repair") {
+        currentState = repairSabotagedLane(currentState, button.dataset.incident);
+      }
+      render(currentState);
+    });
     dom.lanes.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) {
@@ -4669,6 +4707,7 @@ const DarkFactoryDispatch = (() => {
     renderEscalationSurface(state);
     renderGridSiege(state);
     renderFreightLockdown(state);
+    renderRailSabotage(state);
     renderLanes(state);
     renderQueue(state);
     renderContracts(state);
@@ -4687,9 +4726,18 @@ const DarkFactoryDispatch = (() => {
   function renderEscalationSurface(state) {
     const surface = campaignSurfaceState(state);
     const breach = surface.breach;
+    const rail = surface.railSabotage;
     const activeTrace = breach.trace.status === "active";
     const traceText = activeTrace ? `due t${breach.trace.dueTick}` : breach.trace.status;
     const compromisedCount = breach.queue.filter((entry) => entry.compromised).length;
+    const activeRailIncident = rail
+      ? rail.incidents.find((incident) => railSabotageActionableStatus(incident.status))
+        || rail.incidents.find((incident) => ["contained", "partial", "failed"].includes(incident.status))
+        || rail.incidents[0]
+      : null;
+    const railDetail = activeRailIncident
+      ? `${activeRailIncident.dockName} / ${activeRailIncident.status} / ${activeRailIncident.manifestId}`
+      : "no suspect manifest";
     const traceDisabled = !activeTrace || breach.status !== "active" || !canPay(state.resources, breach.trace.cost);
     const deferDisabled = !activeTrace || breach.status !== "active" || !canPay(state.resources, breach.trace.deferCost);
     dom.queuePolicySelect.value = surface.queuePolicy.id;
@@ -4719,6 +4767,12 @@ const DarkFactoryDispatch = (() => {
         <span>Grid Siege</span>
         <strong>pressure ${surface.grid.pressure}/${surface.grid.threshold} / reserve ${surface.grid.reserve.available}</strong>
         <p>audit ${surface.grid.audit.status} / blackout ${surface.grid.blackout.events} / load ${surface.grid.load}</p>
+      </article>
+      <article class="escalation-card rail-card" data-surface="rail-sabotage" data-alert="${rail ? rail.status : "offline"}">
+        <span>Rail Sabotage</span>
+        <strong>${rail ? rail.release : "offline"}</strong>
+        <p>${rail ? `pressure ${rail.pressure} / contained ${rail.outcomes.contained} / failed ${rail.outcomes.failed}` : "rail security offline"}</p>
+        <p>${railDetail}</p>
       </article>
       <article class="escalation-card breach-card" data-surface="breach" data-alert="${breach.status}">
         <span>Signal Breach</span>
@@ -4920,6 +4974,120 @@ const DarkFactoryDispatch = (() => {
                 <button type="button" data-action="freight-hold" data-manifest="${manifest.id}" ${holdDisabled ? "disabled" : ""}>hold</button>
                 <button type="button" data-action="freight-seal" data-manifest="${manifest.id}" ${sealDisabled ? "disabled" : ""}>seal</button>
                 <button type="button" data-action="freight-launch" data-manifest="${manifest.id}" ${launchDisabled ? "disabled" : ""}>launch</button>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  function railSabotageActionableStatus(status) {
+    return ["available", "scanned", "patrolled", "decoyed", "locked"].includes(status);
+  }
+
+  function sabotageCellRailMarkup(incident) {
+    const cellCount = Math.max(5, incident.containment.requiredScore || 5);
+    const score = incident.containment.score || 0;
+    const pressure = incident.pressure.current || 0;
+    return Array.from({ length: cellCount }, (_unused, index) => {
+      const stateName = index < score
+        ? "sealed"
+        : index < pressure ? "hot" : "open";
+      return `<span data-state="${stateName}"></span>`;
+    }).join("");
+  }
+
+  function railSabotageLatestEvent(incident) {
+    if (!incident.events.length) {
+      return "no rail events";
+    }
+    const event = incident.events[0];
+    return `last ${titleCase(event.event)} / t${event.tick}`;
+  }
+
+  function renderRailSabotage(state) {
+    const surface = railSabotageSurfaceState(state);
+    if (!surface) {
+      dom.sabotage.innerHTML = `<div class="empty-note">rail sabotage offline</div>`;
+      return;
+    }
+
+    dom.sabotage.innerHTML = `
+      <div class="rail-sabotage-summary" data-rail-sabotage="summary">
+        <span>${surface.release}</span>
+        <span>status ${surface.status}</span>
+        <span>pressure ${surface.pressure}</span>
+        <span>outcomes ${surface.outcomes.contained} contained / ${surface.outcomes.partial} partial / ${surface.outcomes.failed} failed</span>
+        <span>scars ${surface.carryover.sabotageScar} / tampered ${surface.carryover.tamperedCargo}</span>
+      </div>
+      <div class="rail-incident-list" data-rail-sabotage="incidents">
+        ${surface.incidents.map((incident) => {
+          const actionable = railSabotageActionableStatus(incident.status);
+          const manifestRoute = incident.manifestRoute || { baseRisk: 0, currentRisk: 0, rerouted: false };
+          const manifestSabotage = incident.manifestSabotage || {};
+          const scanCost = GAME_DATA.railSabotage.scan.cost;
+          const droneCost = GAME_DATA.railSabotage.patrols.drones.cost;
+          const defenseCost = GAME_DATA.railSabotage.patrols.defenses.cost;
+          const decoyCost = GAME_DATA.railSabotage.decoy.cost;
+          const lockdownCost = GAME_DATA.railSabotage.dockLockdown.cost;
+          const interceptCost = GAME_DATA.railSabotage.intercept.cost;
+          const rerouteCost = GAME_DATA.railSabotage.carrierReroute.cost;
+          const repairCost = GAME_DATA.railSabotage.laneRepair.cost;
+          const lane = byId(state.lanes, incident.laneId);
+          const laneBlockedByOther = lane && lane.gridLock && lane.gridLock.reason !== "rail-sabotage-lockdown";
+          const patrolReady = incident.patrol.required === "drones"
+            ? incident.patrol.drones > 0
+            : incident.patrol.defenses > 0;
+          const scanDisabled = !actionable || incident.scan.status === "complete" || !canPay(state.resources, scanCost);
+          const dronesDisabled = !actionable || !canPay(state.resources, droneCost);
+          const defensesDisabled = !actionable || !canPay(state.resources, defenseCost);
+          const decoyDisabled = !actionable || incident.decoy.deployed || !canPay(state.resources, decoyCost);
+          const lockdownDisabled = !actionable || incident.dock.locked || laneBlockedByOther || !canPay(state.resources, lockdownCost);
+          const reopenDisabled = !incident.dock.locked;
+          const interceptDisabled = !actionable || incident.containment.intercepted || !canPay(state.resources, interceptCost);
+          const rerouteDisabled = !actionable || incident.carrier.rerouted || !canPay(state.resources, rerouteCost);
+          const repairable = ["sabotaged", "scarred"].includes(incident.laneDamage.status);
+          const repairDisabled = !repairable || !canPay(state.resources, repairCost);
+          const routeText = manifestRoute.rerouted
+            ? `rerouted ${manifestRoute.reroutedAround || incident.sectorId}`
+            : `risk ${manifestRoute.currentRisk}/${manifestRoute.baseRisk}`;
+          const sectorText = incident.sectorStatus
+            ? `${incident.sectorStatus.route} / ${incident.sectorStatus.powered ? "powered" : "dark"}${incident.sectorStatus.isolated ? " / isolated" : ""}`
+            : "sector missing";
+          return `
+            <article class="rail-incident-card" data-incident="${incident.id}" data-status="${incident.status}" data-actionable="${actionable ? "true" : "false"}" data-dock-ready="${incident.dockReady ? "true" : "false"}" data-decoy="${incident.decoy.deployed ? "true" : "false"}" data-patrol-ready="${patrolReady ? "true" : "false"}" data-lane-damage="${incident.laneDamage.status}">
+              <div class="rail-incident-title">
+                <strong>${incident.name}</strong>
+                <span class="status-pill">${incident.status}</span>
+              </div>
+              <div class="rail-incident-meta">
+                <span>${incident.dockName} / ${incident.laneName}</span>
+                <span>window t${incident.window.opensAtTick}-${incident.window.closesAtTick} / shift ${formatShiftNumber(incident.availableShift)}</span>
+                <span>manifest ${incident.manifestStatus} / integrity ${incident.manifestIntegrity === null ? "n/a" : `${incident.manifestIntegrity}%`}</span>
+                <span>${routeText} / ${incident.trigger.route}</span>
+                <span>pressure ${incident.pressure.current}/${incident.pressure.base} / score ${incident.containment.score}/${incident.containment.requiredScore}</span>
+                <span>scan ${incident.scan.status}${incident.scan.queued ? " / sweep queued" : ""}</span>
+                <span>patrol ${incident.patrol.required} / d${incident.patrol.drones} / f${incident.patrol.defenses}</span>
+                <span>decoy ${incident.decoy.deployed ? incident.decoy.routeId : "none"}</span>
+                <span>dock ${incident.dock.locked ? "locked" : incident.dockReady ? "ready" : "blocked"}</span>
+                <span>lane ${incident.laneDamage.status} / ${sectorText}</span>
+                <span>cargo ${formatBundle(incident.trigger.suspectCargo)}</span>
+                <span>tamper ${manifestSabotage.integrityDamage || incident.carrier.integrityDamage} / ${railSabotageLatestEvent(incident)}</span>
+              </div>
+              <div class="sabotage-rail" aria-label="${incident.name} containment rail">
+                ${sabotageCellRailMarkup(incident)}
+              </div>
+              <div class="rail-actions">
+                <button type="button" data-action="sabotage-scan" data-incident="${incident.id}" ${scanDisabled ? "disabled" : ""}>scan</button>
+                <button type="button" data-action="sabotage-drones" data-incident="${incident.id}" ${dronesDisabled ? "disabled" : ""}>drones</button>
+                <button type="button" data-action="sabotage-defenses" data-incident="${incident.id}" ${defensesDisabled ? "disabled" : ""}>defenses</button>
+                <button type="button" data-action="sabotage-decoy" data-incident="${incident.id}" data-sector="${incident.sectorId}" ${decoyDisabled ? "disabled" : ""}>decoy</button>
+                <button type="button" data-action="sabotage-lockdown" data-incident="${incident.id}" ${lockdownDisabled ? "disabled" : ""}>lockdown</button>
+                <button type="button" data-action="sabotage-reopen" data-incident="${incident.id}" ${reopenDisabled ? "disabled" : ""}>reopen</button>
+                <button type="button" data-action="sabotage-reroute" data-incident="${incident.id}" data-sector="${incident.sectorId}" ${rerouteDisabled ? "disabled" : ""}>reroute</button>
+                <button type="button" data-action="sabotage-intercept" data-incident="${incident.id}" ${interceptDisabled ? "disabled" : ""}>intercept</button>
+                <button type="button" data-action="sabotage-repair" data-incident="${incident.id}" ${repairDisabled ? "disabled" : ""}>repair</button>
               </div>
             </article>
           `;

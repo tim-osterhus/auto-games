@@ -138,7 +138,7 @@ select {
 
 .escalation-strip {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 8px;
   padding: 0 0 14px;
 }
@@ -239,6 +239,23 @@ select {
   background: rgba(214, 96, 77, 0.08);
 }
 
+.escalation-card[data-surface="rail-sabotage"][data-alert="incident-open"],
+.escalation-card[data-surface="rail-sabotage"][data-alert="contained"] {
+  border-color: rgba(75, 214, 192, 0.82);
+  background: rgba(75, 214, 192, 0.08);
+}
+
+.escalation-card[data-surface="rail-sabotage"][data-alert="tampered"],
+.escalation-card[data-surface="rail-sabotage"][data-alert="scarred"] {
+  border-color: rgba(215, 184, 103, 0.72);
+  background: rgba(215, 184, 103, 0.055);
+}
+
+.escalation-card[data-surface="rail-sabotage"][data-alert="sabotaged"] {
+  border-color: rgba(214, 96, 77, 0.82);
+  background: rgba(214, 96, 77, 0.08);
+}
+
 .breach-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -256,6 +273,7 @@ select {
   grid-template-areas:
     "lanes grid grid"
     "lanes freight freight"
+    "lanes sabotage sabotage"
     "lanes queue contracts"
     "lanes upgrades jobs"
     "controls controls log";
@@ -304,6 +322,10 @@ select {
   grid-area: freight;
 }
 
+.sabotage-panel {
+  grid-area: sabotage;
+}
+
 .queue-panel {
   grid-area: queue;
 }
@@ -331,6 +353,7 @@ select {
 .lane-board,
 .grid-siege-board,
 .freight-board,
+.rail-sabotage-board,
 .job-catalog,
 .contract-board,
 .upgrade-board,
@@ -355,6 +378,8 @@ select {
 .grid-summary,
 .grid-sector-card,
 .grid-directive-card,
+.rail-sabotage-summary,
+.rail-incident-card,
 .freight-manifest-card,
 .queue-item,
 .job-card,
@@ -384,13 +409,26 @@ select {
   gap: 10px;
 }
 
+.rail-sabotage-board {
+  display: grid;
+  gap: 10px;
+}
+
 .freight-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
+.rail-sabotage-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
 .grid-summary > span,
+.rail-sabotage-summary > span,
 .freight-summary > span,
 .grid-directive-card > span {
   display: block;
@@ -423,7 +461,19 @@ select {
   gap: 8px;
 }
 
+.rail-incident-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .freight-manifest-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.rail-incident-card {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -455,8 +505,13 @@ select {
 .freight-manifest-card[data-status="available"],
 .freight-manifest-card[data-status="staged"],
 .freight-manifest-card[data-status="sealed"],
+.rail-incident-card[data-actionable="true"],
+.rail-incident-card[data-patrol-ready="true"],
+.rail-incident-card[data-decoy="true"],
 .queue-item[data-freight-directive="true"],
-.job-card[data-family="freight"] {
+.queue-item[data-sabotage-directive="true"],
+.job-card[data-family="freight"],
+.job-card[data-family="sabotage"] {
   border-color: rgba(75, 214, 192, 0.68);
   background: rgba(75, 214, 192, 0.055);
 }
@@ -469,7 +524,10 @@ select {
 
 .freight-manifest-card[data-status="failed"],
 .freight-manifest-card[data-route-alert="true"],
-.freight-manifest-card[data-risk="critical"] {
+.freight-manifest-card[data-risk="critical"],
+.rail-incident-card[data-status="failed"],
+.rail-incident-card[data-lane-damage="sabotaged"],
+.rail-incident-card[data-dock-ready="false"][data-actionable="true"] {
   border-color: rgba(214, 96, 77, 0.78);
 }
 
@@ -478,6 +536,8 @@ select {
 }
 
 .grid-sector-card[data-breach="scarred"],
+.rail-incident-card[data-status="partial"],
+.rail-incident-card[data-lane-damage="scarred"],
 .queue-item[data-breach-directive="true"] {
   border-color: rgba(215, 184, 103, 0.72);
   background: rgba(215, 184, 103, 0.055);
@@ -485,6 +545,7 @@ select {
 
 .grid-sector-title,
 .grid-directive-title,
+.rail-incident-title,
 .freight-title {
   display: flex;
   justify-content: space-between;
@@ -494,6 +555,7 @@ select {
 
 .grid-sector-title strong,
 .grid-directive-title strong,
+.rail-incident-title strong,
 .freight-title strong {
   min-width: 0;
   font-size: 0.9rem;
@@ -517,14 +579,16 @@ select {
 }
 
 .freight-route,
-.freight-metrics {
+.freight-metrics,
+.rail-incident-meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
 .freight-route span,
-.freight-metrics span {
+.freight-metrics span,
+.rail-incident-meta span {
   min-width: 0;
   padding: 6px;
   border: 1px solid rgba(133, 145, 139, 0.28);
@@ -559,6 +623,35 @@ select {
   background: rgba(75, 214, 192, 0.2);
 }
 
+.sabotage-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
+  gap: 4px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid rgba(133, 145, 139, 0.28);
+  background:
+    repeating-linear-gradient(90deg, rgba(214, 96, 77, 0.08), rgba(214, 96, 77, 0.08) 1px, transparent 1px, transparent 12px),
+    #0b100e;
+}
+
+.sabotage-rail span {
+  display: block;
+  min-height: 20px;
+  border: 1px solid rgba(133, 145, 139, 0.32);
+  background: rgba(16, 20, 18, 0.92);
+}
+
+.sabotage-rail span[data-state="hot"] {
+  border-color: rgba(214, 96, 77, 0.72);
+  background: rgba(214, 96, 77, 0.22);
+}
+
+.sabotage-rail span[data-state="sealed"] {
+  border-color: rgba(75, 214, 192, 0.7);
+  background: rgba(75, 214, 192, 0.2);
+}
+
 .grid-actions,
 .directive-actions,
 .freight-actions {
@@ -567,9 +660,16 @@ select {
   gap: 8px;
 }
 
+.rail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .grid-actions button,
 .directive-actions button,
-.freight-actions button {
+.freight-actions button,
+.rail-actions button {
   min-height: 2.1rem;
   font-size: 0.68rem;
 }
@@ -897,6 +997,7 @@ select {
       "lanes lanes"
       "grid grid"
       "freight freight"
+      "sabotage sabotage"
       "queue contracts"
       "upgrades jobs"
       "controls log";
@@ -916,6 +1017,10 @@ select {
   }
 
   .freight-manifest-list {
+    grid-template-columns: 1fr;
+  }
+
+  .rail-incident-list {
     grid-template-columns: 1fr;
   }
 }
@@ -939,6 +1044,7 @@ select {
       "lanes"
       "grid"
       "freight"
+      "sabotage"
       "queue"
       "contracts"
       "upgrades"
@@ -952,16 +1058,21 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .escalation-strip,
   .control-selects,
   .freight-summary,
   .grid-summary,
-  .grid-sector-meta {
+  .grid-sector-meta,
+  .rail-sabotage-summary {
     grid-template-columns: 1fr;
   }
 
+  .escalation-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .freight-route,
-  .freight-metrics {
+  .freight-metrics,
+  .rail-incident-meta {
     grid-template-columns: 1fr;
   }
 
@@ -973,6 +1084,7 @@ select {
   .breach-actions,
   .contract-reward,
   .freight-actions,
+  .rail-actions,
   .job-io {
     grid-template-columns: 1fr;
   }

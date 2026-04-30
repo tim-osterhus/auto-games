@@ -26,10 +26,12 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             'aria-label="Campaign and Grid Siege status"',
             'id="grid-siege-board"',
             'id="freight-lockdown-board"',
+            'id="rail-sabotage-board"',
             'id="queue-policy-select"',
             "Queue policy",
             "Grid Siege",
             "Freight Lockdown",
+            "Rail Sabotage",
             "Production floor",
             "Queued jobs",
             "Dispatch board",
@@ -43,14 +45,17 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             "gridSurfaceState",
             "breachSurfaceState",
             "freightSurfaceState",
+            "railSabotageSurfaceState",
             "renderEscalationSurface",
             "renderGridSiege",
             "renderFreightLockdown",
+            "renderRailSabotage",
             'data-surface="campaign"',
             'data-surface="emergency"',
             'data-surface="progression"',
             'data-surface="choices"',
             'data-surface="breach"',
+            'data-surface="rail-sabotage"',
             'data-grid="sectors"',
             'data-action="overdrive"',
             'data-action="breach-trace"',
@@ -72,9 +77,21 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             'data-action="freight-hold"',
             'data-action="freight-seal"',
             'data-action="freight-launch"',
+            'data-rail-sabotage="summary"',
+            'data-rail-sabotage="incidents"',
+            'data-action="sabotage-scan"',
+            'data-action="sabotage-drones"',
+            'data-action="sabotage-defenses"',
+            'data-action="sabotage-decoy"',
+            'data-action="sabotage-lockdown"',
+            'data-action="sabotage-reopen"',
+            'data-action="sabotage-reroute"',
+            'data-action="sabotage-intercept"',
+            'data-action="sabotage-repair"',
             'data-compromised="${compromised ? "true" : "false"}"',
             'data-breach-directive="${entry.breachDirective ? "true" : "false"}"',
             'data-freight-directive="${entry.freightDirective ? "true" : "false"}"',
+            'data-sabotage-directive="${entry.sabotageDirective ? "true" : "false"}"',
             'data-breach-quarantine="${quarantineActive ? "true" : "false"}"',
             "setQueuePolicy(currentState",
             "toggleLaneOverdrive(",
@@ -94,6 +111,14 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             "rerouteFreightManifest(currentState",
             "sealFreightCarrier(currentState",
             "launchFreightManifest(currentState",
+            "scanSabotageManifest(currentState",
+            "assignSabotagePatrol(currentState",
+            "deploySabotageDecoy(currentState",
+            "lockdownSabotageDock(currentState",
+            "reopenSabotageDock(currentState",
+            "rerouteSabotagedCarrier(currentState",
+            "interceptSabotageCell(currentState",
+            "repairSabotagedLane(currentState",
         ):
             self.assertIn(token, js)
 
@@ -104,6 +129,14 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             ".grid-siege-board",
             ".freight-panel",
             ".freight-board",
+            ".sabotage-panel",
+            ".rail-sabotage-board",
+            ".rail-sabotage-summary",
+            ".rail-incident-list",
+            ".rail-incident-card",
+            ".rail-incident-meta",
+            ".sabotage-rail",
+            ".rail-actions",
             ".freight-summary",
             ".freight-manifest-list",
             ".freight-manifest-card",
@@ -119,6 +152,8 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             ".breach-actions",
             ".breach-readout",
             '.escalation-card[data-surface="breach"][data-alert="active"]',
+            '.escalation-card[data-surface="rail-sabotage"][data-alert="incident-open"]',
+            '.escalation-card[data-surface="rail-sabotage"][data-alert="sabotaged"]',
             '.lane-card[data-overdrive="true"]',
             '.lane-card[data-breach-quarantine="true"]',
             '.grid-sector-card[data-isolated="true"]',
@@ -128,8 +163,12 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             '.queue-item[data-emergency="true"]',
             '.queue-item[data-compromised="true"]',
             '.queue-item[data-freight-directive="true"]',
+            '.queue-item[data-sabotage-directive="true"]',
+            '.rail-incident-card[data-actionable="true"]',
+            '.rail-incident-card[data-lane-damage="sabotaged"]',
             '.job-card[data-family="breach"]',
             '.job-card[data-family="freight"]',
+            '.job-card[data-family="sabotage"]',
             '.freight-manifest-card[data-status="available"]',
             '.freight-manifest-card[data-route-alert="true"]',
             "@media (max-width: 720px)",
@@ -270,20 +309,123 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
         self.assertEqual(1, resolved["audit"]["completed"])
         self.assertEqual(1, resolved["choices"]["auditRepairs"])
 
+    def test_rail_sabotage_surface_model_exposes_actionable_operator_state(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
+            let state = game.createInitialState({ seed: 331, faultsEnabled: false });
+            state = game.stepFactory(state, 2);
+            state.resources.circuits = 5;
+            state.resources.power = 12;
+            state.resources.drones = 3;
+            state.resources.defenses = 3;
+            state.resources.scrap = 30;
+            state.resources.stability = 20;
+
+            const beforeSurface = game.railSabotageSurfaceState(state);
+            const beforeIncident = beforeSurface.incidents.find((incident) => incident.id === "ashline-rail-spoof");
+
+            state = game.scanSabotageManifest(state, "ashline-rail-spoof");
+            state = game.assignSabotagePatrol(state, "ashline-rail-spoof", "drones");
+            state = game.deploySabotageDecoy(state, "ashline-rail-spoof", "forge-bus");
+            state = game.lockdownSabotageDock(state, "ashline-rail-spoof");
+            const lockedSurface = game.railSabotageSurfaceState(state);
+            const lockedIncident = lockedSurface.incidents.find((incident) => incident.id === "ashline-rail-spoof");
+            const lockedLane = state.lanes.find((lane) => lane.id === "forge-line");
+
+            state = game.reopenSabotageDock(state, "ashline-rail-spoof");
+            state = game.rerouteSabotagedCarrier(state, "ashline-rail-spoof", "forge-bus");
+            const reroutedIncident = game.railSabotageSurfaceState(state).incidents
+              .find((incident) => incident.id === "ashline-rail-spoof");
+            state = game.interceptSabotageCell(state, "ashline-rail-spoof");
+            const finalSurface = game.railSabotageSurfaceState(state);
+            const finalIncident = finalSurface.incidents.find((incident) => incident.id === "ashline-rail-spoof");
+            const finalManifest = game.freightSurfaceState(state).manifests
+              .find((manifest) => manifest.id === "ashline-spare-crates");
+            const choices = game.campaignSurfaceState(state).choices;
+
+            console.log(JSON.stringify({
+              beforeSurface,
+              beforeIncident,
+              lockedIncident,
+              lockedLane,
+              reroutedIncident,
+              finalSurface,
+              finalIncident,
+              finalManifest,
+              choices,
+              latestLog: state.log[0],
+            }));
+            """
+        )
+
+        before = result["beforeIncident"]
+        locked = result["lockedIncident"]
+        rerouted = result["reroutedIncident"]
+        final = result["finalIncident"]
+        manifest = result["finalManifest"]
+
+        self.assertEqual("v0.5.0 Rail Sabotage", result["beforeSurface"]["release"])
+        self.assertEqual("available", before["status"])
+        self.assertEqual("Dock Alpha", before["dockName"])
+        self.assertEqual("Forge Line", before["laneName"])
+        self.assertEqual("queued", before["scan"]["status"])
+        self.assertEqual("drones", before["patrol"]["required"])
+        self.assertIn("manifestRoute", before)
+        self.assertIn("manifestSabotage", before)
+        self.assertEqual("suspect", before["manifestSabotage"]["scanStatus"])
+        self.assertEqual(100, before["manifestIntegrity"])
+
+        self.assertTrue(locked["dock"]["locked"])
+        self.assertFalse(locked["dockReady"])
+        self.assertEqual("locked", result["lockedLane"]["status"])
+        self.assertEqual("rail-sabotage-lockdown", result["lockedLane"]["gridLock"]["reason"])
+
+        self.assertTrue(rerouted["carrier"]["rerouted"])
+        self.assertTrue(rerouted["manifestRoute"]["rerouted"])
+        self.assertLess(manifest["integrity"], before["manifestIntegrity"])
+
+        self.assertEqual("contained", final["status"])
+        self.assertEqual("contained", final["outcome"])
+        self.assertGreaterEqual(final["containment"]["score"], final["containment"]["requiredScore"])
+        self.assertEqual("complete", final["scan"]["status"])
+        self.assertEqual(1, final["patrol"]["drones"])
+        self.assertTrue(final["decoy"]["deployed"])
+        self.assertTrue(final["containment"]["intercepted"])
+        self.assertEqual(1, result["finalSurface"]["outcomes"]["contained"])
+
+        self.assertEqual("complete", manifest["sabotage"]["scanStatus"])
+        self.assertEqual(1, manifest["sabotage"]["patrolDrones"])
+        self.assertTrue(manifest["sabotage"]["decoy"])
+        self.assertFalse(manifest["sabotage"]["dockLocked"])
+        self.assertTrue(manifest["route"]["rerouted"])
+
+        self.assertEqual(1, result["choices"]["sabotageScans"])
+        self.assertEqual(1, result["choices"]["sabotagePatrolDrones"])
+        self.assertEqual(1, result["choices"]["sabotageDecoys"])
+        self.assertEqual(1, result["choices"]["sabotageDockLockdowns"])
+        self.assertEqual(1, result["choices"]["sabotageDockReopens"])
+        self.assertEqual(1, result["choices"]["sabotageCarrierReroutes"])
+        self.assertEqual(1, result["choices"]["sabotageInterceptions"])
+        self.assertIn("interception resolved", result["latestLog"]["message"])
+
     def test_grid_siege_layout_contract_uses_named_areas_and_narrow_stacking(self) -> None:
         css = source_text("dark-factory-dispatch.css")
 
         for token in (
             '"lanes grid grid"',
             '"lanes freight freight"',
+            '"lanes sabotage sabotage"',
             '"controls controls log"',
             '"lanes lanes"',
             '"grid grid"',
             '"freight freight"',
+            '"sabotage sabotage"',
             '"controls log"',
             '"lanes"',
             '"grid"',
             '"freight"',
+            '"sabotage"',
             ".grid-summary,\n  .grid-sector-meta",
             ".grid-actions,\n  .directive-actions",
             ".breach-actions,\n  .contract-reward",
@@ -315,6 +457,8 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
         self.assertNotIn("assets/freight-", combined)
         self.assertNotIn("assets/dock-", combined)
         self.assertNotIn("assets/carrier-", combined)
+        self.assertNotIn("assets/sabotage-", combined)
+        self.assertNotIn("assets/rail-", combined)
 
     def run_node(self, script: str) -> dict:
         completed = subprocess.run(
