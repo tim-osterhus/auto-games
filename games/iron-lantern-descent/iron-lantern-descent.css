@@ -290,7 +290,7 @@ button:focus-visible {
 
   .lantern-shell {
     min-height: 100svh;
-    padding-bottom: 310px;
+    padding-bottom: 12px;
     overflow: hidden auto;
   }
 
@@ -320,17 +320,21 @@ button:focus-visible {
   }
 
   .target-panel {
-    left: 12px;
-    right: 12px;
-    bottom: 68px;
-    width: auto;
-    max-height: 230px;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: calc(100vw - 24px);
+    max-height: none;
+    margin: 12px;
   }
 
   .control-strip {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 12px;
     max-height: 52px;
     overflow: auto;
   }

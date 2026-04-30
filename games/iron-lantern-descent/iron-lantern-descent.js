@@ -55,6 +55,8 @@ const IronLanternDescent = (() => {
     oxygen: {
       baseMax: 96,
       baseDrainPerSecond: 1.08,
+      unmarkedDrainPerSecond: 0.28,
+      routeLostDrainPerSecond: 0.72,
       liftDrainMultiplier: 0.2,
       lanternDrainMultiplier: 0.46,
     },
@@ -67,6 +69,11 @@ const IronLanternDescent = (() => {
       baseCharges: 3,
       radius: 10.5,
       safetyRadius: 8.5,
+    },
+    route: {
+      linkedLegDistance: 22,
+      warningDistance: 17,
+      lostDistance: 25,
     },
     mining: {
       range: 3.7,
@@ -236,6 +243,10 @@ const IronLanternDescent = (() => {
     return `bearing ${String(Math.round(bearing)).padStart(3, "0")}`;
   }
 
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
   function cavePassageAt(position, radius = 0) {
     return GAME_DATA.cave.passages.find((passage) => {
       const halfX = passage.size.x / 2 - radius;
@@ -246,6 +257,104 @@ const IronLanternDescent = (() => {
 
   function isPointInPassage(position, radius = 0) {
     return Boolean(cavePassageAt(position, radius));
+  }
+
+  function routeGuidePoints(state) {
+    return [
+      {
+        id: state.lift.id,
+        name: state.lift.name,
+        kind: "lift",
+        position: state.lift.position,
+        safeRadius: state.lift.radius,
+      },
+      ...state.lanterns.anchors.map((anchor) => ({
+        id: anchor.id,
+        name: anchor.id,
+        kind: "anchor",
+        position: anchor.position,
+        safeRadius: anchor.safetyRadius,
+      })),
+    ];
+  }
+
+  function computeRouteLegs(points) {
+    const legs = [];
+    for (let index = 1; index < points.length; index += 1) {
+      const from = points[index - 1];
+      const to = points[index];
+      const legDistance = distance(from.position, to.position);
+      legs.push({
+        from: from.id,
+        to: to.id,
+        distance: Number(legDistance.toFixed(1)),
+        linked: legDistance <= GAME_DATA.route.linkedLegDistance,
+      });
+    }
+    return legs;
+  }
+
+  function computeRouteState(state) {
+    const points = routeGuidePoints(state);
+    const legs = computeRouteLegs(points);
+    const nearest = points.reduce(
+      (closest, point) => {
+        const pointDistance = distance(state.player.position, point.position);
+        if (!closest || pointDistance < closest.distance) {
+          return { point, distance: pointDistance };
+        }
+        return closest;
+      },
+      null
+    );
+    const liftDistance = distance(state.player.position, state.lift.position);
+    const safeGap = Math.max(0, nearest.distance - nearest.point.safeRadius);
+    const stretchedLegs = legs.filter((leg) => !leg.linked).length;
+    let returnConfidence = nearest.point.kind === "lift" && liftDistance <= state.lift.radius
+      ? 100
+      : 100 - safeGap * 4.8 - stretchedLegs * 18;
+    if (points.length === 1) {
+      returnConfidence = 100 - Math.max(0, liftDistance - state.lift.radius) * 2.4;
+    }
+    returnConfidence = Math.round(clamp(returnConfidence, 0, 100));
+
+    let status = nearest.distance >= GAME_DATA.route.lostDistance ? "route lost" : "route thin";
+    if (liftDistance <= state.lift.radius) {
+      status = "lift safe";
+    } else if (nearest.point.kind === "anchor" && nearest.distance <= nearest.point.safeRadius) {
+      status = "anchor safe";
+    } else if (nearest.distance <= GAME_DATA.route.warningDistance) {
+      status = "route visible";
+    }
+
+    let suggestedAction = "press deeper";
+    if (state.cargo.samples > 0 && returnConfidence < 55) {
+      suggestedAction = "return";
+    } else if (
+      state.lanterns.charges > 0 &&
+      liftDistance > state.lift.radius &&
+      nearest.distance > GAME_DATA.route.warningDistance
+    ) {
+      suggestedAction = "set anchor";
+    } else if (state.cargo.samples >= state.cargo.capacity) {
+      suggestedAction = "return full";
+    }
+
+    return {
+      status,
+      returnConfidence,
+      nearestPointId: nearest.point.id,
+      nearestPointName: nearest.point.name,
+      nearestPointKind: nearest.point.kind,
+      nearestPointDistance: Number(nearest.distance.toFixed(1)),
+      guideBearing: bearingTo(state.player.position, nearest.point.position, state.player.facing),
+      liftBearing: bearingTo(state.player.position, state.lift.position, state.player.facing),
+      anchorCount: state.lanterns.anchors.length,
+      linkedLegs: legs.filter((leg) => leg.linked).length,
+      stretchedLegs,
+      legs,
+      suggestedAction,
+    };
   }
 
   function createSampleNodes(seed = DEFAULT_SEED) {
@@ -363,6 +472,21 @@ const IronLanternDescent = (() => {
         safetyRadius: GAME_DATA.lanterns.safetyRadius,
         lastPlaced: null,
       },
+      route: {
+        status: "lift safe",
+        returnConfidence: 100,
+        nearestPointId: GAME_DATA.lift.id,
+        nearestPointName: GAME_DATA.lift.name,
+        nearestPointKind: "lift",
+        nearestPointDistance: 0,
+        guideBearing: 0,
+        liftBearing: 0,
+        anchorCount: 0,
+        linkedLegs: 0,
+        stretchedLegs: 0,
+        legs: [],
+        suggestedAction: "press deeper",
+      },
       sampleNodes: createSampleNodes(seed),
       mining: {
         active: false,
@@ -388,6 +512,12 @@ const IronLanternDescent = (() => {
         pulseAge: 0,
         targetId: null,
         targetKind: "sample",
+        targetName: null,
+        targetBearing: 0,
+        targetDistance: 0,
+        routeBearing: 0,
+        routeDistance: 0,
+        lastPulse: null,
         liftBearing: 0,
         status: "ready",
       },
@@ -456,11 +586,17 @@ const IronLanternDescent = (() => {
       return 0;
     }
     const hazard = currentHazardExposure(state);
+    const route = computeRouteState(state);
+    const liftDistance = distance(state.player.position, state.lift.position);
     let rate = state.oxygen.baseDrainPerSecond + hazard.oxygenDrainPerSecond;
-    if (state.lift.distance <= state.lift.radius) {
+    if (liftDistance <= state.lift.radius) {
       rate *= GAME_DATA.oxygen.liftDrainMultiplier;
     } else if (coveredByLantern(state)) {
       rate *= GAME_DATA.oxygen.lanternDrainMultiplier;
+    } else if (route.returnConfidence < 35) {
+      rate += GAME_DATA.oxygen.routeLostDrainPerSecond;
+    } else if (route.returnConfidence < 70) {
+      rate += GAME_DATA.oxygen.unmarkedDrainPerSecond;
     }
     return Number(rate.toFixed(3));
   }
@@ -499,12 +635,36 @@ const IronLanternDescent = (() => {
       zone.active = exposure > 0;
       zone.status = exposure > 0 ? "exposed" : "clear";
     });
+    state.route = computeRouteState(state);
 
     const sample = nearestSample(state);
+    const sampleInRange = sample && sample.distance <= state.scanner.range;
+    const target = sampleInRange
+      ? {
+          id: sample.node.id,
+          kind: "sample",
+          name: sample.node.name,
+          position: sample.node.position,
+          distance: sample.distance,
+        }
+      : {
+          id: state.lift.id,
+          kind: "lift",
+          name: state.lift.name,
+          position: state.lift.position,
+          distance: state.lift.distance,
+        };
     state.scanner.liftBearing = state.lift.bearing;
-    state.scanner.targetId = sample ? sample.node.id : state.lift.id;
-    state.scanner.targetKind = sample ? "sample" : "lift";
-    state.scanner.status = state.scanner.cooldown > 0 ? "recharging" : sample ? `${sample.node.name} ${Math.round(sample.distance)}m` : "return to lift";
+    state.scanner.targetId = target.id;
+    state.scanner.targetKind = target.kind;
+    state.scanner.targetName = target.name;
+    state.scanner.targetBearing = bearingTo(state.player.position, target.position, state.player.facing);
+    state.scanner.targetDistance = Number(target.distance.toFixed(1));
+    state.scanner.routeBearing = state.route.guideBearing;
+    state.scanner.routeDistance = state.route.nearestPointDistance;
+    state.scanner.status = state.scanner.cooldown > 0 && state.scanner.lastPulse
+      ? `pulse ${state.scanner.lastPulse.targetName} ${formatBearing(state.scanner.lastPulse.targetBearing)}`
+      : `${target.name} ${formatBearing(state.scanner.targetBearing)} / ${Math.round(state.scanner.targetDistance)}m`;
 
     const lanternBoost = coveredByLantern(state, GAME_DATA.lanterns.radius) ? GAME_DATA.light.lanternBoost : 0;
     const radius = Math.max(6, GAME_DATA.light.headlampRadius + lanternBoost - hazard.visibilityPenalty);
@@ -654,12 +814,23 @@ const IronLanternDescent = (() => {
   }
 
   function pulseScanner(state) {
-    const next = clone(state);
+    const next = syncDerivedState(clone(state));
     if (next.scanner.cooldown <= 0) {
       next.scanner.cooldown = GAME_DATA.scanner.cooldownSeconds;
       next.scanner.pulseAge = 0;
-      next.scanner.status = nearestSample(next) ? "pulse sent" : "lift only";
-      next.log.unshift({ tick: next.tick, message: `Scanner pulse: ${next.scanner.status}.` });
+      next.scanner.lastPulse = {
+        targetId: next.scanner.targetId,
+        targetKind: next.scanner.targetKind,
+        targetName: next.scanner.targetName,
+        targetBearing: next.scanner.targetBearing,
+        targetDistance: next.scanner.targetDistance,
+        routeBearing: next.scanner.routeBearing,
+        routeConfidence: next.route.returnConfidence,
+      };
+      next.log.unshift({
+        tick: next.tick,
+        message: `Scanner pulse: ${next.scanner.targetName} ${formatBearing(next.scanner.targetBearing)}.`,
+      });
     }
     return syncDerivedState(next);
   }
@@ -669,7 +840,9 @@ const IronLanternDescent = (() => {
     next.lift.distance = distance(next.player.position, next.lift.position);
     if (next.lift.distance > next.lift.radius) {
       next.lift.status = "too far";
-      return syncDerivedState(next);
+      const synced = syncDerivedState(next);
+      synced.lift.status = "too far";
+      return synced;
     }
     const bankedValue = next.cargo.value;
     const bankedSamples = next.cargo.samples;
@@ -732,8 +905,14 @@ const IronLanternDescent = (() => {
     if (controls.scan) {
       next = pulseScanner(next);
     }
+    if (controls.placeLantern) {
+      next = placeLantern(next);
+    }
     if (controls.interact) {
       next = returnToLift(next);
+    }
+    if (controls.upgrade) {
+      next = purchaseUpgrade(next);
     }
     if (next.run.status === "active") {
       next.tick += 1;
@@ -772,6 +951,7 @@ const IronLanternDescent = (() => {
       "samples-readout",
       "credits-readout",
       "lift-readout",
+      "route-readout",
       "scanner-readout",
       "hazard-readout",
       "upgrade-readout",
@@ -822,7 +1002,8 @@ const IronLanternDescent = (() => {
     dom["samples-readout"].textContent = `${state.cargo.samples} / ${state.cargo.capacity}  ${state.cargo.value}cr`;
     dom["credits-readout"].textContent = `${state.credits}cr`;
     dom["lift-readout"].textContent = `${formatBearing(state.lift.bearing)} / ${Math.round(state.lift.distance)}m`;
-    dom["scanner-readout"].textContent = state.scanner.status;
+    dom["route-readout"].textContent = `${state.route.status} / ${state.route.returnConfidence}%  ${state.route.suggestedAction}`;
+    dom["scanner-readout"].textContent = `${state.scanner.status} / route ${formatBearing(state.scanner.routeBearing)}`;
     dom["hazard-readout"].textContent = hazardNames.length ? hazardNames.join(" + ") : "clear";
     dom["upgrade-readout"].textContent = upgrade ? `${upgrade.name.toLowerCase()} / ${upgrade.cost}cr` : "all fitted";
     dom["player-position-readout"].textContent = `pos ${state.player.position.x.toFixed(1)} / ${state.player.position.z.toFixed(1)}`;
@@ -840,12 +1021,16 @@ const IronLanternDescent = (() => {
     setReadoutTone(dom["oxygen-readout"], oxygenPercent < 0.2 ? "danger" : oxygenPercent < 0.45 ? "warn" : null);
     setReadoutTone(dom["hazard-readout"], hazardNames.length ? "danger" : null);
     setReadoutTone(dom["lantern-readout"], state.lanterns.charges <= 0 ? "warn" : null);
+    setReadoutTone(dom["route-readout"], state.route.returnConfidence < 35 ? "danger" : state.route.returnConfidence < 70 ? "warn" : "signal");
 
     dom["sample-list"].replaceChildren(
       ...state.sampleNodes.map((node) => {
         const item = document.createElement("li");
+        const progress = node.mineState.depleted
+          ? "done"
+          : `${Math.round(clamp((node.mineState.progress / node.difficulty) * 100, 0, 99))}%`;
         item.dataset.state = node.mineState.status;
-        item.textContent = `${node.name}: ${node.mineState.status} / ${node.remaining}`;
+        item.textContent = `${node.name}: ${node.mineState.status} / ${node.remaining} / ${progress}`;
         return item;
       })
     );
@@ -1134,6 +1319,8 @@ const IronLanternDescent = (() => {
     scannerRing.rotation.x = Math.PI / 2;
     scannerRing.visible = false;
     scene.add(scannerRing);
+    const routeGroup = new THREE.Group();
+    scene.add(routeGroup);
 
     return {
       THREE,
@@ -1148,6 +1335,8 @@ const IronLanternDescent = (() => {
         sampleMeshes,
         hazardMeshes,
         lanternMeshes: new Map(),
+        routeGroup,
+        routeSignature: "",
         scannerRing,
       },
     };
@@ -1175,9 +1364,49 @@ const IronLanternDescent = (() => {
     });
   }
 
+  function syncRouteMeshes(handle, state) {
+    const signature = state.route.legs.map((leg) => `${leg.from}:${leg.to}:${leg.linked}`).join("|");
+    if (signature === handle.objects.routeSignature) {
+      return;
+    }
+    handle.objects.routeSignature = signature;
+    while (handle.objects.routeGroup.children.length) {
+      const child = handle.objects.routeGroup.children[0];
+      handle.objects.routeGroup.remove(child);
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      if (child.material) {
+        child.material.dispose();
+      }
+    }
+    const points = routeGuidePoints(state);
+    points.slice(1).forEach((point, index) => {
+      const from = points[index];
+      const leg = state.route.legs[index];
+      const legDistance = distance(from.position, point.position);
+      const strip = new handle.THREE.Mesh(
+        new handle.THREE.BoxGeometry(0.26, 0.035, legDistance),
+        new handle.THREE.MeshBasicMaterial({
+          color: leg.linked ? 0x4bd6c0 : 0xd46857,
+          transparent: true,
+          opacity: leg.linked ? 0.3 : 0.18,
+        })
+      );
+      strip.position.set(
+        (from.position.x + point.position.x) / 2,
+        0.12,
+        (from.position.z + point.position.z) / 2
+      );
+      strip.rotation.y = Math.atan2(point.position.x - from.position.x, point.position.z - from.position.z);
+      handle.objects.routeGroup.add(strip);
+    });
+  }
+
   function updateScene(handle, state, timeSeconds) {
     resizeScene(handle);
     syncLanternMeshes(handle, state);
+    syncRouteMeshes(handle, state);
     handle.objects.player.position.set(state.player.position.x, 0, state.player.position.z);
     handle.objects.player.rotation.y = state.player.facing;
     handle.objects.playerLamp.position.set(state.player.position.x, state.player.position.y + 0.4, state.player.position.z);
@@ -1275,6 +1504,8 @@ const IronLanternDescent = (() => {
     syncDerivedState,
     oxygenDrainRate,
     coveredByLantern,
+    routeGuidePoints,
+    computeRouteState,
     currentHazardExposure,
     nearestSample,
     cavePassageAt,

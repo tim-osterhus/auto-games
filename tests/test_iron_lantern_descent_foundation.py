@@ -29,6 +29,7 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
             "samples-readout",
             "credits-readout",
             "lift-readout",
+            "route-readout",
             "scanner-readout",
             "hazard-readout",
             "upgrade-readout",
@@ -66,6 +67,9 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
               oxygenCurrent: state.oxygen.current,
               oxygenMax: state.oxygen.max,
               lanternCharges: state.lanterns.charges,
+              routeStatus: state.route.status,
+              routeConfidence: state.route.returnConfidence,
+              routeNearest: state.route.nearestPointKind,
               sampleCount: state.sampleNodes.length,
               sampleSeams: state.sampleNodes.every((node) => (
                 node.id &&
@@ -78,6 +82,7 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
               liftStatus: state.lift.status,
               hazardCount: state.hazardZones.length,
               scannerRange: state.scanner.range,
+              scannerTargetBearing: state.scanner.targetBearing,
               runStatus: state.run.status,
               credits: state.credits,
               upgradeCount: state.upgrades.available.length,
@@ -97,11 +102,15 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertEqual(96, result["oxygenCurrent"])
         self.assertEqual(96, result["oxygenMax"])
         self.assertEqual(3, result["lanternCharges"])
+        self.assertEqual("lift safe", result["routeStatus"])
+        self.assertEqual(100, result["routeConfidence"])
+        self.assertEqual("lift", result["routeNearest"])
         self.assertGreaterEqual(result["sampleCount"], 4)
         self.assertTrue(result["sampleSeams"])
         self.assertEqual("in range", result["liftStatus"])
         self.assertGreaterEqual(result["hazardCount"], 1)
         self.assertGreater(result["scannerRange"], 10)
+        self.assertIsInstance(result["scannerTargetBearing"], int)
         self.assertEqual("active", result["runStatus"])
         self.assertEqual(0, result["credits"])
         self.assertGreaterEqual(result["upgradeCount"], 1)
