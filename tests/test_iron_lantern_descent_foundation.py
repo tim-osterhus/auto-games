@@ -81,6 +81,17 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
               )),
               liftStatus: state.lift.status,
               hazardCount: state.hazardZones.length,
+              surveyRelease: game.GAME_DATA.survey.release.label,
+              surveyCount: state.surveySites.length,
+              surveyPassages: state.surveySites.map((site) => site.passageId).sort(),
+              surveyContractTarget: state.survey.contract.targetMapProgress,
+              routeStability: state.routeStability.stability,
+              surveyChoices: [
+                typeof game.plantSurveyStake,
+                typeof game.braceSurveySite,
+                typeof game.chartFaultSurvey,
+                typeof game.activateAirCache,
+              ],
               scannerRange: state.scanner.range,
               scannerTargetBearing: state.scanner.targetBearing,
               runStatus: state.run.status,
@@ -109,6 +120,13 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertTrue(result["sampleSeams"])
         self.assertEqual("in range", result["liftStatus"])
         self.assertGreaterEqual(result["hazardCount"], 1)
+        self.assertEqual("v0.1.0 Faultline Survey", result["surveyRelease"])
+        self.assertGreaterEqual(result["surveyCount"], 2)
+        self.assertIn("east-shelf", result["surveyPassages"])
+        self.assertIn("fault-gallery", result["surveyPassages"])
+        self.assertEqual(3, result["surveyContractTarget"])
+        self.assertGreater(result["routeStability"], 0)
+        self.assertEqual(["function", "function", "function", "function"], result["surveyChoices"])
         self.assertGreater(result["scannerRange"], 10)
         self.assertIsInstance(result["scannerTargetBearing"], int)
         self.assertEqual("active", result["runStatus"])

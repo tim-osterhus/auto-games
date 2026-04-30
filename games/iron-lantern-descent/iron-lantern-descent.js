@@ -31,6 +31,10 @@ const IronLanternDescent = (() => {
       mine: ["KeyM"],
       scan: ["KeyC"],
       interact: ["KeyF", "Enter"],
+      plantStake: ["KeyV"],
+      braceSeam: ["KeyB"],
+      chartSurvey: ["KeyX"],
+      airCache: ["KeyN"],
       upgrade: ["KeyU"],
       reset: ["KeyR"],
     },
@@ -43,6 +47,7 @@ const IronLanternDescent = (() => {
         { id: "main-cut", name: "Main Cut", center: { x: 0, z: -30 }, size: { x: 8, z: 72 } },
         { id: "east-shelf", name: "East Shelf", center: { x: 15, z: -30 }, size: { x: 30, z: 11 } },
         { id: "west-pocket", name: "West Pocket", center: { x: -14, z: -45 }, size: { x: 28, z: 12 } },
+        { id: "fault-gallery", name: "Fault Gallery", center: { x: -18, z: -61 }, size: { x: 16, z: 22 } },
         { id: "deep-room", name: "Deep Room", center: { x: 0, z: -70 }, size: { x: 24, z: 20 } },
       ],
     },
@@ -92,6 +97,34 @@ const IronLanternDescent = (() => {
     scanner: {
       range: 31,
       cooldownSeconds: 2.4,
+    },
+    survey: {
+      release: {
+        version: "0.1.0",
+        label: "v0.1.0 Faultline Survey",
+        baseRelease: "v0.0.1 Lantern Route",
+      },
+      actionRange: 4.6,
+      stakes: {
+        baseCharges: 2,
+        safetyRadius: 9.5,
+      },
+      braces: {
+        baseCharges: 1,
+      },
+      contract: {
+        id: "faultline-route-plate",
+        label: "Faultline route plate",
+        targetMapProgress: 3,
+        targetSites: 2,
+      },
+      routeStability: {
+        base: 100,
+        routeWeakPenalty: 10,
+        hazardPenalty: 5,
+        lowStabilityDrainPerSecond: 0.34,
+        collapseDrainPerSecond: 0.54,
+      },
     },
     lift: {
       id: "descent-lift",
@@ -153,6 +186,102 @@ const IronLanternDescent = (() => {
         value: 70,
         difficulty: 2.5,
         remaining: 2,
+      },
+    ],
+    surveySites: [
+      {
+        id: "survey-cinder-rib",
+        name: "Cinder Rib Fault",
+        passageId: "east-shelf",
+        chamber: "gas shelf survey spur",
+        faultType: "slip seam",
+        position: { x: 17, y: 0.35, z: -31 },
+        radius: 3.4,
+        influenceRadius: 10.5,
+        tremorWindow: {
+          opensAt: 0,
+          closesAt: 72,
+          collapseAt: 118,
+          tremorPressure: 9,
+          collapsePressure: 18,
+        },
+        requirements: {
+          stake: true,
+          brace: false,
+          lanternAnchor: false,
+        },
+        oxygenModifier: {
+          activeDrainPerSecond: 0.12,
+          tremorDrainPerSecond: 0.34,
+          cacheRestore: 0,
+        },
+        routeConfidenceModifier: {
+          stakeBonus: 6,
+          braceBonus: 0,
+          tremorPenalty: 8,
+          failurePenalty: 12,
+        },
+        routeStability: {
+          basePressure: 8,
+          stakeRelief: 6,
+          braceRelief: 0,
+        },
+        rewards: {
+          payout: 46,
+          partialPayout: 18,
+          mapProgress: 1,
+          partialMapProgress: 0.5,
+          sampleValueBonus: 8,
+        },
+      },
+      {
+        id: "survey-basalt-suture",
+        name: "Basalt Suture",
+        passageId: "fault-gallery",
+        chamber: "fault gallery",
+        faultType: "compressive seam",
+        position: { x: -18, y: 0.35, z: -62 },
+        radius: 3.8,
+        influenceRadius: 12,
+        tremorWindow: {
+          opensAt: 18,
+          closesAt: 88,
+          collapseAt: 132,
+          tremorPressure: 12,
+          collapsePressure: 26,
+        },
+        requirements: {
+          stake: true,
+          brace: true,
+          lanternAnchor: true,
+        },
+        oxygenModifier: {
+          activeDrainPerSecond: 0.16,
+          tremorDrainPerSecond: 0.46,
+          cacheRestore: 18,
+        },
+        routeConfidenceModifier: {
+          stakeBonus: 7,
+          braceBonus: 9,
+          tremorPenalty: 11,
+          failurePenalty: 18,
+        },
+        routeStability: {
+          basePressure: 12,
+          stakeRelief: 7,
+          braceRelief: 14,
+        },
+        rewards: {
+          payout: 78,
+          partialPayout: 28,
+          mapProgress: 2,
+          partialMapProgress: 1,
+          sampleValueBonus: 12,
+        },
+        airCache: {
+          id: "air-cache-basalt-suture",
+          oxygenRestore: 18,
+        },
       },
     ],
     upgrades: [
@@ -268,7 +397,62 @@ const IronLanternDescent = (() => {
     return Boolean(cavePassageAt(position, radius));
   }
 
+  function surveySiteWindowState(site, elapsed = 0) {
+    const window = site.tremorWindow || {};
+    if (elapsed < window.opensAt) {
+      return "pending";
+    }
+    if (elapsed <= window.closesAt) {
+      return "stable";
+    }
+    if (elapsed <= window.collapseAt) {
+      return "tremor";
+    }
+    return "collapsed";
+  }
+
+  function surveyOutcomeComplete(site) {
+    return ["success", "partial", "failed"].includes(site.chartState);
+  }
+
+  function computeSurveyRouteModifier(state) {
+    if (!state.surveySites) {
+      return 0;
+    }
+    const modifier = state.surveySites.reduce((total, site) => {
+      const route = site.routeConfidenceModifier || {};
+      const windowState = surveySiteWindowState(site, state.elapsed || 0);
+      let siteModifier = 0;
+      if (site.stakePlanted) {
+        siteModifier += route.stakeBonus || 0;
+      }
+      if (site.braceInstalled) {
+        siteModifier += route.braceBonus || 0;
+      }
+      if (windowState === "tremor" && !site.braceInstalled && site.chartState !== "success") {
+        siteModifier -= route.tremorPenalty || 0;
+      }
+      if (windowState === "collapsed" && !site.braceInstalled && site.chartState !== "success") {
+        siteModifier -= route.failurePenalty || 0;
+      }
+      if (site.chartState === "failed") {
+        siteModifier -= route.failurePenalty || 0;
+      }
+      return total + siteModifier;
+    }, 0);
+    return Math.round(clamp(modifier, -36, 24));
+  }
+
   function routeGuidePoints(state) {
+    const surveyStakes = (state.surveySites || [])
+      .filter((site) => site.stakePlanted)
+      .map((site) => ({
+        id: `${site.id}-stake`,
+        name: `${site.name} stake`,
+        kind: "survey-stake",
+        position: site.position,
+        safeRadius: GAME_DATA.survey.stakes.safetyRadius,
+      }));
     return [
       {
         id: state.lift.id,
@@ -284,6 +468,7 @@ const IronLanternDescent = (() => {
         position: anchor.position,
         safeRadius: anchor.safetyRadius,
       })),
+      ...surveyStakes,
     ];
   }
 
@@ -325,6 +510,7 @@ const IronLanternDescent = (() => {
     if (points.length === 1) {
       returnConfidence = 100 - Math.max(0, liftDistance - state.lift.radius) * 2.4;
     }
+    returnConfidence += computeSurveyRouteModifier(state);
     returnConfidence = Math.round(clamp(returnConfidence, 0, 100));
 
     let status = nearest.distance >= GAME_DATA.route.lostDistance ? "route lost" : "route thin";
@@ -394,6 +580,35 @@ const IronLanternDescent = (() => {
       active: false,
       exposure: 0,
       status: "clear",
+    }));
+  }
+
+  function createSurveySites() {
+    return GAME_DATA.surveySites.map((site) => ({
+      ...clone(site),
+      position: clone(site.position),
+      stakePlanted: false,
+      braceInstalled: false,
+      airCacheState: site.airCache
+        ? {
+            id: site.airCache.id,
+            status: "sealed",
+            oxygenRestore: site.airCache.oxygenRestore,
+          }
+        : {
+            id: null,
+            status: "none",
+            oxygenRestore: 0,
+          },
+      chartState: "unmapped",
+      outcome: "open",
+      payoutEarned: 0,
+      mapProgressEarned: 0,
+      distance: null,
+      inRange: false,
+      windowState: "pending",
+      status: "unmapped",
+      lastAction: null,
     }));
   }
 
@@ -481,6 +696,34 @@ const IronLanternDescent = (() => {
         safetyRadius: GAME_DATA.lanterns.safetyRadius,
         lastPlaced: null,
       },
+      surveySites: createSurveySites(),
+      survey: {
+        release: clone(GAME_DATA.survey.release),
+        contract: clone(GAME_DATA.survey.contract),
+        stakes: GAME_DATA.survey.stakes.baseCharges,
+        maxStakes: GAME_DATA.survey.stakes.baseCharges,
+        braces: GAME_DATA.survey.braces.baseCharges,
+        maxBraces: GAME_DATA.survey.braces.baseCharges,
+        mapProgress: 0,
+        ledger: options.surveyLedger || 0,
+        value: 0,
+        completedSites: 0,
+        airCachesUsed: 0,
+        activeSiteId: null,
+        activeSiteName: null,
+        activeSiteDistance: null,
+        activeSiteWindow: null,
+        activeSiteStatus: "none",
+        status: "survey open",
+        lastAction: null,
+      },
+      routeStability: {
+        stability: 100,
+        status: "stable",
+        pressure: 0,
+        warnings: [],
+        routeModifier: 0,
+      },
       route: {
         status: "lift safe",
         returnConfidence: 100,
@@ -512,6 +755,8 @@ const IronLanternDescent = (() => {
         docked: true,
         status: "ready",
         bankedSamples: 0,
+        bankedSurveyValue: 0,
+        bankedMapProgress: 0,
         lastBanked: 0,
       },
       hazardZones: createHazardZones(),
@@ -544,7 +789,7 @@ const IronLanternDescent = (() => {
       },
       run: {
         status: "active",
-        objective: "Descend, mark the route, sample ore, return to the lift.",
+        objective: "Descend, mark the route, survey fault plates, bank samples at the lift.",
         failureReason: null,
         completeReason: null,
         count: options.runCount || 1,
@@ -590,6 +835,183 @@ const IronLanternDescent = (() => {
     return state.lanterns.anchors.some((anchor) => distance(state.player.position, anchor.position) <= radius);
   }
 
+  function nearestSurveySite(state, options = {}) {
+    const includeCompleted = Boolean(options.includeCompleted);
+    let closest = null;
+    (state.surveySites || []).forEach((site) => {
+      if (!includeCompleted && surveyOutcomeComplete(site)) {
+        return;
+      }
+      const siteDistance = distance(state.player.position, site.position);
+      if (!closest || siteDistance < closest.distance) {
+        closest = { site, distance: siteDistance };
+      }
+    });
+    return closest;
+  }
+
+  function computeRouteStability(state, routeState = null, hazardState = null) {
+    if (!state.surveySites) {
+      return {
+        stability: 100,
+        status: "stable",
+        pressure: 0,
+        warnings: [],
+        routeModifier: 0,
+      };
+    }
+    const route = routeState || state.route || computeRouteState(state);
+    const hazard = hazardState || currentHazardExposure(state);
+    const settings = GAME_DATA.survey.routeStability;
+    const warnings = [];
+    let pressure = 0;
+
+    if (route.returnConfidence < 70) {
+      pressure += Math.round((70 - route.returnConfidence) / 4) + settings.routeWeakPenalty;
+      warnings.push("route confidence thin");
+    }
+    if (hazard.names.length) {
+      pressure += hazard.names.length * settings.hazardPenalty;
+      warnings.push(`hazard exposure: ${hazard.names.join(" + ")}`);
+    }
+
+    state.surveySites.forEach((site) => {
+      const windowState = surveySiteWindowState(site, state.elapsed || 0);
+      const stability = site.routeStability || {};
+      let sitePressure = stability.basePressure || 0;
+      if (site.chartState === "success") {
+        sitePressure = Math.max(0, sitePressure - 8);
+      }
+      if (site.stakePlanted) {
+        sitePressure -= stability.stakeRelief || 0;
+      }
+      if (site.braceInstalled) {
+        sitePressure -= stability.braceRelief || 0;
+      }
+      if (windowState === "tremor" && site.chartState !== "success") {
+        sitePressure += site.tremorWindow.tremorPressure || 0;
+        warnings.push(`${site.name} tremor window`);
+      }
+      if (windowState === "collapsed" && !site.braceInstalled && site.chartState !== "success") {
+        sitePressure += site.tremorWindow.collapsePressure || 0;
+        warnings.push(`${site.name} collapse warning`);
+      }
+      if (site.chartState === "failed") {
+        sitePressure += site.tremorWindow.collapsePressure || 0;
+      }
+      pressure += Math.max(0, sitePressure);
+    });
+
+    const stability = Math.round(clamp(settings.base - pressure, 0, 100));
+    let status = "stable";
+    if (stability < 35) {
+      status = "collapse risk";
+    } else if (stability < 62) {
+      status = "unstable";
+    } else if (stability < 82) {
+      status = "watched";
+    }
+    return {
+      stability,
+      status,
+      pressure: Math.round(pressure),
+      warnings,
+      routeModifier: computeSurveyRouteModifier(state),
+    };
+  }
+
+  function syncSurveyState(state) {
+    if (!state.survey || !state.surveySites) {
+      return state;
+    }
+    let completedSites = 0;
+    state.surveySites.forEach((site) => {
+      site.distance = Number(distance(state.player.position, site.position).toFixed(1));
+      site.inRange = site.distance <= GAME_DATA.survey.actionRange;
+      site.windowState = surveySiteWindowState(site, state.elapsed || 0);
+      if (site.chartState === "success" || site.chartState === "partial") {
+        completedSites += 1;
+      }
+      if (surveyOutcomeComplete(site)) {
+        site.status = site.chartState;
+      } else if (site.windowState === "collapsed" && !site.braceInstalled) {
+        site.status = "collapse warning";
+      } else if (site.braceInstalled) {
+        site.status = "braced";
+      } else if (site.stakePlanted) {
+        site.status = "staked";
+      } else if (site.inRange) {
+        site.status = "survey ready";
+      } else {
+        site.status = "unmapped";
+      }
+    });
+
+    const active = nearestSurveySite(state) || nearestSurveySite(state, { includeCompleted: true });
+    state.survey.completedSites = completedSites;
+    state.survey.activeSiteId = active ? active.site.id : null;
+    state.survey.activeSiteName = active ? active.site.name : null;
+    state.survey.activeSiteDistance = active ? Number(active.distance.toFixed(1)) : null;
+    state.survey.activeSiteWindow = active ? active.site.windowState : null;
+    state.survey.activeSiteStatus = active ? active.site.status : "none";
+    state.survey.status = active
+      ? `${active.site.name}: ${active.site.status} / ${active.site.windowState}`
+      : "survey complete";
+    return state;
+  }
+
+  function surveyOxygenDrain(state, routeState = null, hazardState = null) {
+    if (state.run.status !== "active" || !state.surveySites) {
+      return 0;
+    }
+    const routeStability = computeRouteStability(state, routeState, hazardState);
+    let drain = 0;
+    if (routeStability.stability < 65) {
+      const instability = (65 - routeStability.stability) / 65;
+      drain += instability * GAME_DATA.survey.routeStability.lowStabilityDrainPerSecond;
+    }
+    state.surveySites.forEach((site) => {
+      if (site.chartState === "success") {
+        return;
+      }
+      const siteDistance = distance(state.player.position, site.position);
+      if (siteDistance > site.influenceRadius) {
+        return;
+      }
+      const exposure = Math.max(0, 1 - siteDistance / site.influenceRadius);
+      const windowState = surveySiteWindowState(site, state.elapsed || 0);
+      let siteDrain = site.oxygenModifier.activeDrainPerSecond || 0;
+      if (windowState === "tremor") {
+        siteDrain += site.oxygenModifier.tremorDrainPerSecond || 0;
+      }
+      if (windowState === "collapsed" && !site.braceInstalled) {
+        siteDrain += GAME_DATA.survey.routeStability.collapseDrainPerSecond;
+      }
+      if (site.stakePlanted) {
+        siteDrain *= 0.72;
+      }
+      if (site.braceInstalled) {
+        siteDrain *= 0.38;
+      }
+      if (site.airCacheState && site.airCacheState.status === "depleted") {
+        siteDrain *= 0.78;
+      }
+      drain += exposure * siteDrain;
+    });
+    return Number(drain.toFixed(3));
+  }
+
+  function sampleSurveyValueBonus(state, node) {
+    const passage = cavePassageAt(node.position);
+    if (!passage || !state.surveySites) {
+      return 0;
+    }
+    const site = state.surveySites.find(
+      (entry) => entry.passageId === passage.id && entry.chartState === "success"
+    );
+    return site ? site.rewards.sampleValueBonus || 0 : 0;
+  }
+
   function oxygenDrainRate(state) {
     if (state.run.status !== "active") {
       return 0;
@@ -597,7 +1019,7 @@ const IronLanternDescent = (() => {
     const hazard = currentHazardExposure(state);
     const route = computeRouteState(state);
     const liftDistance = distance(state.player.position, state.lift.position);
-    let rate = state.oxygen.baseDrainPerSecond + hazard.oxygenDrainPerSecond;
+    let rate = state.oxygen.baseDrainPerSecond + hazard.oxygenDrainPerSecond + surveyOxygenDrain(state, route, hazard);
     if (liftDistance <= state.lift.radius) {
       rate *= GAME_DATA.oxygen.liftDrainMultiplier;
     } else if (coveredByLantern(state)) {
@@ -645,10 +1067,23 @@ const IronLanternDescent = (() => {
       zone.status = exposure > 0 ? "exposed" : "clear";
     });
     state.route = computeRouteState(state);
+    state.routeStability = computeRouteStability(state, state.route, hazard);
+    syncSurveyState(state);
 
     const sample = nearestSample(state);
     const sampleInRange = sample && sample.distance <= state.scanner.range;
-    const target = sampleInRange
+    const survey = nearestSurveySite(state);
+    const surveyInRange = survey && survey.distance <= state.scanner.range;
+    const surveyIsActionable = surveyInRange && survey.distance <= GAME_DATA.survey.actionRange;
+    const target = surveyIsActionable || (surveyInRange && !sampleInRange)
+      ? {
+          id: survey.site.id,
+          kind: "survey",
+          name: survey.site.name,
+          position: survey.site.position,
+          distance: survey.distance,
+        }
+      : sampleInRange
       ? {
           id: sample.node.id,
           kind: "sample",
@@ -771,6 +1206,189 @@ const IronLanternDescent = (() => {
     return syncDerivedState(next);
   }
 
+  function surveyActionTarget(state, siteId = null) {
+    const site = siteId
+      ? (state.surveySites || []).find((entry) => entry.id === siteId)
+      : nearestSurveySite(state, { includeCompleted: true })?.site;
+    if (!site) {
+      return { site: null, distance: Infinity, inRange: false };
+    }
+    const siteDistance = distance(state.player.position, site.position);
+    return {
+      site,
+      distance: siteDistance,
+      inRange: siteDistance <= GAME_DATA.survey.actionRange,
+    };
+  }
+
+  function recordSurveyMiss(next, target, action) {
+    const message = target.site
+      ? `${action} needs ${target.site.name} within ${GAME_DATA.survey.actionRange}m.`
+      : `No survey site available for ${action}.`;
+    next.survey.lastAction = "out of range";
+    next.log.unshift({ tick: next.tick, message });
+    return syncDerivedState(next);
+  }
+
+  function plantSurveyStake(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = surveyActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordSurveyMiss(next, target, "Survey stake");
+    }
+    const site = target.site;
+    if (site.stakePlanted) {
+      next.survey.lastAction = "stake already planted";
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+    if (next.survey.stakes <= 0) {
+      next.survey.lastAction = "no survey stakes";
+      next.log.unshift({ tick: next.tick, message: "No survey stakes remain." });
+      return syncDerivedState(next);
+    }
+    site.stakePlanted = true;
+    site.lastAction = "stake planted";
+    next.survey.stakes -= 1;
+    next.survey.lastAction = `stake planted: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} survey stake planted in ${site.passageId}.` });
+    return syncDerivedState(next);
+  }
+
+  function braceSurveySite(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = surveyActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordSurveyMiss(next, target, "Brace frame");
+    }
+    const site = target.site;
+    if (!site.requirements.brace) {
+      next.survey.lastAction = "brace not required";
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+    if (!site.stakePlanted) {
+      next.survey.lastAction = "stake required";
+      site.lastAction = next.survey.lastAction;
+      next.log.unshift({ tick: next.tick, message: `${site.name} needs a survey stake before bracing.` });
+      return syncDerivedState(next);
+    }
+    if (site.requirements.lanternAnchor && !coveredByLantern(next)) {
+      next.survey.lastAction = "lantern anchor required";
+      site.lastAction = next.survey.lastAction;
+      next.log.unshift({ tick: next.tick, message: `${site.name} brace needs lantern light on the route.` });
+      return syncDerivedState(next);
+    }
+    if (site.braceInstalled) {
+      next.survey.lastAction = "brace already installed";
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+    if (next.survey.braces <= 0) {
+      next.survey.lastAction = "no brace frames";
+      next.log.unshift({ tick: next.tick, message: "No brace frames remain." });
+      return syncDerivedState(next);
+    }
+    site.braceInstalled = true;
+    site.lastAction = "brace installed";
+    next.survey.braces -= 1;
+    next.survey.lastAction = `brace installed: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} brace frame locked before the tremor window.` });
+    return syncDerivedState(next);
+  }
+
+  function chartFaultSurvey(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = surveyActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordSurveyMiss(next, target, "Fault chart");
+    }
+    const site = target.site;
+    if (surveyOutcomeComplete(site)) {
+      next.survey.lastAction = `already charted: ${site.chartState}`;
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+
+    const windowState = surveySiteWindowState(site, next.elapsed || 0);
+    const hasStake = !site.requirements.stake || site.stakePlanted;
+    const hasBrace = !site.requirements.brace || site.braceInstalled;
+    const hazard = currentHazardExposure(next);
+    const lanternSafe = !hazard.names.length || coveredByLantern(next);
+    const stableRoute = next.route.returnConfidence >= 48 && next.routeStability.stability >= 48;
+    const inChartWindow = windowState === "stable" || (windowState === "tremor" && site.braceInstalled);
+    let outcome = "partial";
+    if (windowState === "collapsed" && !site.braceInstalled) {
+      outcome = "failed";
+    } else if (hasStake && hasBrace && lanternSafe && stableRoute && inChartWindow) {
+      outcome = "success";
+    }
+
+    const oxygenCost = outcome === "failed" ? 9 : outcome === "partial" ? 5 : 3;
+    next.oxygen.current = Math.max(0, Number((next.oxygen.current - oxygenCost).toFixed(3)));
+    site.chartState = outcome;
+    site.outcome = outcome;
+    site.lastAction = `chart ${outcome}`;
+    site.payoutEarned = outcome === "success" ? site.rewards.payout : outcome === "partial" ? site.rewards.partialPayout : 0;
+    site.mapProgressEarned = outcome === "success"
+      ? site.rewards.mapProgress
+      : outcome === "partial"
+        ? site.rewards.partialMapProgress
+        : 0;
+    next.survey.value += site.payoutEarned;
+    next.survey.mapProgress = Number((next.survey.mapProgress + site.mapProgressEarned).toFixed(2));
+    next.survey.lastAction = `${site.name} ${outcome}`;
+    next.log.unshift({
+      tick: next.tick,
+      message: `${site.name} chart ${outcome}: +${site.payoutEarned}cr / +${site.mapProgressEarned} map.`,
+    });
+    if (next.oxygen.current <= 0) {
+      next.run.status = "failed";
+      next.run.failureReason = "survey oxygen loss";
+      next.run.objective = "Survey overran the oxygen reserve. Restart from the lift.";
+    }
+    return syncDerivedState(next);
+  }
+
+  function activateAirCache(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = surveyActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordSurveyMiss(next, target, "Air cache");
+    }
+    const site = target.site;
+    if (!site.airCacheState || site.airCacheState.status === "none") {
+      next.survey.lastAction = "no air cache";
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+    if (site.airCacheState.status === "depleted") {
+      next.survey.lastAction = "air cache depleted";
+      site.lastAction = next.survey.lastAction;
+      return syncDerivedState(next);
+    }
+    const restored = site.airCacheState.oxygenRestore;
+    next.oxygen.current = Math.min(next.oxygen.max, Number((next.oxygen.current + restored).toFixed(3)));
+    site.airCacheState.status = "depleted";
+    site.lastAction = "air cache activated";
+    next.survey.airCachesUsed += 1;
+    next.survey.lastAction = `air cache: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} air cache restored ${restored} oxygen.` });
+    return syncDerivedState(next);
+  }
+
   function mineNearestSample(state, deltaSeconds = 1) {
     const next = clone(state);
     if (next.run.status !== "active") {
@@ -800,12 +1418,13 @@ const IronLanternDescent = (() => {
       node.remaining > 0 &&
       next.cargo.samples < next.cargo.capacity
     ) {
+      const yieldValue = node.value + sampleSurveyValueBonus(next, node);
       node.mineState.progress -= node.difficulty;
       node.remaining -= 1;
-      node.mineState.lastYield = node.value;
-      next.mining.lastYield += node.value;
+      node.mineState.lastYield = yieldValue;
+      next.mining.lastYield += yieldValue;
       next.cargo.samples += 1;
-      next.cargo.value += node.value;
+      next.cargo.value += yieldValue;
     }
 
     if (node.remaining <= 0) {
@@ -835,6 +1454,10 @@ const IronLanternDescent = (() => {
         targetDistance: next.scanner.targetDistance,
         routeBearing: next.scanner.routeBearing,
         routeConfidence: next.route.returnConfidence,
+        routeStability: next.routeStability.stability,
+        surveySiteId: next.survey.activeSiteId,
+        surveyWindow: next.survey.activeSiteWindow,
+        surveyStatus: next.survey.activeSiteStatus,
       };
       next.log.unshift({
         tick: next.tick,
@@ -855,15 +1478,28 @@ const IronLanternDescent = (() => {
     }
     const bankedValue = next.cargo.value;
     const bankedSamples = next.cargo.samples;
-    next.credits += bankedValue;
+    const bankedSurveyValue = next.survey ? next.survey.value : 0;
+    const bankedMapProgress = next.survey ? next.survey.mapProgress : 0;
+    next.credits += bankedValue + bankedSurveyValue;
     next.lift.bankedSamples += bankedSamples;
-    next.lift.lastBanked = bankedValue;
+    next.lift.bankedSurveyValue += bankedSurveyValue;
+    next.lift.bankedMapProgress = Number((next.lift.bankedMapProgress + bankedMapProgress).toFixed(2));
+    next.lift.lastBanked = bankedValue + bankedSurveyValue;
     next.cargo.samples = 0;
     next.cargo.value = 0;
-    next.run.status = bankedSamples > 0 ? "extracted" : "active";
-    next.run.completeReason = bankedSamples > 0 ? "samples banked" : null;
-    next.run.objective = bankedSamples > 0 ? "Samples banked. Buy an upgrade or restart for another descent." : next.run.objective;
-    next.log.unshift({ tick: next.tick, message: `Lift banked ${bankedSamples} sample(s) for ${bankedValue}cr.` });
+    if (next.survey) {
+      next.survey.ledger = Number((next.survey.ledger + bankedMapProgress).toFixed(2));
+      next.survey.value = 0;
+      next.survey.mapProgress = 0;
+    }
+    const bankedRunValue = bankedSamples > 0 || bankedSurveyValue > 0 || bankedMapProgress > 0;
+    next.run.status = bankedRunValue ? "extracted" : "active";
+    next.run.completeReason = bankedRunValue ? "samples or survey banked" : null;
+    next.run.objective = bankedRunValue ? "Survey and samples banked. Buy an upgrade or restart for another descent." : next.run.objective;
+    next.log.unshift({
+      tick: next.tick,
+      message: `Lift banked ${bankedSamples} sample(s), ${bankedMapProgress} map, and ${bankedValue + bankedSurveyValue}cr.`,
+    });
     return syncDerivedState(next);
   }
 
@@ -900,6 +1536,7 @@ const IronLanternDescent = (() => {
       credits: state.credits,
       upgrades: state.upgrades.purchased,
       runCount: state.run.count + 1,
+      surveyLedger: state.survey ? state.survey.ledger : 0,
     });
     next.log.unshift({ tick: 0, message: `Run ${next.run.count} initialized with carryover.` });
     return syncDerivedState(next);
@@ -916,6 +1553,18 @@ const IronLanternDescent = (() => {
     }
     if (controls.placeLantern) {
       next = placeLantern(next);
+    }
+    if (controls.plantStake) {
+      next = plantSurveyStake(next);
+    }
+    if (controls.braceSeam) {
+      next = braceSurveySite(next);
+    }
+    if (controls.chartSurvey) {
+      next = chartFaultSurvey(next);
+    }
+    if (controls.airCache) {
+      next = activateAirCache(next);
     }
     if (controls.interact) {
       next = returnToLift(next);
@@ -1065,6 +1714,26 @@ const IronLanternDescent = (() => {
       }
       if (control === "scan") {
         currentState = pulseScanner(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "plantStake") {
+        currentState = plantSurveyStake(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "braceSeam") {
+        currentState = braceSurveySite(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "chartSurvey") {
+        currentState = chartFaultSurvey(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "airCache") {
+        currentState = activateAirCache(currentState);
         renderHud(currentState);
         return;
       }
@@ -1581,9 +2250,14 @@ const IronLanternDescent = (() => {
     createInitialState,
     createSampleNodes,
     createHazardZones,
+    createSurveySites,
     stepRun,
     applyMovement,
     placeLantern,
+    plantSurveyStake,
+    braceSurveySite,
+    chartFaultSurvey,
+    activateAirCache,
     mineNearestSample,
     pulseScanner,
     returnToLift,
@@ -1595,6 +2269,11 @@ const IronLanternDescent = (() => {
     coveredByLantern,
     routeGuidePoints,
     computeRouteState,
+    computeRouteStability,
+    surveySiteWindowState,
+    surveyOxygenDrain,
+    nearestSurveySite,
+    sampleSurveyValueBonus,
     currentHazardExposure,
     nearestSample,
     cavePassageAt,

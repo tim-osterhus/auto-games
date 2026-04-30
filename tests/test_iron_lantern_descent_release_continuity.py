@@ -63,16 +63,15 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
         self.assertFalse((SNAPSHOT_DIR / "versions").exists())
         self.assertFalse((SNAPSHOT_DIR / "snapshots").exists())
         self.assertEqual((GAME_DIR / "index.html").read_bytes(), (SNAPSHOT_DIR / "index.html").read_bytes())
-        self.assertEqual(
-            (GAME_DIR / "iron-lantern-descent.js").read_bytes(),
-            (SNAPSHOT_DIR / "iron-lantern-descent.js").read_bytes(),
-        )
 
         snapshot_html = (SNAPSHOT_DIR / "index.html").read_text(encoding="utf-8")
+        live_script = (GAME_DIR / "iron-lantern-descent.js").read_text(encoding="utf-8")
         snapshot_script = (SNAPSHOT_DIR / "iron-lantern-descent.js").read_text(encoding="utf-8")
         self.assertIn("<title>Iron Lantern Descent</title>", snapshot_html)
         self.assertIn('src="vendor/three.min.js"', snapshot_html)
         self.assertIn('lanternAnchor: "assets/lantern-anchor.png"', snapshot_script)
+        self.assertIn("v0.1.0 Faultline Survey", live_script)
+        self.assertNotIn("v0.1.0 Faultline Survey", snapshot_script)
         self.assertNotIn("https://", snapshot_html)
         self.assertNotIn("http://", snapshot_html)
 
