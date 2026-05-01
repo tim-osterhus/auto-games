@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.5.0 Rail Sabotage rail-security release, Void Prospector's v0.5.0 Knife Wake Interdiction pirate-cell release, and Iron Lantern Descent's v0.1.0 Faultline Survey release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.5.0 Rail Sabotage rail-security release, Void Prospector's v0.5.0 Knife Wake Interdiction pirate-cell release, and Iron Lantern Descent's v0.2.0 Deep Pumpworks release."
   },
   "games": [
     {
@@ -191,16 +191,23 @@
     {
       "slug": "iron-lantern-descent",
       "title": "Iron Lantern Descent",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "status": "playable",
-      "summary": "Descend from the iron lift into a compact 3D faultline cave, manage oxygen and lantern route confidence, stake and brace survey seams, time tremor windows, use air caches, chart map plates, drill mineral samples, bank credits at the lift, and buy carryover upgrades.",
+      "summary": "Descend from the iron lift into a compact 3D faultline cave, manage oxygen, lantern route confidence, survey seams, and Deep Pumpworks flood pressure, then prime pumps, regulate valves, seal leaks, spend siphon charges, drain lower passages, mine boosted samples, bank map plates, and buy carryover upgrades.",
       "path": "games/iron-lantern-descent/",
       "thumbnail": "games/iron-lantern-descent/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.1.0 Faultline Survey",
-        "copy": "Faultline Survey expands Lantern Route with east-shelf and fault-gallery survey sites, stake, brace, chart, and air-cache decisions, tremor-window route pressure, map plate progress, survey payouts tied to samples and lift banking, and procedural fault seams, stakes, brace frames, cache canisters, and map plates."
+        "label": "v0.2.0 Deep Pumpworks",
+        "copy": "Deep Pumpworks extends Faultline Survey with lower pump rooms, cinder sump and basalt siphon stations, pressure windows, flood levels, leak seals, pump priming, valve regulation, siphon charges, drainage rewards, route-stability relief, oxygen tradeoffs, sample bonuses, and lift-banked pumpworks map progress."
       },
       "versions": [
+        {
+          "version": "0.2.0",
+          "path": "games/iron-lantern-descent/versions/0.2.0/",
+          "releasedAt": "2026-05-01",
+          "label": "v0.2.0 Deep Pumpworks",
+          "summary": "Deep Pumpworks adds lower pumpworks and sump bypass passages, pump and valve decisions, flood windows, leak sealing, siphon charges, drainage payouts, route-stability relief, sample bonuses, and pumpworks map progress on top of Faultline Survey."
+        },
         {
           "version": "0.1.0",
           "path": "games/iron-lantern-descent/versions/0.1.0/",

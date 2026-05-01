@@ -100,7 +100,7 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
         self.assertEqual("0.7.0", game_by_slug("corebound")["version"])
         self.assertEqual("0.5.0", game_by_slug("dark-factory-dispatch")["version"])
         self.assertEqual("0.5.0", game_by_slug("void-prospector")["version"])
-        self.assertEqual("0.1.0", game_by_slug("iron-lantern-descent")["version"])
+        self.assertEqual("0.2.0", game_by_slug("iron-lantern-descent")["version"])
 
     def test_generated_arcade_output_lists_knife_wake_card_snapshots_and_thumbnail(self) -> None:
         html = (ROOT / "index.html").read_text(encoding="utf-8")

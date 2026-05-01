@@ -1,20 +1,24 @@
 {
-  "base": "http://127.0.0.1:8137",
+  "schema_version": 1,
+  "generatedAt": "2026-05-01T05:19:29.351Z",
+  "baseUrl": "http://127.0.0.1:8766/",
   "screenshots": {
-    "arcadeDesktop": "_visual-check/iron-lantern-descent-assets/browser-smoke-arcade-card.png",
-    "directDesktop": "_visual-check/iron-lantern-descent-assets/browser-smoke-desktop.png",
-    "directFaultlineStake": "_visual-check/iron-lantern-descent-assets/browser-smoke-faultline-stake.png",
-    "directNarrow": "_visual-check/iron-lantern-descent-assets/browser-smoke-mobile.png"
+    "arcadeCard": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-arcade-card.png",
+    "desktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-desktop.png",
+    "deepPumpworks": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-deep-pumpworks.png",
+    "narrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-mobile.png"
   },
   "arcade": {
     "desktop": {
       "title": "Millrace Arcade",
       "hasIronCard": 1,
       "hasDirectLaunch": 1,
+      "hasSnapshot020": 1,
       "hasSnapshot010": 1,
       "hasSnapshot001": 1,
-      "versionText": "playable / v0.1.0",
-      "releaseLabel": "v0.1.0 Faultline Survey",
+      "versionText": "playable / v0.2.0",
+      "releaseLabel": "v0.2.0 Deep Pumpworks",
+      "copyIncludesPumpworks": true,
       "overflow": {
         "width": 1280,
         "scrollWidth": 1280,
@@ -24,10 +28,13 @@
     "narrow": {
       "title": "Millrace Arcade",
       "hasIronCard": 1,
+      "hasDirectLaunch": 1,
+      "hasSnapshot020": 1,
       "hasSnapshot010": 1,
       "hasSnapshot001": 1,
-      "versionText": "playable / v0.1.0",
-      "releaseLabel": "v0.1.0 Faultline Survey",
+      "versionText": "playable / v0.2.0",
+      "releaseLabel": "v0.2.0 Deep Pumpworks",
+      "copyIncludesPumpworks": true,
       "overflow": {
         "width": 390,
         "scrollWidth": 390,
@@ -39,82 +46,93 @@
     "desktop": {
       "title": "Iron Lantern Descent",
       "renderer": "active / local renderer + assets",
-      "eyebrow": "v0.1.0 faultline survey",
+      "eyebrow": "v0.2.0 deep pumpworks",
+      "objective": "Descend, mark the route, drain lower pumpworks, survey fault plates, bank samples at the lift.",
+      "pumpworksReadout": "Cinder Sump Pump / flooded / 81m",
+      "floodReadout": "65% avg / opens in 12s",
+      "valveReadout": "cinder-return / closed / 20p",
+      "drainageReadout": "0 / 2 sites  0 / 3 map  siphon 1",
       "surveyReadout": "Cinder Rib Fault / unmapped / 43m",
       "stabilityReadout": "watched / 80% / 20p",
-      "tremorReadout": "stable 72s / slip seam",
-      "mapReadout": "0 / 3 map  0cr",
       "position": "pos 0.0 / 8.0",
+      "lastLog": "000 / Iron Lift ready. Main cut is open.",
+      "pumpRows": [
+        {
+          "state": "open",
+          "window": "pending",
+          "text": "Cinder Sump Pumplower-pumpworks / 81mopens in 12s58% floodpump idlecinder-return closedleak opensiphon optionalneeds survey stake + partial survey chart+64cr / +1 map"
+        },
+        {
+          "state": "open",
+          "window": "pending",
+          "text": "Basalt Gate Valvesump-bypass / 96mopens in 35s72% floodpump idlebasalt-siphon closedleak opensiphon neededneeds survey stake + brace frame + success survey chart + lantern anchor + siphon charge+96cr / +2 map"
+        }
+      ],
       "canvas": {
         "width": 1280,
         "height": 800,
         "sampled": 39600,
-        "nonDark": 17757,
-        "bright": 7612,
-        "nonDarkRatio": 0.4484090909090909,
-        "brightRatio": 0.1922222222222222
+        "nonDark": 17372,
+        "bright": 7879,
+        "nonDarkRatio": 0.4386868686868687,
+        "brightRatio": 0.19896464646464646
       },
       "overflow": {
         "width": 1280,
         "scrollWidth": 1280,
         "overflowing": false
       },
-      "surveyDecision": {
-        "afterForward": "pos 0.0 / -29.0",
-        "beforeStake": {
-          "position": "pos 18.0 / -29.0",
-          "surveyReadout": "Cinder Rib Fault / survey ready / 3m",
-          "stabilityReadout": "unstable / 54% / 46p"
-        },
-        "afterStake": {
-          "position": "pos 18.0 / -29.0",
-          "surveyReadout": "Cinder Rib Fault / staked / 3m",
-          "stabilityReadout": "stable / 86% / 14p",
-          "tremorReadout": "stable 63s / slip seam",
-          "mapReadout": "0 / 3 map  0cr",
-          "lastLog": "193 / Cinder Rib Fault survey stake planted in east-shelf.",
-          "surveyRows": [
-            {
-              "status": "unmapped",
-              "window": "stable",
-              "text": "Cinder Rib Faulteast-shelf / 3mslip seamstakedstable 63sstake set / brace none / cache none+46cr / +1 map"
-            },
-            {
-              "status": "unmapped",
-              "window": "pending",
-              "text": "Basalt Suturefault-gallery / 49mcompressive seamunmappedopens in 9sstake open / brace needed / cache sealed+78cr / +2 map"
-            }
-          ]
-        },
-        "lastLog": "193 / Cinder Rib Fault survey stake planted in east-shelf."
-      },
-      "afterStakeCanvas": {
-        "width": 1280,
-        "height": 800,
-        "sampled": 39600,
-        "nonDark": 19151,
-        "bright": 2011,
-        "nonDarkRatio": 0.4836111111111111,
-        "brightRatio": 0.050782828282828284
+      "pumpworksDecision": {
+        "source": "window.IronLanternDescent direct-page API",
+        "release": "v0.2.0 Deep Pumpworks",
+        "baseRelease": "v0.1.0 Faultline Survey",
+        "lastLog": "Cinder Sump Pump pressure valve success: +64cr / +1 map.",
+        "pumpworksReadout": "Cinder Sump Pump / success / drained",
+        "floodReadout": "14% flood / drain",
+        "valveReadout": "cinder-return / regulated / 25p",
+        "drainageReadout": "1 / 2 sites  1 / 3 map  siphon 1",
+        "routeConfidence": 57,
+        "stability": 75,
+        "pressureRelief": 20,
+        "oxygen": 86,
+        "pumpworksValue": 64,
+        "pumpworksMap": 1,
+        "surveyChart": "success"
       }
     },
     "narrow": {
       "title": "Iron Lantern Descent",
       "renderer": "active / local renderer + assets",
-      "eyebrow": "v0.1.0 faultline survey",
+      "eyebrow": "v0.2.0 deep pumpworks",
+      "objective": "Descend, mark the route, drain lower pumpworks, survey fault plates, bank samples at the lift.",
+      "pumpworksReadout": "Cinder Sump Pump / flooded / 81m",
+      "floodReadout": "65% avg / opens in 12s",
+      "valveReadout": "cinder-return / closed / 20p",
+      "drainageReadout": "0 / 2 sites  0 / 3 map  siphon 1",
       "surveyReadout": "Cinder Rib Fault / unmapped / 43m",
       "stabilityReadout": "watched / 80% / 20p",
-      "tremorReadout": "stable 72s / slip seam",
-      "mapReadout": "0 / 3 map  0cr",
       "position": "pos 0.0 / 8.0",
+      "lastLog": "000 / Iron Lift ready. Main cut is open.",
+      "pumpRows": [
+        {
+          "state": "open",
+          "window": "pending",
+          "text": "Cinder Sump Pumplower-pumpworks / 81mopens in 12s58% floodpump idlecinder-return closedleak opensiphon optionalneeds survey stake + partial survey chart+64cr / +1 map"
+        },
+        {
+          "state": "open",
+          "window": "pending",
+          "text": "Basalt Gate Valvesump-bypass / 96mopens in 35s72% floodpump idlebasalt-siphon closedleak opensiphon neededneeds survey stake + brace frame + success survey chart + lantern anchor + siphon charge+96cr / +2 map"
+        }
+      ],
       "canvas": {
         "width": 390,
         "height": 800,
         "sampled": 39600,
-        "nonDark": 24156,
-        "bright": 11047,
-        "nonDarkRatio": 0.61,
-        "brightRatio": 0.27896464646464647
+        "nonDark": 23597,
+        "bright": 11505,
+        "nonDarkRatio": 0.5958838383838384,
+        "brightRatio": 0.290530303030303
       },
       "overflow": {
         "width": 390,
@@ -129,7 +147,7 @@
     "arcadeNarrow": true,
     "desktopCanvasNonblank": true,
     "narrowCanvasNonblank": true,
-    "surveyDecision": true,
+    "pumpworksDecision": true,
     "consoleClean": true,
     "directOverflow": true
   },
