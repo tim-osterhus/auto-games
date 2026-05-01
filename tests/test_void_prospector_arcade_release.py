@@ -98,7 +98,7 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
 
         self.assertEqual(["corebound", "dark-factory-dispatch", "void-prospector", "iron-lantern-descent"], slugs)
         self.assertEqual("0.7.0", game_by_slug("corebound")["version"])
-        self.assertEqual("0.5.0", game_by_slug("dark-factory-dispatch")["version"])
+        self.assertEqual("0.6.0", game_by_slug("dark-factory-dispatch")["version"])
         self.assertEqual("0.5.0", game_by_slug("void-prospector")["version"])
         self.assertEqual("0.4.0", game_by_slug("iron-lantern-descent")["version"])
 

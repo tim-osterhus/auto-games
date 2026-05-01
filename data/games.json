@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.5.0 Rail Sabotage rail-security release, Void Prospector's v0.5.0 Knife Wake Interdiction pirate-cell release, and Iron Lantern Descent's v0.4.0 Echo Relay Network release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.6.0 Crisis Arbitration docket release, Void Prospector's v0.5.0 Knife Wake Interdiction pirate-cell release, and Iron Lantern Descent's v0.4.0 Echo Relay Network release."
   },
   "games": [
     {
@@ -71,16 +71,23 @@
     {
       "slug": "dark-factory-dispatch",
       "title": "Dark Factory Dispatch",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "status": "playable",
-      "summary": "Run a compact machine-intelligence factory through Rail Sabotage shifts with hostile rail cells, suspect cargo manifests, dock patrols, decoy routing, sabotage scans and interceptions, lane repairs, compromised carrier reroutes, Freight Lockdown cargo windows, Signal Breach intrusion, Grid Siege power routing, audit relay directives, emergency coolant-diversion orders, lane overdrive calls, persistent scars, and upgrade decisions between shifts.",
+      "summary": "Run a compact machine-intelligence factory through Crisis Arbitration shifts with cross-system crisis dockets, evidence packets, binding priority rulings, emergency overrides, protected lanes and docks, timer pressure, outcome scars, Rail Sabotage containment, Freight Lockdown cargo windows, Signal Breach intrusion, Grid Siege power routing, audit relay directives, emergency coolant-diversion orders, lane overdrive calls, persistent scars, and upgrade decisions between shifts.",
       "path": "games/dark-factory-dispatch/",
       "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.5.0 Rail Sabotage",
-        "copy": "Rail Sabotage extends Freight Lockdown with hostile rail cells, suspect cargo tags, scan queues, dock patrol drones or defense screens, decoy manifests, dock lockdown and reopen timing, compromised carrier reroutes, sabotage interceptions, lane repair, and full, partial, or failed containment outcomes that feed carrier integrity, route risk, grid pressure, breach intensity, stability, reputation, and restart scars."
+        "label": "v0.6.0 Crisis Arbitration",
+        "copy": "Crisis Arbitration binds the existing grid, breach, freight, and rail pressures into live docket cases with evidence requirements, protected lane or dock decisions, priority rulings, emergency overrides, deferrals, timer failures, and full or partial outcomes that reshape queue policy, lane access, grid pressure, breach intensity, freight integrity, rail sabotage pressure, stability, reputation, and restart scars."
       },
       "versions": [
+        {
+          "version": "0.6.0",
+          "path": "games/dark-factory-dispatch/versions/0.6.0/",
+          "releasedAt": "2026-05-01",
+          "label": "v0.6.0 Crisis Arbitration",
+          "summary": "Cross-system crisis dockets, evidence packet assignments, protected lane or dock decisions, binding priority rulings, emergency overrides, deferrals, timer failures, and outcome scars publish on top of Rail Sabotage."
+        },
         {
           "version": "0.5.0",
           "path": "games/dark-factory-dispatch/versions/0.5.0/",
