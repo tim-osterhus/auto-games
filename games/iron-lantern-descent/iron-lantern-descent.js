@@ -4457,6 +4457,10 @@ const IronLanternDescent = (() => {
       "airflow-readout",
       "filter-readout",
       "gas-readout",
+      "relay-readout",
+      "cable-readout",
+      "echo-readout",
+      "rescue-readout",
       "scanner-readout",
       "tremor-readout",
       "map-readout",
@@ -4470,6 +4474,7 @@ const IronLanternDescent = (() => {
       "survey-site-list",
       "pumpworks-site-list",
       "vent-site-list",
+      "relay-site-list",
       "sample-list",
       "event-log",
       "lantern-action",
@@ -4487,6 +4492,11 @@ const IronLanternDescent = (() => {
       "filter-action",
       "fan-action",
       "vent-action",
+      "relay-action",
+      "cable-action",
+      "echo-action",
+      "rescue-action",
+      "beacon-action",
       "lift-action",
       "upgrade-action",
       "restart-action",
@@ -4635,6 +4645,54 @@ const IronLanternDescent = (() => {
     return [site.airflowState, gate, fan, filter, gas, route];
   }
 
+  function formatRelayWindow(site, elapsed) {
+    const windowState = site.windowState || relayWindowState(site, elapsed || 0);
+    const window = site.pulseWindow || {};
+    if (windowState === "pending") {
+      return `opens in ${Math.max(0, Math.ceil(window.opensAt - elapsed))}s`;
+    }
+    if (windowState === "clear") {
+      return `clear ${Math.max(0, Math.ceil(window.closesAt - elapsed))}s`;
+    }
+    if (windowState === "drift") {
+      return `drift ${Math.max(0, Math.ceil(window.driftAt - elapsed))}s`;
+    }
+    if (windowState === "noisy") {
+      return `noise ${Math.max(0, Math.ceil(window.failAt - elapsed))}s`;
+    }
+    return "overrun";
+  }
+
+  function activeRelaySite(state) {
+    return state.relaySites.find((site) => site.id === state.echoRelayNetwork.activeSiteId) ||
+      nearestRelaySite(state, { includeCompleted: true })?.site ||
+      null;
+  }
+
+  function relayRequirementText(state, site) {
+    const requirements = relayRequirementStatus(state, site, {
+      requirePylon: true,
+      requireCable: true,
+      requirePumpworks: true,
+      requireVent: true,
+      requireEchoCharge: true,
+    });
+    if (requirements.ready) {
+      return "requirements clear";
+    }
+    return `needs ${requirements.missing.join(" + ")}`;
+  }
+
+  function relayLineText(site) {
+    const pylon = `pylon ${site.pylonState}`;
+    const cable = `${site.cableSpanId.replace("cable-", "")} ${site.cableState}`;
+    const echo = `echo ${site.echoCharge} / noise ${Math.round((site.echoNoise || 0) * 100)}`;
+    const cache = `cache ${site.cacheState.status}`;
+    const beacon = `beacon ${site.beaconState} / cost ${site.beacon.cargoCost}cr`;
+    const route = `route +${site.route.triangulationBonus} / risk -${site.route.failurePenalty}`;
+    return [pylon, cable, echo, cache, beacon, route];
+  }
+
   function renderHud(state) {
     if (!dom.root) {
       return;
@@ -4646,9 +4704,7 @@ const IronLanternDescent = (() => {
     const activeSite = activeSurveySite(state);
     const activePump = activePumpworksSite(state);
     const activeVent = activeVentSite(state);
-    const activeRelay = state.relaySites.find((site) => site.id === state.echoRelayNetwork.activeSiteId) ||
-      nearestRelaySite(state, { includeCompleted: true })?.site ||
-      null;
+    const activeRelay = activeRelaySite(state);
     const surveyTarget = activeSite
       ? `${activeSite.name} / ${activeSite.status} / ${Math.round(activeSite.distance || 0)}m`
       : "survey complete";
@@ -4673,6 +4729,18 @@ const IronLanternDescent = (() => {
     const gasText = activeVent
       ? `${Math.round(state.ventNetwork.gasPressure * 100)}g avg / stale ${Math.round(state.ventNetwork.staleAirPressure * 100)} / clear ${state.ventNetwork.gasCleared}`
       : `${state.ventNetwork.gasCleared} / ${state.ventNetwork.contract.targetGasCleared} cleared`;
+    const relayTarget = activeRelay
+      ? `${activeRelay.name} / ${activeRelay.status} / ${Math.round(activeRelay.distance || 0)}m`
+      : "echo relays triangulated";
+    const cableText = activeRelay
+      ? `${activeRelay.cableSpanId.replace("cable-", "")} / ${activeRelay.cableState} / ${Math.round(state.echoRelayNetwork.cableBreakPressure * 100)} pressure`
+      : `${state.echoRelayNetwork.cablesSpliced} / ${state.relaySites.length} spliced`;
+    const echoText = activeRelay
+      ? `${state.echoRelayNetwork.echoCharges} / ${state.echoRelayNetwork.maxEchoCharges} charges  ${Math.round(state.echoRelayNetwork.echoNoise * 100)} noise  ${formatRelayWindow(activeRelay, state.elapsed)}`
+      : `${state.echoRelayNetwork.triangulations} / ${state.echoRelayNetwork.contract.targetTriangulations} triangulated`;
+    const rescueText = activeRelay
+      ? `cache ${activeRelay.cacheState.status} / beacon ${activeRelay.beaconState} / ${state.echoRelayNetwork.cachesClaimed} caches`
+      : `${state.echoRelayNetwork.cachesClaimed} caches / ${state.echoRelayNetwork.beaconsFired} beacons`;
     let targetName = "Iron Lift";
     if (state.scanner.targetKind === "echo-relay" && activeRelay) {
       targetName = activeRelay.name;
@@ -4704,6 +4772,10 @@ const IronLanternDescent = (() => {
     dom["airflow-readout"].textContent = airflowText;
     dom["filter-readout"].textContent = filterText;
     dom["gas-readout"].textContent = gasText;
+    dom["relay-readout"].textContent = relayTarget;
+    dom["cable-readout"].textContent = cableText;
+    dom["echo-readout"].textContent = echoText;
+    dom["rescue-readout"].textContent = rescueText;
     dom["scanner-readout"].textContent = state.scanner.status;
     dom["tremor-readout"].textContent = tremorText;
     dom["map-readout"].textContent = `${state.survey.mapProgress + state.survey.ledger} / ${state.survey.contract.targetMapProgress} map  ${state.survey.value}cr`;
@@ -4735,6 +4807,10 @@ const IronLanternDescent = (() => {
     setReadoutTone(dom["airflow-readout"], activeVent && activeVent.relayState === "success" ? "signal" : activeVent && activeVent.fanState === "surging" ? "warn" : null);
     setReadoutTone(dom["filter-readout"], state.ventNetwork.filters <= 0 ? "warn" : null);
     setReadoutTone(dom["gas-readout"], activeVent && activeVent.windowState === "overrun" ? "danger" : activeVent && activeVent.windowState === "gas" ? "warn" : null);
+    setReadoutTone(dom["relay-readout"], activeRelay && activeRelay.inRange ? "signal" : null);
+    setReadoutTone(dom["cable-readout"], activeRelay && activeRelay.cableState === "snapped" ? "danger" : activeRelay && activeRelay.cableSpliced ? "signal" : null);
+    setReadoutTone(dom["echo-readout"], state.echoRelayNetwork.echoCharges <= 0 ? "warn" : activeRelay && activeRelay.windowState === "overrun" ? "danger" : activeRelay && activeRelay.windowState === "noisy" ? "warn" : null);
+    setReadoutTone(dom["rescue-readout"], activeRelay && activeRelay.beaconState === "misfired" ? "danger" : activeRelay && (activeRelay.cacheState.status === "claimed" || activeRelay.beaconState === "fired") ? "signal" : null);
     setReadoutTone(dom["tremor-readout"], activeSite && activeSite.windowState === "collapsed" ? "danger" : activeSite && activeSite.windowState === "tremor" ? "warn" : null);
 
     dom["survey-site-list"].replaceChildren(
@@ -4811,6 +4887,37 @@ const IronLanternDescent = (() => {
           ...ventLineText(site),
           ventRequirementText(state, site),
           `+${site.rewards.payout}cr / +${site.rewards.mapProgress} map / +${site.rewards.airflowRelief} air`,
+        ].forEach((text) => {
+          const part = document.createElement("span");
+          part.textContent = text;
+          meta.append(part);
+        });
+        item.append(line, meta);
+        return item;
+      })
+    );
+
+    dom["relay-site-list"].replaceChildren(
+      ...state.relaySites.map((site) => {
+        const item = document.createElement("li");
+        item.dataset.window = site.windowState;
+        item.dataset.state = site.triangulationState;
+        item.dataset.cable = site.cableState;
+        item.dataset.beacon = site.beaconState;
+        const line = document.createElement("div");
+        line.className = "relay-line";
+        const name = document.createElement("strong");
+        name.textContent = site.name;
+        const passage = document.createElement("span");
+        passage.textContent = `${site.passageId} / ${Math.round(site.distance || 0)}m`;
+        line.append(name, passage);
+        const meta = document.createElement("div");
+        meta.className = "relay-meta";
+        [
+          formatRelayWindow(site, state.elapsed),
+          ...relayLineText(site),
+          relayRequirementText(state, site),
+          `+${site.rewards.payout}cr / +${site.rewards.mapProgress} map / +${site.rewards.routeRelief} route`,
         ].forEach((text) => {
           const part = document.createElement("span");
           part.textContent = text;
@@ -5032,6 +5139,26 @@ const IronLanternDescent = (() => {
     });
     dom["vent-action"].addEventListener("click", () => {
       currentState = ventGasPocket(currentState);
+      renderHud(currentState);
+    });
+    dom["relay-action"].addEventListener("click", () => {
+      currentState = repairRelayPylon(currentState);
+      renderHud(currentState);
+    });
+    dom["cable-action"].addEventListener("click", () => {
+      currentState = spoolRelayCable(currentState);
+      renderHud(currentState);
+    });
+    dom["echo-action"].addEventListener("click", () => {
+      currentState = triangulateEchoRoute(currentState);
+      renderHud(currentState);
+    });
+    dom["rescue-action"].addEventListener("click", () => {
+      currentState = claimRescueCache(currentState);
+      renderHud(currentState);
+    });
+    dom["beacon-action"].addEventListener("click", () => {
+      currentState = fireLiftBeacon(currentState);
       renderHud(currentState);
     });
     dom["lift-action"].addEventListener("click", () => {
@@ -5493,6 +5620,100 @@ const IronLanternDescent = (() => {
     return group;
   }
 
+  function createRelaySiteMesh(THREE, site) {
+    const group = new THREE.Group();
+    group.userData.siteId = site.id;
+
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.52, 0.28, 16),
+      new THREE.MeshStandardMaterial({ color: 0x1e2825, roughness: 0.7, metalness: 0.3 })
+    );
+    base.position.y = 0.18;
+    base.userData.role = "relay-base";
+    group.add(base);
+
+    const pylon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.18, 2.25, 12),
+      new THREE.MeshStandardMaterial({ color: 0x25302c, roughness: 0.62, metalness: 0.42 })
+    );
+    pylon.position.y = 1.28;
+    pylon.userData.role = "relay-pylon";
+    group.add(pylon);
+
+    const echoPulse = new THREE.Mesh(
+      new THREE.TorusGeometry(0.92, 0.028, 8, 52),
+      new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.28 })
+    );
+    echoPulse.rotation.x = Math.PI / 2;
+    echoPulse.position.y = 1.9;
+    echoPulse.userData.role = "echo-pulse-marker";
+    group.add(echoPulse);
+
+    const cable = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-site.radius * 0.95, 0.2, 0.34),
+        new THREE.Vector3(-site.radius * 0.36, 0.28, 0.1),
+        new THREE.Vector3(site.radius * 0.24, 0.18, -0.12),
+        new THREE.Vector3(site.radius * 0.96, 0.28, -0.42),
+      ]),
+      new THREE.LineBasicMaterial({ color: 0xd46857, transparent: true, opacity: 0.45 })
+    );
+    cable.userData.role = "signal-cable-line";
+    group.add(cable);
+
+    const sparks = new THREE.Group();
+    sparks.userData.role = "cable-break-sparks";
+    [
+      [-0.22, 0.36, 0, 0.16, 0.14, 0.04],
+      [0.04, 0.46, -0.08, 0.06, 0.2, 0.04],
+      [0.26, 0.34, 0.08, 0.18, 0.06, 0.04],
+    ].forEach(([x, y, z, width, height, depth]) => {
+      const spark = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, depth),
+        new THREE.MeshBasicMaterial({ color: 0xd46857, transparent: true, opacity: 0.74 })
+      );
+      spark.position.set(x, y, z);
+      sparks.add(spark);
+    });
+    group.add(sparks);
+
+    const cache = new THREE.Mesh(
+      new THREE.BoxGeometry(0.95, 0.55, 0.62),
+      new THREE.MeshBasicMaterial({ color: 0xe0e7e3, transparent: true, opacity: 0.34 })
+    );
+    cache.position.set(1.05, 0.4, 0.78);
+    cache.userData.role = "rescue-cache-locker";
+    group.add(cache);
+
+    const beacon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.3, 0.92, 12),
+      new THREE.MeshBasicMaterial({ color: 0xc9a653, transparent: true, opacity: 0.48 })
+    );
+    beacon.position.set(-0.96, 0.56, -0.72);
+    beacon.userData.role = "emergency-beacon-hardware";
+    group.add(beacon);
+
+    const routeSignal = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-site.radius * 0.72, 0.12, -0.82),
+        new THREE.Vector3(-site.radius * 0.18, 0.12, -0.36),
+        new THREE.Vector3(site.radius * 0.42, 0.12, -0.55),
+        new THREE.Vector3(site.radius * 0.86, 0.12, -0.08),
+      ]),
+      new THREE.LineBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.18 })
+    );
+    routeSignal.userData.role = "route-signal-overlay";
+    group.add(routeSignal);
+
+    const light = new THREE.PointLight(0x4bd6c0, 0.32, site.influenceRadius);
+    light.position.set(0, 1.8, 0);
+    light.userData.role = "echo-relay-signal-light";
+    group.add(light);
+
+    group.position.set(site.position.x, 0, site.position.z);
+    return group;
+  }
+
   function createLanternMesh(THREE, anchor, assets = {}) {
     const group = new THREE.Group();
     const base = new THREE.Mesh(
@@ -5593,6 +5814,13 @@ const IronLanternDescent = (() => {
       scene.add(mesh);
     });
 
+    const relayMeshes = new Map();
+    state.relaySites.forEach((site) => {
+      const mesh = createRelaySiteMesh(THREE, site);
+      relayMeshes.set(site.id, mesh);
+      scene.add(mesh);
+    });
+
     const scannerRing = new THREE.Mesh(
       new THREE.RingGeometry(3.8, 4.0, 48),
       new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
@@ -5619,6 +5847,7 @@ const IronLanternDescent = (() => {
         surveyMeshes,
         pumpworksMeshes,
         ventMeshes,
+        relayMeshes,
         lanternMeshes: new Map(),
         routeGroup,
         routeSignature: "",
@@ -5886,6 +6115,83 @@ const IronLanternDescent = (() => {
     });
   }
 
+  function updateRelayMeshes(handle, state, timeSeconds) {
+    state.relaySites.forEach((site) => {
+      const mesh = handle.objects.relayMeshes.get(site.id);
+      if (!mesh) {
+        return;
+      }
+      const pylon = mesh.children.find((child) => child.userData.role === "relay-pylon");
+      const echoPulse = mesh.children.find((child) => child.userData.role === "echo-pulse-marker");
+      const cable = mesh.children.find((child) => child.userData.role === "signal-cable-line");
+      const sparks = mesh.children.find((child) => child.userData.role === "cable-break-sparks");
+      const cache = mesh.children.find((child) => child.userData.role === "rescue-cache-locker");
+      const beacon = mesh.children.find((child) => child.userData.role === "emergency-beacon-hardware");
+      const routeSignal = mesh.children.find((child) => child.userData.role === "route-signal-overlay");
+      const light = mesh.children.find((child) => child.userData.role === "echo-relay-signal-light");
+      const urgent =
+        site.windowState === "noisy" ||
+        site.windowState === "overrun" ||
+        site.triangulationState === "failed" ||
+        site.cableState === "snapped" ||
+        site.beaconState === "misfired";
+      const complete = site.triangulationState === "success" || site.triangulationState === "partial";
+      const active =
+        site.inRange ||
+        site.pylonState !== "damaged" ||
+        site.cableState !== site.cableSpan.baseState ||
+        complete ||
+        site.cacheState.status === "claimed" ||
+        site.beaconState !== "armed";
+      const pulse = 0.5 + Math.sin(timeSeconds * (urgent ? 6.4 : 2.8) + site.position.z) * 0.5;
+
+      mesh.scale.setScalar(site.inRange ? 1.14 : 1);
+      if (pylon && pylon.material) {
+        pylon.material.color.setHex(urgent ? 0x3a201d : site.pylonState === "damaged" ? 0x25302c : 0x2b4f47);
+        if (pylon.material.emissive) {
+          pylon.material.emissive.setHex(site.pylonState === "damaged" ? 0x000000 : 0x061f1a);
+        }
+      }
+      if (echoPulse && echoPulse.material) {
+        echoPulse.visible = active || site.inRange;
+        echoPulse.material.color.setHex(urgent ? 0xd46857 : complete ? 0xc9a653 : 0x4bd6c0);
+        echoPulse.material.opacity = active ? 0.2 + pulse * 0.42 : 0.14;
+        echoPulse.scale.setScalar(0.86 + pulse * 0.32);
+      }
+      if (cable && cable.material) {
+        const spliced = site.cableState === "spooled" || site.cableState === "toned" || site.cableState === "patched";
+        cable.material.color.setHex(site.cableState === "snapped" ? 0xd46857 : spliced ? 0x4bd6c0 : 0xd46857);
+        cable.material.opacity = spliced ? 0.42 + pulse * 0.18 : 0.26 + pulse * 0.24;
+      }
+      if (sparks) {
+        sparks.visible = site.cableState === site.cableSpan.baseState || site.cableState === "snapped" || urgent;
+        sparks.children.forEach((spark) => {
+          if (spark.material) {
+            spark.material.opacity = urgent ? 0.58 + pulse * 0.34 : 0.28 + pulse * 0.22;
+          }
+        });
+      }
+      if (cache && cache.material) {
+        cache.material.color.setHex(site.cacheState.status === "claimed" ? 0x4bd6c0 : 0xe0e7e3);
+        cache.material.opacity = site.cacheState.status === "claimed" ? 0.22 : 0.34 + pulse * 0.14;
+      }
+      if (beacon && beacon.material) {
+        beacon.material.color.setHex(site.beaconState === "misfired" ? 0xd46857 : site.beaconState === "fired" ? 0x4bd6c0 : 0xc9a653);
+        beacon.material.opacity = site.beaconState === "armed" ? 0.36 + pulse * 0.18 : 0.74;
+      }
+      if (routeSignal && routeSignal.material) {
+        routeSignal.visible = active;
+        routeSignal.material.color.setHex(urgent ? 0xd46857 : complete || site.beaconState === "fired" ? 0xc9a653 : 0x4bd6c0);
+        routeSignal.material.opacity = active ? 0.18 + pulse * 0.2 : 0.08;
+      }
+      if (light) {
+        light.color.setHex(urgent ? 0xd46857 : complete ? 0xc9a653 : 0x4bd6c0);
+        light.intensity = active ? 0.38 + pulse * 0.36 : 0.16;
+        light.distance = site.influenceRadius;
+      }
+    });
+  }
+
   function updateScene(handle, state, timeSeconds) {
     resizeScene(handle);
     syncLanternMeshes(handle, state);
@@ -5893,6 +6199,7 @@ const IronLanternDescent = (() => {
     updateSurveyMeshes(handle, state, timeSeconds);
     updatePumpworksMeshes(handle, state, timeSeconds);
     updateVentMeshes(handle, state, timeSeconds);
+    updateRelayMeshes(handle, state, timeSeconds);
     handle.objects.player.position.set(state.player.position.x, 0, state.player.position.z);
     handle.objects.player.rotation.y = state.player.facing;
     handle.objects.playerLamp.position.set(state.player.position.x, state.player.position.y + 0.4, state.player.position.z);

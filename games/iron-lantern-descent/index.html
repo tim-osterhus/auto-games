@@ -16,7 +16,7 @@
     <header class="topline">
       <a class="backlink" href="../../">Millrace Arcade</a>
       <div class="identity">
-        <span class="eyebrow">v0.3.0 cinder vent network</span>
+        <span class="eyebrow">v0.3.0 cinder vent network / v0.4.0 echo relay network</span>
         <h1>Iron Lantern Descent</h1>
       </div>
       <div class="run-chip" id="run-status">boot / pending</div>
@@ -96,6 +96,22 @@
         <strong id="gas-readout">pocketed / stale</strong>
       </article>
       <article class="readout">
+        <span>Echo Relays</span>
+        <strong id="relay-readout">echo relays dark</strong>
+      </article>
+      <article class="readout">
+        <span>Cable</span>
+        <strong id="cable-readout">break pressure pending</strong>
+      </article>
+      <article class="readout">
+        <span>Echo</span>
+        <strong id="echo-readout">2 / 2 charges</strong>
+      </article>
+      <article class="readout">
+        <span>Rescue</span>
+        <strong id="rescue-readout">caches sealed / beacon armed</strong>
+      </article>
+      <article class="readout">
         <span class="readout-label"><span class="readout-icon readout-icon-scanner" aria-hidden="true"></span>Scanner</span>
         <strong id="scanner-readout">ready / node</strong>
       </article>
@@ -132,6 +148,7 @@
         <span id="mining-readout">drill idle</span>
       </div>
       <ol class="vent-list" id="vent-site-list" aria-label="Cinder Vent Network sites"></ol>
+      <ol class="relay-list" id="relay-site-list" aria-label="Echo Relay Network sites"></ol>
       <ol class="survey-list" id="survey-site-list" aria-label="Faultline survey sites"></ol>
       <ol class="pumpworks-list" id="pumpworks-site-list" aria-label="Deep Pumpworks stations"></ol>
       <ol class="sample-list" id="sample-list" aria-label="Sample nodes"></ol>
@@ -152,6 +169,11 @@
         <button type="button" id="filter-action">Filter</button>
         <button type="button" id="fan-action">Fan</button>
         <button type="button" id="vent-action">Vent</button>
+        <button type="button" id="relay-action">Relay</button>
+        <button type="button" id="cable-action">Cable</button>
+        <button type="button" id="echo-action">Echo</button>
+        <button type="button" id="rescue-action">Rescue</button>
+        <button type="button" id="beacon-action">Beacon</button>
         <button type="button" id="lift-action">Lift</button>
         <button type="button" id="upgrade-action">Upgrade</button>
         <button type="button" id="restart-action">Restart</button>
@@ -177,6 +199,11 @@
       <span>J filter</span>
       <span>K fan</span>
       <span>T vent</span>
+      <span>1 relay</span>
+      <span>2 cable</span>
+      <span>3 echo</span>
+      <span>4 rescue</span>
+      <span>5 beacon</span>
       <span>F/Enter lift</span>
       <span>U upgrade</span>
       <span>R restart</span>

@@ -101,6 +101,8 @@ button {
 .sample-list,
 .survey-list,
 .pumpworks-list,
+.vent-list,
+.relay-list,
 .event-log {
   color: var(--muted);
   font-size: 0.72rem;
@@ -270,6 +272,7 @@ button {
 .survey-list li,
 .pumpworks-list li,
 .vent-list li,
+.relay-list li,
 .event-log li {
   min-height: 30px;
   padding: 7px 8px;
@@ -282,6 +285,7 @@ button {
 .survey-list,
 .pumpworks-list,
 .vent-list,
+.relay-list,
 .event-log {
   display: grid;
   gap: 6px;
@@ -297,7 +301,8 @@ button {
 
 .survey-list li,
 .pumpworks-list li,
-.vent-list li {
+.vent-list li,
+.relay-list li {
   display: grid;
   gap: 5px;
   border-left: 2px solid var(--signal);
@@ -351,12 +356,35 @@ button {
   background: rgba(75, 214, 192, 0.055);
 }
 
+.relay-list {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.relay-list li[data-window="noisy"],
+.relay-list li[data-window="overrun"],
+.relay-list li[data-state="failed"] {
+  border-left-color: var(--danger);
+}
+
+.relay-list li[data-state="success"],
+.relay-list li[data-state="partial"] {
+  border-left-color: var(--lantern);
+}
+
+.relay-list li[data-cable="spooled"],
+.relay-list li[data-beacon="fired"] {
+  background: rgba(75, 214, 192, 0.055);
+}
+
 .survey-line,
 .survey-meta,
 .pumpworks-line,
 .pumpworks-meta,
 .vent-line,
-.vent-meta {
+.vent-meta,
+.relay-line,
+.relay-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
@@ -365,7 +393,8 @@ button {
 
 .survey-line strong,
 .pumpworks-line strong,
-.vent-line strong {
+.vent-line strong,
+.relay-line strong {
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 600;
@@ -375,6 +404,7 @@ button {
 .survey-meta span,
 .pumpworks-meta span,
 .vent-meta span,
+.relay-meta span,
 .event-log li {
   overflow-wrap: anywhere;
 }
