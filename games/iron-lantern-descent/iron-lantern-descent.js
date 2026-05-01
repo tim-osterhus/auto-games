@@ -39,6 +39,10 @@ const IronLanternDescent = (() => {
       turnValve: ["KeyO"],
       deploySiphon: ["KeyY"],
       sealLeak: ["KeyH"],
+      openDraftGate: ["KeyG"],
+      deployFilter: ["KeyJ"],
+      startFan: ["KeyK"],
+      ventGas: ["KeyT"],
       upgrade: ["KeyU"],
       reset: ["KeyR"],
     },
@@ -55,6 +59,8 @@ const IronLanternDescent = (() => {
         { id: "deep-room", name: "Deep Room", center: { x: 0, z: -70 }, size: { x: 24, z: 20 } },
         { id: "lower-pumpworks", name: "Lower Pumpworks", center: { x: 11, z: -74 }, size: { x: 18, z: 24 } },
         { id: "sump-bypass", name: "Sump Bypass", center: { x: -5, z: -88 }, size: { x: 18, z: 24 } },
+        { id: "cinder-vent-shaft", name: "Cinder Vent Shaft", center: { x: 24, z: -72 }, size: { x: 18, z: 24 } },
+        { id: "fan-relay-bay", name: "Fan Relay Bay", center: { x: -22, z: -88 }, size: { x: 20, z: 20 } },
       ],
     },
     player: {
@@ -152,6 +158,30 @@ const IronLanternDescent = (() => {
       routeStability: {
         lowStabilityDrainPerSecond: 0.28,
         floodExposureDrainPerSecond: 0.42,
+      },
+    },
+    cinderVentNetwork: {
+      release: {
+        version: "0.3.0",
+        label: "v0.3.0 Cinder Vent Network",
+        baseRelease: "v0.2.0 Deep Pumpworks",
+      },
+      actionRange: 5.4,
+      filters: {
+        baseCharges: 1,
+      },
+      contract: {
+        id: "cinder-vent-network-relay-route",
+        label: "Cinder Vent Network relay route",
+        targetRelays: 2,
+        targetGasCleared: 2,
+        targetMapProgress: 3,
+        targetAirflowRelief: 40,
+      },
+      routeStability: {
+        staleAirDrainPerSecond: 0.26,
+        gasPocketDrainPerSecond: 0.52,
+        lowVentilationDrainPerSecond: 0.22,
       },
     },
     lift: {
@@ -457,6 +487,148 @@ const IronLanternDescent = (() => {
         },
       },
     ],
+    ventSites: [
+      {
+        id: "vent-cinder-rib-draft",
+        name: "Cinder Rib Draft Gate",
+        ventId: "vent-cinder-rib",
+        gateId: "gate-cinder-rib",
+        fanId: "fan-cinder-draft",
+        kind: "draft-gate",
+        passageId: "cinder-vent-shaft",
+        chamber: "cinder vent shaft",
+        associatedPassages: ["east-shelf", "deep-room", "lower-pumpworks", "cinder-vent-shaft"],
+        position: { x: 24, y: 0.35, z: -72 },
+        radius: 3.6,
+        influenceRadius: 13,
+        guideRadius: 10,
+        airflow: {
+          baseState: "sealed",
+          baseStalePressure: 0.62,
+          baseGasPressure: 0.48,
+          draftPressure: 0.34,
+          freshPressure: 0.12,
+          overrunPressure: 0.9,
+        },
+        draftWindow: {
+          opensAt: 24,
+          closesAt: 110,
+          gasAt: 150,
+          failAt: 190,
+          basePressure: 10,
+          gasPressure: 20,
+          overrunPressure: 34,
+        },
+        requirements: {
+          surveySiteId: "survey-cinder-rib",
+          chart: "partial",
+          pumpworksSiteId: "pump-cinder-sump",
+          pumpworksDrainage: "partial",
+          lanternAnchor: false,
+          filter: false,
+        },
+        filter: {
+          required: false,
+          pressureRelief: 8,
+        },
+        oxygenCost: {
+          gate: 3,
+          filter: 2,
+          fan: 4,
+          vent: 5,
+          failure: 13,
+        },
+        route: {
+          gateBonus: 4,
+          filterRelief: 3,
+          relayBonus: 18,
+          failurePenalty: 14,
+        },
+        rewards: {
+          payout: 72,
+          partialPayout: 28,
+          mapProgress: 1,
+          partialMapProgress: 0.5,
+          sampleValueBonus: 9,
+          airflowRelief: 18,
+          oxygenRestore: 8,
+        },
+        consequences: {
+          sampleValuePenalty: 8,
+          routeStabilityPenalty: 10,
+        },
+      },
+      {
+        id: "vent-basalt-relay-bay",
+        name: "Basalt Fan Relay",
+        ventId: "vent-basalt-relay",
+        gateId: "gate-basalt-relay",
+        fanId: "fan-basalt-relay",
+        kind: "fan-relay",
+        passageId: "fan-relay-bay",
+        chamber: "fresh-air relay bay",
+        associatedPassages: ["fault-gallery", "deep-room", "sump-bypass", "fan-relay-bay"],
+        position: { x: -22, y: 0.35, z: -88 },
+        radius: 4.2,
+        influenceRadius: 15,
+        guideRadius: 11,
+        airflow: {
+          baseState: "sealed",
+          baseStalePressure: 0.78,
+          baseGasPressure: 0.64,
+          draftPressure: 0.4,
+          freshPressure: 0.1,
+          overrunPressure: 1,
+        },
+        draftWindow: {
+          opensAt: 48,
+          closesAt: 134,
+          gasAt: 176,
+          failAt: 214,
+          basePressure: 14,
+          gasPressure: 26,
+          overrunPressure: 42,
+        },
+        requirements: {
+          surveySiteId: "survey-basalt-suture",
+          chart: "success",
+          pumpworksSiteId: "pump-basalt-gate",
+          pumpworksDrainage: "success",
+          lanternAnchor: true,
+          filter: true,
+        },
+        filter: {
+          required: true,
+          pressureRelief: 14,
+        },
+        oxygenCost: {
+          gate: 4,
+          filter: 3,
+          fan: 5,
+          vent: 6,
+          failure: 16,
+        },
+        route: {
+          gateBonus: 5,
+          filterRelief: 7,
+          relayBonus: 22,
+          failurePenalty: 18,
+        },
+        rewards: {
+          payout: 108,
+          partialPayout: 42,
+          mapProgress: 2,
+          partialMapProgress: 1,
+          sampleValueBonus: 14,
+          airflowRelief: 24,
+          oxygenRestore: 12,
+        },
+        consequences: {
+          sampleValuePenalty: 12,
+          routeStabilityPenalty: 14,
+        },
+      },
+    ],
     upgrades: [
       {
         id: "tank-weave",
@@ -485,6 +657,13 @@ const IronLanternDescent = (() => {
         cost: 118,
         summary: "+1 siphon charge on future runs",
         effect: { siphonChargeBonus: 1 },
+      },
+      {
+        id: "filter-stack",
+        name: "Filter Stack",
+        cost: 130,
+        summary: "+1 filter cartridge on future runs",
+        effect: { filterCartridgeBonus: 1 },
       },
     ],
   };
@@ -616,6 +795,27 @@ const IronLanternDescent = (() => {
     return ["success", "partial", "failed"].includes(site.drainageState);
   }
 
+  function ventWindowState(site, elapsed = 0) {
+    const window = site.draftWindow || {};
+    if (elapsed < window.opensAt) {
+      return "pending";
+    }
+    if (elapsed <= window.closesAt) {
+      return "draft";
+    }
+    if (elapsed <= window.gasAt) {
+      return "stale";
+    }
+    if (elapsed <= window.failAt) {
+      return "gas";
+    }
+    return "overrun";
+  }
+
+  function ventOutcomeComplete(site) {
+    return ["success", "partial", "failed"].includes(site.relayState);
+  }
+
   function computeSurveyRouteModifier(state) {
     if (!state.surveySites) {
       return 0;
@@ -674,6 +874,38 @@ const IronLanternDescent = (() => {
     return Math.round(clamp(modifier, -44, 32));
   }
 
+  function computeVentRouteModifier(state) {
+    if (!state.ventSites) {
+      return 0;
+    }
+    const modifier = state.ventSites.reduce((total, site) => {
+      const route = site.route || {};
+      const windowState = ventWindowState(site, state.elapsed || 0);
+      let siteModifier = 0;
+      if (site.gateState === "open") {
+        siteModifier += route.gateBonus || 0;
+      } else if (site.gateState === "cracked") {
+        siteModifier += Math.round((route.gateBonus || 0) / 2);
+      }
+      if (site.filterDeployed) {
+        siteModifier += route.filterRelief || 0;
+      }
+      if (site.relayState === "success") {
+        siteModifier += route.relayBonus || 0;
+      } else if (site.relayState === "partial") {
+        siteModifier += Math.round((route.relayBonus || 0) / 2);
+      }
+      if ((windowState === "gas" || windowState === "overrun") && !ventOutcomeComplete(site)) {
+        siteModifier -= Math.round((route.failurePenalty || 0) / 2);
+      }
+      if (site.relayState === "failed" || site.gasState === "erupted") {
+        siteModifier -= route.failurePenalty || 0;
+      }
+      return total + siteModifier;
+    }, 0);
+    return Math.round(clamp(modifier, -40, 36));
+  }
+
   function pumpworksGuidePoints(state) {
     return (state.pumpworksSites || [])
       .filter((site) => site.pumpPrimed || site.leakSealed || site.drainageState === "success" || site.drainageState === "partial")
@@ -683,6 +915,18 @@ const IronLanternDescent = (() => {
         kind: "pumpworks-drainage",
         position: site.position,
         safeRadius: site.guideRadius || GAME_DATA.pumpworks.actionRange,
+      }));
+  }
+
+  function ventGuidePoints(state) {
+    return (state.ventSites || [])
+      .filter((site) => site.relayState === "success" || site.relayState === "partial" || site.fanState === "running")
+      .map((site) => ({
+        id: `${site.id}-fresh-air-line`,
+        name: `${site.name} fresh-air line`,
+        kind: "vent-relay",
+        position: site.position,
+        safeRadius: site.guideRadius || GAME_DATA.cinderVentNetwork.actionRange,
       }));
   }
 
@@ -697,6 +941,7 @@ const IronLanternDescent = (() => {
         safeRadius: GAME_DATA.survey.stakes.safetyRadius,
       }));
     const drainageLines = pumpworksGuidePoints(state);
+    const ventRelays = ventGuidePoints(state);
     return [
       {
         id: state.lift.id,
@@ -714,6 +959,7 @@ const IronLanternDescent = (() => {
       })),
       ...surveyStakes,
       ...drainageLines,
+      ...ventRelays,
     ];
   }
 
@@ -755,7 +1001,7 @@ const IronLanternDescent = (() => {
     if (points.length === 1) {
       returnConfidence = 100 - Math.max(0, liftDistance - state.lift.radius) * 2.4;
     }
-    returnConfidence += computeSurveyRouteModifier(state) + computePumpworksRouteModifier(state);
+    returnConfidence += computeSurveyRouteModifier(state) + computePumpworksRouteModifier(state) + computeVentRouteModifier(state);
     returnConfidence = Math.round(clamp(returnConfidence, 0, 100));
 
     let status = nearest.distance >= GAME_DATA.route.lostDistance ? "route lost" : "route thin";
@@ -881,12 +1127,39 @@ const IronLanternDescent = (() => {
     }));
   }
 
+  function createVentSites() {
+    return GAME_DATA.ventSites.map((site) => ({
+      ...clone(site),
+      position: clone(site.position),
+      airflowState: site.airflow.baseState,
+      staleAirPressure: site.airflow.baseStalePressure,
+      gasPressure: site.airflow.baseGasPressure,
+      gateState: "sealed",
+      fanState: "idle",
+      filterState: "unused",
+      filterDeployed: false,
+      gasState: "pocketed",
+      relayState: "open",
+      outcome: "open",
+      payoutEarned: 0,
+      mapProgressEarned: 0,
+      airflowReliefEarned: 0,
+      distance: null,
+      inRange: false,
+      windowState: "pending",
+      status: "sealed",
+      lastAction: null,
+      lastMissing: [],
+    }));
+  }
+
   function upgradeCarryover(purchased) {
     const carryover = {
       oxygenMaxBonus: 0,
       lanternChargeBonus: 0,
       drillPowerBonus: 0,
       siphonChargeBonus: 0,
+      filterCartridgeBonus: 0,
     };
     purchased.forEach((id) => {
       const upgrade = GAME_DATA.upgrades.find((entry) => entry.id === id);
@@ -897,6 +1170,7 @@ const IronLanternDescent = (() => {
       carryover.lanternChargeBonus += upgrade.effect.lanternChargeBonus || 0;
       carryover.drillPowerBonus += upgrade.effect.drillPowerBonus || 0;
       carryover.siphonChargeBonus += upgrade.effect.siphonChargeBonus || 0;
+      carryover.filterCartridgeBonus += upgrade.effect.filterCartridgeBonus || 0;
     });
     return carryover;
   }
@@ -923,6 +1197,7 @@ const IronLanternDescent = (() => {
     const lanternMax = GAME_DATA.lanterns.baseCharges + carryover.lanternChargeBonus;
     const drillPower = GAME_DATA.mining.drillPower + carryover.drillPowerBonus;
     const siphonMax = GAME_DATA.pumpworks.siphons.baseCharges + carryover.siphonChargeBonus;
+    const filterMax = GAME_DATA.cinderVentNetwork.filters.baseCharges + carryover.filterCartridgeBonus;
     const player = {
       position: clone(GAME_DATA.player.startPosition),
       facing: GAME_DATA.player.startFacing,
@@ -970,6 +1245,7 @@ const IronLanternDescent = (() => {
       },
       surveySites: createSurveySites(),
       pumpworksSites: createPumpworksSites(),
+      ventSites: createVentSites(),
       survey: {
         release: clone(GAME_DATA.survey.release),
         contract: clone(GAME_DATA.survey.contract),
@@ -1007,6 +1283,28 @@ const IronLanternDescent = (() => {
         activeSiteStatus: "none",
         floodLevel: 0,
         status: "pumpworks flooded",
+        lastAction: null,
+      },
+      ventNetwork: {
+        release: clone(GAME_DATA.cinderVentNetwork.release),
+        contract: clone(GAME_DATA.cinderVentNetwork.contract),
+        filters: filterMax,
+        maxFilters: filterMax,
+        mapProgress: 0,
+        ledger: options.ventNetworkLedger || 0,
+        value: 0,
+        completedSites: 0,
+        gasCleared: 0,
+        relaysOnline: 0,
+        airflowRelief: 0,
+        activeSiteId: null,
+        activeSiteName: null,
+        activeSiteDistance: null,
+        activeSiteWindow: null,
+        activeSiteStatus: "none",
+        gasPressure: 0,
+        staleAirPressure: 0,
+        status: "vent network sealed",
         lastAction: null,
       },
       routeStability: {
@@ -1051,6 +1349,8 @@ const IronLanternDescent = (() => {
         bankedMapProgress: 0,
         bankedPumpworksValue: 0,
         bankedPumpworksMapProgress: 0,
+        bankedVentValue: 0,
+        bankedVentMapProgress: 0,
         lastBanked: 0,
       },
       hazardZones: createHazardZones(),
@@ -1083,7 +1383,7 @@ const IronLanternDescent = (() => {
       },
       run: {
         status: "active",
-        objective: "Descend, mark the route, drain lower pumpworks, survey fault plates, bank samples at the lift.",
+        objective: "Descend, mark the route, drain lower pumpworks, restore cinder vents, survey fault plates, bank samples at the lift.",
         failureReason: null,
         completeReason: null,
         count: options.runCount || 1,
@@ -1211,6 +1511,73 @@ const IronLanternDescent = (() => {
     return closest;
   }
 
+  function surveySiteForVent(state, site) {
+    return (state.surveySites || []).find((entry) => entry.id === site.requirements.surveySiteId) || null;
+  }
+
+  function pumpworksSiteForVent(state, site) {
+    return (state.pumpworksSites || []).find((entry) => entry.id === site.requirements.pumpworksSiteId) || null;
+  }
+
+  function pumpworksDrainageMeetsRequirement(pumpworksSite, required) {
+    if (!required) {
+      return true;
+    }
+    if (!pumpworksSite) {
+      return false;
+    }
+    if (required === "partial") {
+      return pumpworksSite.drainageState === "partial" || pumpworksSite.drainageState === "success";
+    }
+    return pumpworksSite.drainageState === required;
+  }
+
+  function ventRequirementStatus(state, site, options = {}) {
+    const surveySite = surveySiteForVent(state, site);
+    const pumpworksSite = pumpworksSiteForVent(state, site);
+    const missing = [];
+    const requirements = site.requirements || {};
+    if (requirements.chart && !surveyChartMeetsRequirement(surveySite, requirements.chart)) {
+      missing.push(`${requirements.chart} survey chart`);
+    }
+    if (options.requirePumpworks && !pumpworksDrainageMeetsRequirement(pumpworksSite, requirements.pumpworksDrainage)) {
+      missing.push(`${requirements.pumpworksDrainage || "ready"} pumpworks drainage`);
+    }
+    if (requirements.lanternAnchor && !coveredByLantern(state)) {
+      missing.push("lantern anchor");
+    }
+    if (options.requireGate && site.gateState !== "open" && site.gateState !== "cracked") {
+      missing.push("open draft gate");
+    }
+    if (options.requireFan && site.fanState !== "running" && site.fanState !== "surging") {
+      missing.push("pressure fan");
+    }
+    if (options.requireFilter && requirements.filter && !site.filterDeployed) {
+      missing.push("filter cartridge");
+    }
+    return {
+      surveySite,
+      pumpworksSite,
+      missing,
+      ready: missing.length === 0,
+    };
+  }
+
+  function nearestVentSite(state, options = {}) {
+    const includeCompleted = Boolean(options.includeCompleted);
+    let closest = null;
+    (state.ventSites || []).forEach((site) => {
+      if (!includeCompleted && ventOutcomeComplete(site)) {
+        return;
+      }
+      const siteDistance = distance(state.player.position, site.position);
+      if (!closest || siteDistance < closest.distance) {
+        closest = { site, distance: siteDistance };
+      }
+    });
+    return closest;
+  }
+
   function computeRouteStability(state, routeState = null, hazardState = null) {
     if (!state.surveySites) {
       return {
@@ -1304,6 +1671,48 @@ const IronLanternDescent = (() => {
       pressure += Math.max(0, sitePressure);
     });
 
+    (state.ventSites || []).forEach((site) => {
+      const windowState = ventWindowState(site, state.elapsed || 0);
+      const siteDistance = distance(state.player.position, site.position);
+      const activePressure =
+        siteDistance <= site.influenceRadius ||
+        site.gateState !== "sealed" ||
+        site.filterDeployed ||
+        site.fanState !== "idle" ||
+        ventOutcomeComplete(site);
+      if (!activePressure) {
+        return;
+      }
+      const draftWindow = site.draftWindow || {};
+      let sitePressure =
+        (draftWindow.basePressure || 0) +
+        Math.round(((site.staleAirPressure || 0) + (site.gasPressure || 0)) * 8);
+      if (windowState === "gas") {
+        sitePressure += draftWindow.gasPressure || 0;
+        warnings.push(`${site.name} gas pocket`);
+      } else if (windowState === "overrun") {
+        sitePressure += draftWindow.overrunPressure || 0;
+        warnings.push(`${site.name} vent overrun`);
+      }
+      if (site.gateState === "open") {
+        sitePressure -= site.route.gateBonus || 0;
+      }
+      if (site.filterDeployed) {
+        sitePressure -= site.filter.pressureRelief || 0;
+      }
+      if (site.fanState === "running") {
+        sitePressure -= 8;
+      }
+      if (site.relayState === "success") {
+        sitePressure -= site.rewards.airflowRelief || 0;
+      } else if (site.relayState === "partial") {
+        sitePressure -= Math.round((site.rewards.airflowRelief || 0) / 2);
+      } else if (site.relayState === "failed" || site.gasState === "erupted") {
+        sitePressure += site.consequences.routeStabilityPenalty || 0;
+      }
+      pressure += Math.max(0, sitePressure);
+    });
+
     const stability = Math.round(clamp(settings.base - pressure, 0, 100));
     let status = "stable";
     if (stability < 35) {
@@ -1318,7 +1727,7 @@ const IronLanternDescent = (() => {
       status,
       pressure: Math.round(pressure),
       warnings,
-      routeModifier: computeSurveyRouteModifier(state),
+      routeModifier: computeSurveyRouteModifier(state) + computePumpworksRouteModifier(state) + computeVentRouteModifier(state),
     };
   }
 
@@ -1421,6 +1830,81 @@ const IronLanternDescent = (() => {
     return state;
   }
 
+  function ventStatus(site) {
+    if (site.relayState === "success") {
+      return "fresh relay";
+    }
+    if (site.relayState === "partial") {
+      return "weak relay";
+    }
+    if (site.relayState === "failed") {
+      return "gas locked";
+    }
+    if (site.fanState === "running") {
+      return "fan running";
+    }
+    if (site.fanState === "surging") {
+      return "fan surging";
+    }
+    if (site.filterDeployed) {
+      return "filtered";
+    }
+    if (site.gateState === "open" || site.gateState === "cracked") {
+      return site.gateState === "open" ? "draft open" : "draft cracked";
+    }
+    if (site.windowState === "gas" || site.windowState === "overrun") {
+      return "gas pressure";
+    }
+    if (site.inRange) {
+      return "draft ready";
+    }
+    return "sealed";
+  }
+
+  function syncVentNetworkState(state) {
+    if (!state.ventNetwork || !state.ventSites) {
+      return state;
+    }
+    let completedSites = 0;
+    let gasCleared = 0;
+    let relaysOnline = 0;
+    let totalGasPressure = 0;
+    let totalStaleAirPressure = 0;
+    state.ventSites.forEach((site) => {
+      site.distance = Number(distance(state.player.position, site.position).toFixed(1));
+      site.inRange = site.distance <= GAME_DATA.cinderVentNetwork.actionRange;
+      site.windowState = ventWindowState(site, state.elapsed || 0);
+      if (site.relayState === "success" || site.relayState === "partial") {
+        completedSites += 1;
+      }
+      if (site.gasState === "cleared" || site.gasState === "thinned") {
+        gasCleared += 1;
+      }
+      if (site.relayState === "success") {
+        relaysOnline += 1;
+      }
+      site.status = ventStatus(site);
+      totalGasPressure += site.gasPressure || 0;
+      totalStaleAirPressure += site.staleAirPressure || 0;
+    });
+
+    const active = nearestVentSite(state) || nearestVentSite(state, { includeCompleted: true });
+    state.ventNetwork.completedSites = completedSites;
+    state.ventNetwork.gasCleared = gasCleared;
+    state.ventNetwork.relaysOnline = relaysOnline;
+    state.ventNetwork.activeSiteId = active ? active.site.id : null;
+    state.ventNetwork.activeSiteName = active ? active.site.name : null;
+    state.ventNetwork.activeSiteDistance = active ? Number(active.distance.toFixed(1)) : null;
+    state.ventNetwork.activeSiteWindow = active ? active.site.windowState : null;
+    state.ventNetwork.activeSiteStatus = active ? active.site.status : "none";
+    state.ventNetwork.gasPressure = Number((totalGasPressure / Math.max(1, state.ventSites.length)).toFixed(2));
+    state.ventNetwork.staleAirPressure = Number((totalStaleAirPressure / Math.max(1, state.ventSites.length)).toFixed(2));
+    state.ventNetwork.status = active
+      ? `${active.site.name}: ${active.site.status} / ${active.site.windowState}`
+      : "vent network fresh";
+    return state;
+  }
+
   function surveyOxygenDrain(state, routeState = null, hazardState = null) {
     if (state.run.status !== "active" || !state.surveySites) {
       return 0;
@@ -1512,6 +1996,63 @@ const IronLanternDescent = (() => {
     return Number(drain.toFixed(3));
   }
 
+  function ventNetworkOxygenDrain(state, routeState = null, hazardState = null) {
+    if (state.run.status !== "active" || !state.ventSites) {
+      return 0;
+    }
+    const route = routeState || state.route || computeRouteState(state);
+    const hazard = hazardState || currentHazardExposure(state);
+    let drain = 0;
+    if (route.returnConfidence < 64) {
+      drain += ((64 - route.returnConfidence) / 64) * GAME_DATA.cinderVentNetwork.routeStability.lowVentilationDrainPerSecond;
+    }
+    if (hazard.names.length) {
+      drain += hazard.names.length * 0.04;
+    }
+    state.ventSites.forEach((site) => {
+      if (site.relayState === "success") {
+        return;
+      }
+      const siteDistance = distance(state.player.position, site.position);
+      if (siteDistance > site.influenceRadius) {
+        return;
+      }
+      const exposure = Math.max(0, 1 - siteDistance / site.influenceRadius);
+      const windowState = ventWindowState(site, state.elapsed || 0);
+      let siteDrain =
+        (site.staleAirPressure || 0) * GAME_DATA.cinderVentNetwork.routeStability.staleAirDrainPerSecond +
+        (site.gasPressure || 0) * GAME_DATA.cinderVentNetwork.routeStability.gasPocketDrainPerSecond;
+      if (windowState === "gas") {
+        siteDrain += 0.28;
+      } else if (windowState === "overrun") {
+        siteDrain += 0.48;
+      }
+      if (site.gateState === "open") {
+        siteDrain *= 0.82;
+      }
+      if (site.filterDeployed) {
+        siteDrain *= 0.64;
+      }
+      if (site.fanState === "running") {
+        siteDrain *= 0.58;
+      } else if (site.fanState === "surging") {
+        siteDrain *= 0.78;
+      }
+      if (site.relayState === "partial") {
+        siteDrain *= 0.52;
+      }
+      const linkedPumpworks = pumpworksSiteForVent(state, site);
+      if (linkedPumpworks && pumpworksDrainageMeetsRequirement(linkedPumpworks, site.requirements.pumpworksDrainage)) {
+        siteDrain *= 0.86;
+      }
+      if (coveredByLantern(state)) {
+        siteDrain *= 0.84;
+      }
+      drain += exposure * siteDrain;
+    });
+    return Number(drain.toFixed(3));
+  }
+
   function sampleSurveyValueBonus(state, node) {
     const passage = cavePassageAt(node.position);
     if (!passage || !state.surveySites) {
@@ -1541,6 +2082,24 @@ const IronLanternDescent = (() => {
       : Math.round((site.rewards.sampleValueBonus || 0) / 2);
   }
 
+  function sampleVentValueBonus(state, node) {
+    const passage = cavePassageAt(node.position);
+    if (!passage || !state.ventSites) {
+      return 0;
+    }
+    const site = state.ventSites.find(
+      (entry) =>
+        (entry.associatedPassages || []).includes(passage.id) &&
+        (entry.relayState === "success" || entry.relayState === "partial")
+    );
+    if (!site) {
+      return 0;
+    }
+    return site.relayState === "success"
+      ? site.rewards.sampleValueBonus || 0
+      : Math.round((site.rewards.sampleValueBonus || 0) / 2);
+  }
+
   function oxygenDrainRate(state) {
     if (state.run.status !== "active") {
       return 0;
@@ -1552,7 +2111,8 @@ const IronLanternDescent = (() => {
       state.oxygen.baseDrainPerSecond +
       hazard.oxygenDrainPerSecond +
       surveyOxygenDrain(state, route, hazard) +
-      pumpworksOxygenDrain(state, route, hazard);
+      pumpworksOxygenDrain(state, route, hazard) +
+      ventNetworkOxygenDrain(state, route, hazard);
     if (liftDistance <= state.lift.radius) {
       rate *= GAME_DATA.oxygen.liftDrainMultiplier;
     } else if (coveredByLantern(state)) {
@@ -1603,6 +2163,7 @@ const IronLanternDescent = (() => {
     state.routeStability = computeRouteStability(state, state.route, hazard);
     syncSurveyState(state);
     syncPumpworksState(state);
+    syncVentNetworkState(state);
 
     const sample = nearestSample(state);
     const sampleInRange = sample && sample.distance <= state.scanner.range;
@@ -1616,7 +2177,23 @@ const IronLanternDescent = (() => {
       pumpworksInRange &&
       (!sampleInRange || pumpworks.distance <= sample.distance) &&
       (!surveyInRange || pumpworks.distance <= survey.distance);
-    const target = pumpworksIsActionable || pumpworksPrecedesSample
+    const vent = nearestVentSite(state);
+    const ventInRange = vent && vent.distance <= state.scanner.range;
+    const ventIsActionable = ventInRange && vent.distance <= GAME_DATA.cinderVentNetwork.actionRange;
+    const ventPrecedesSample =
+      ventInRange &&
+      (!sampleInRange || vent.distance <= sample.distance) &&
+      (!surveyInRange || vent.distance <= survey.distance) &&
+      (!pumpworksInRange || vent.distance <= pumpworks.distance);
+    const target = ventIsActionable || ventPrecedesSample
+      ? {
+          id: vent.site.id,
+          kind: "vent-network",
+          name: vent.site.name,
+          position: vent.site.position,
+          distance: vent.distance,
+        }
+      : pumpworksIsActionable || pumpworksPrecedesSample
       ? {
           id: pumpworks.site.id,
           kind: "pumpworks",
@@ -2186,6 +2763,316 @@ const IronLanternDescent = (() => {
     return syncDerivedState(next);
   }
 
+  function ventActionTarget(state, siteId = null) {
+    const site = siteId
+      ? (state.ventSites || []).find((entry) => entry.id === siteId)
+      : nearestVentSite(state, { includeCompleted: true })?.site;
+    if (!site) {
+      return { site: null, distance: Infinity, inRange: false };
+    }
+    const siteDistance = distance(state.player.position, site.position);
+    return {
+      site,
+      distance: siteDistance,
+      inRange: siteDistance <= GAME_DATA.cinderVentNetwork.actionRange,
+    };
+  }
+
+  function recordVentMiss(next, target, action) {
+    const message = target.site
+      ? `${action} needs ${target.site.name} within ${GAME_DATA.cinderVentNetwork.actionRange}m.`
+      : `No cinder vent site available for ${action}.`;
+    next.ventNetwork.lastAction = "out of range";
+    next.log.unshift({ tick: next.tick, message });
+    return syncDerivedState(next);
+  }
+
+  function ventActionCost(state, site, action) {
+    let cost = site.oxygenCost[action] || 0;
+    if (site.filterDeployed && action !== "filter") {
+      cost = Math.max(1, Math.round(cost * 0.82));
+    }
+    const linkedPumpworks = pumpworksSiteForVent(state, site);
+    if (linkedPumpworks && pumpworksDrainageMeetsRequirement(linkedPumpworks, site.requirements.pumpworksDrainage)) {
+      cost = Math.max(1, Math.round(cost * 0.9));
+    }
+    return cost;
+  }
+
+  function spendVentOxygen(next, site, action) {
+    const cost = ventActionCost(next, site, action);
+    next.oxygen.current = Math.max(0, Number((next.oxygen.current - cost).toFixed(3)));
+    if (next.oxygen.current <= 0) {
+      next.run.status = "failed";
+      next.run.failureReason = "vent network oxygen loss";
+      next.run.objective = "Cinder vent pressure overran the oxygen reserve. Restart from the lift.";
+    }
+    return cost;
+  }
+
+  function applyVentOutcome(next, site, outcome) {
+    const success = outcome === "success";
+    const partial = outcome === "partial";
+    site.relayState = outcome;
+    site.outcome = outcome;
+    site.fanState = success ? "running" : partial ? "surging" : "stalled";
+    site.gateState = success ? "open" : partial ? site.gateState : "jammed";
+    site.gasState = success ? "cleared" : partial ? "thinned" : "erupted";
+    site.airflowState = success ? "fresh-air relay" : partial ? "weak relay" : "gas locked";
+    site.gasPressure = success
+      ? site.airflow.freshPressure
+      : partial
+        ? Math.max(site.airflow.freshPressure, Number((site.airflow.draftPressure + 0.08).toFixed(2)))
+        : site.airflow.overrunPressure;
+    site.staleAirPressure = success
+      ? site.airflow.freshPressure
+      : partial
+        ? site.airflow.draftPressure
+        : site.airflow.baseStalePressure;
+    site.payoutEarned = success ? site.rewards.payout : partial ? site.rewards.partialPayout : 0;
+    site.mapProgressEarned = success ? site.rewards.mapProgress : partial ? site.rewards.partialMapProgress : 0;
+    site.airflowReliefEarned = success
+      ? site.rewards.airflowRelief
+      : partial
+        ? Math.round((site.rewards.airflowRelief || 0) / 2)
+        : 0;
+    next.ventNetwork.value += site.payoutEarned;
+    next.ventNetwork.mapProgress = Number((next.ventNetwork.mapProgress + site.mapProgressEarned).toFixed(2));
+    next.ventNetwork.airflowRelief += site.airflowReliefEarned;
+    const restored = success ? site.rewards.oxygenRestore || 0 : partial ? Math.round((site.rewards.oxygenRestore || 0) / 2) : 0;
+    if (restored > 0) {
+      next.oxygen.current = Math.min(next.oxygen.max, Number((next.oxygen.current + restored).toFixed(3)));
+    }
+    if (partial && next.cargo.value > 0) {
+      const penalty = Math.min(next.cargo.value, site.consequences.sampleValuePenalty || 0);
+      next.cargo.value -= penalty;
+      site.lastAction = `gas pocket partial, sample value vented ${penalty}cr`;
+    } else {
+      site.lastAction = `gas pocket ${outcome}`;
+    }
+    next.ventNetwork.lastAction = `${site.name} ${outcome}`;
+    return { payout: site.payoutEarned, mapProgress: site.mapProgressEarned, restored };
+  }
+
+  function openDraftGate(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = ventActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordVentMiss(next, target, "Draft gate");
+    }
+    const site = target.site;
+    if (site.gateState === "open" || site.gateState === "cracked") {
+      next.ventNetwork.lastAction = "draft gate already open";
+      site.lastAction = next.ventNetwork.lastAction;
+      return syncDerivedState(next);
+    }
+    const requirements = ventRequirementStatus(next, site);
+    const windowState = ventWindowState(site, next.elapsed || 0);
+    spendVentOxygen(next, site, windowState === "overrun" ? "failure" : "gate");
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    if (windowState === "overrun") {
+      site.gateState = "jammed";
+      site.relayState = "failed";
+      site.outcome = "failed";
+      site.gasState = "erupted";
+      site.airflowState = "gas locked";
+      site.gasPressure = site.airflow.overrunPressure;
+      site.lastAction = "draft gate failed";
+      next.ventNetwork.lastAction = `draft gate failed: ${site.id}`;
+      next.log.unshift({ tick: next.tick, message: `${site.name} draft gate jammed under overrun gas pressure.` });
+      return syncDerivedState(next);
+    }
+    if (!requirements.ready || windowState === "gas") {
+      site.gateState = "cracked";
+      site.airflowState = "leaking draft";
+      site.gasPressure = Math.min(site.airflow.overrunPressure, Number((site.gasPressure + 0.12).toFixed(2)));
+      site.staleAirPressure = Math.max(site.airflow.draftPressure, Number((site.staleAirPressure - 0.08).toFixed(2)));
+      site.lastMissing = requirements.missing.length ? requirements.missing : [windowState];
+      site.lastAction = `draft gate partial: ${site.lastMissing.join(", ")}`;
+      next.ventNetwork.lastAction = `draft gate partial: ${site.id}`;
+      next.log.unshift({
+        tick: next.tick,
+        message: `${site.name} draft gate cracked; ${site.lastMissing.join(", ")} still leaves stale air in the line.`,
+      });
+      return syncDerivedState(next);
+    }
+    site.gateState = "open";
+    site.airflowState = "drafting";
+    site.staleAirPressure = site.airflow.draftPressure;
+    site.gasPressure = Math.max(site.airflow.freshPressure, Number((site.gasPressure - 0.14).toFixed(2)));
+    site.lastMissing = [];
+    site.lastAction = "draft gate open";
+    next.ventNetwork.lastAction = `draft gate open: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} opened ${site.gateId} into ${site.chamber}.` });
+    return syncDerivedState(next);
+  }
+
+  function deployFilterCartridge(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = ventActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordVentMiss(next, target, "Filter cartridge");
+    }
+    const site = target.site;
+    if (site.filterDeployed) {
+      next.ventNetwork.lastAction = "filter already deployed";
+      site.lastAction = next.ventNetwork.lastAction;
+      return syncDerivedState(next);
+    }
+    const requirements = ventRequirementStatus(next, site, { requireGate: true });
+    if (!requirements.ready) {
+      site.lastMissing = requirements.missing;
+      site.lastAction = `filter blocked: ${requirements.missing.join(", ")}`;
+      next.ventNetwork.lastAction = "filter blocked";
+      next.log.unshift({ tick: next.tick, message: `${site.name} filter rack needs ${requirements.missing.join(" + ")}.` });
+      return syncDerivedState(next);
+    }
+    if (next.ventNetwork.filters <= 0) {
+      next.ventNetwork.lastAction = "no filter cartridges";
+      next.log.unshift({ tick: next.tick, message: "No filter cartridges remain." });
+      return syncDerivedState(next);
+    }
+    spendVentOxygen(next, site, "filter");
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    next.ventNetwork.filters -= 1;
+    site.filterDeployed = true;
+    site.filterState = "deployed";
+    site.gasPressure = Math.max(site.airflow.freshPressure, Number((site.gasPressure - 0.2).toFixed(2)));
+    site.staleAirPressure = Math.max(site.airflow.freshPressure, Number((site.staleAirPressure - 0.12).toFixed(2)));
+    site.lastMissing = [];
+    site.lastAction = "filter deployed";
+    next.ventNetwork.lastAction = `filter deployed: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} filter cartridge locked into the draft line.` });
+    return syncDerivedState(next);
+  }
+
+  function startPressureFan(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = ventActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordVentMiss(next, target, "Pressure fan");
+    }
+    const site = target.site;
+    if (site.fanState === "running") {
+      next.ventNetwork.lastAction = "pressure fan already running";
+      site.lastAction = next.ventNetwork.lastAction;
+      return syncDerivedState(next);
+    }
+    const requirements = ventRequirementStatus(next, site, {
+      requireGate: true,
+      requirePumpworks: true,
+      requireFilter: true,
+    });
+    const windowState = ventWindowState(site, next.elapsed || 0);
+    spendVentOxygen(next, site, windowState === "overrun" ? "failure" : "fan");
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    if (windowState === "overrun" || site.gateState === "jammed") {
+      site.fanState = "stalled";
+      site.relayState = "failed";
+      site.outcome = "failed";
+      site.gasState = "erupted";
+      site.airflowState = "gas locked";
+      site.gasPressure = site.airflow.overrunPressure;
+      site.lastAction = "fan failed";
+      next.ventNetwork.lastAction = `fan failed: ${site.id}`;
+      next.log.unshift({ tick: next.tick, message: `${site.name} pressure fan stalled under overrun gas.` });
+      return syncDerivedState(next);
+    }
+    if (!requirements.ready || windowState === "gas") {
+      site.fanState = "surging";
+      site.airflowState = "surging draft";
+      site.gasState = "agitated";
+      site.gasPressure = Math.max(site.airflow.draftPressure, Number((site.gasPressure - 0.08).toFixed(2)));
+      site.staleAirPressure = Math.max(site.airflow.draftPressure, Number((site.staleAirPressure - 0.1).toFixed(2)));
+      site.lastMissing = requirements.missing.length ? requirements.missing : [windowState];
+      site.lastAction = `fan partial: ${site.lastMissing.join(", ")}`;
+      next.ventNetwork.lastAction = `fan partial: ${site.id}`;
+      next.log.unshift({
+        tick: next.tick,
+        message: `${site.name} fan surged; ${site.lastMissing.join(", ")} keeps the relay unstable.`,
+      });
+      return syncDerivedState(next);
+    }
+    site.fanState = "running";
+    site.airflowState = "fan draft";
+    site.gasPressure = Math.max(site.airflow.freshPressure, Number((site.gasPressure - 0.16).toFixed(2)));
+    site.staleAirPressure = Math.max(site.airflow.freshPressure, Number((site.staleAirPressure - 0.16).toFixed(2)));
+    site.lastMissing = [];
+    site.lastAction = "fan running";
+    next.ventNetwork.lastAction = `fan running: ${site.id}`;
+    next.log.unshift({ tick: next.tick, message: `${site.name} pressure fan started from ${site.fanId}.` });
+    return syncDerivedState(next);
+  }
+
+  function ventGasPocket(state, siteId = null) {
+    const next = syncDerivedState(clone(state));
+    if (next.run.status !== "active") {
+      return syncDerivedState(next);
+    }
+    const target = ventActionTarget(next, siteId);
+    if (!target.inRange) {
+      return recordVentMiss(next, target, "Gas pocket vent");
+    }
+    const site = target.site;
+    if (ventOutcomeComplete(site)) {
+      next.ventNetwork.lastAction = `already vented: ${site.relayState}`;
+      site.lastAction = next.ventNetwork.lastAction;
+      return syncDerivedState(next);
+    }
+    const windowState = ventWindowState(site, next.elapsed || 0);
+    const requirements = ventRequirementStatus(next, site, {
+      requireGate: true,
+      requirePumpworks: true,
+      requireFilter: true,
+      requireFan: true,
+    });
+    let outcome = "partial";
+    if (windowState === "overrun" || site.fanState === "idle" || site.fanState === "stalled") {
+      outcome = "failed";
+    } else if (
+      requirements.ready &&
+      site.gateState === "open" &&
+      site.fanState === "running" &&
+      (windowState === "draft" || windowState === "stale")
+    ) {
+      outcome = "success";
+    }
+
+    spendVentOxygen(next, site, outcome === "failed" ? "failure" : "vent");
+    if (next.run.status !== "active" && outcome !== "success") {
+      site.relayState = "failed";
+      site.outcome = "failed";
+      return syncDerivedState(next);
+    }
+    site.lastMissing = requirements.missing;
+    const reward = applyVentOutcome(next, site, outcome);
+    next.log.unshift({
+      tick: next.tick,
+      message: `${site.name} gas pocket ${outcome}: +${reward.payout}cr / +${reward.mapProgress} map / +${reward.restored} oxygen.`,
+    });
+    if (outcome === "failed") {
+      next.run.objective = next.oxygen.current <= 0
+        ? next.run.objective
+        : "A gas pocket locked the vent route. Return or restart before oxygen runs out.";
+    }
+    return syncDerivedState(next);
+  }
+
   function mineNearestSample(state, deltaSeconds = 1) {
     const next = clone(state);
     if (next.run.status !== "active") {
@@ -2215,7 +3102,11 @@ const IronLanternDescent = (() => {
       node.remaining > 0 &&
       next.cargo.samples < next.cargo.capacity
     ) {
-      const yieldValue = node.value + sampleSurveyValueBonus(next, node) + samplePumpworksValueBonus(next, node);
+      const yieldValue =
+        node.value +
+        sampleSurveyValueBonus(next, node) +
+        samplePumpworksValueBonus(next, node) +
+        sampleVentValueBonus(next, node);
       node.mineState.progress -= node.difficulty;
       node.remaining -= 1;
       node.mineState.lastYield = yieldValue;
@@ -2259,6 +3150,11 @@ const IronLanternDescent = (() => {
         pumpworksWindow: next.pumpworks.activeSiteWindow,
         pumpworksStatus: next.pumpworks.activeSiteStatus,
         pumpworksFloodLevel: next.pumpworks.floodLevel,
+        ventSiteId: next.ventNetwork.activeSiteId,
+        ventWindow: next.ventNetwork.activeSiteWindow,
+        ventStatus: next.ventNetwork.activeSiteStatus,
+        ventGasPressure: next.ventNetwork.gasPressure,
+        ventStaleAirPressure: next.ventNetwork.staleAirPressure,
       };
       next.log.unshift({
         tick: next.tick,
@@ -2283,13 +3179,17 @@ const IronLanternDescent = (() => {
     const bankedMapProgress = next.survey ? next.survey.mapProgress : 0;
     const bankedPumpworksValue = next.pumpworks ? next.pumpworks.value : 0;
     const bankedPumpworksMapProgress = next.pumpworks ? next.pumpworks.mapProgress : 0;
-    next.credits += bankedValue + bankedSurveyValue + bankedPumpworksValue;
+    const bankedVentValue = next.ventNetwork ? next.ventNetwork.value : 0;
+    const bankedVentMapProgress = next.ventNetwork ? next.ventNetwork.mapProgress : 0;
+    next.credits += bankedValue + bankedSurveyValue + bankedPumpworksValue + bankedVentValue;
     next.lift.bankedSamples += bankedSamples;
     next.lift.bankedSurveyValue += bankedSurveyValue;
     next.lift.bankedMapProgress = Number((next.lift.bankedMapProgress + bankedMapProgress).toFixed(2));
     next.lift.bankedPumpworksValue += bankedPumpworksValue;
     next.lift.bankedPumpworksMapProgress = Number((next.lift.bankedPumpworksMapProgress + bankedPumpworksMapProgress).toFixed(2));
-    next.lift.lastBanked = bankedValue + bankedSurveyValue + bankedPumpworksValue;
+    next.lift.bankedVentValue += bankedVentValue;
+    next.lift.bankedVentMapProgress = Number((next.lift.bankedVentMapProgress + bankedVentMapProgress).toFixed(2));
+    next.lift.lastBanked = bankedValue + bankedSurveyValue + bankedPumpworksValue + bankedVentValue;
     next.cargo.samples = 0;
     next.cargo.value = 0;
     if (next.survey) {
@@ -2302,18 +3202,25 @@ const IronLanternDescent = (() => {
       next.pumpworks.value = 0;
       next.pumpworks.mapProgress = 0;
     }
+    if (next.ventNetwork) {
+      next.ventNetwork.ledger = Number((next.ventNetwork.ledger + bankedVentMapProgress).toFixed(2));
+      next.ventNetwork.value = 0;
+      next.ventNetwork.mapProgress = 0;
+    }
     const bankedRunValue =
       bankedSamples > 0 ||
       bankedSurveyValue > 0 ||
       bankedMapProgress > 0 ||
       bankedPumpworksValue > 0 ||
-      bankedPumpworksMapProgress > 0;
+      bankedPumpworksMapProgress > 0 ||
+      bankedVentValue > 0 ||
+      bankedVentMapProgress > 0;
     next.run.status = bankedRunValue ? "extracted" : "active";
-    next.run.completeReason = bankedRunValue ? "samples, survey, or pumpworks banked" : null;
-    next.run.objective = bankedRunValue ? "Drainage, survey, and samples banked. Buy an upgrade or restart for another descent." : next.run.objective;
+    next.run.completeReason = bankedRunValue ? "samples, survey, pumpworks, or vent network banked" : null;
+    next.run.objective = bankedRunValue ? "Vent relays, drainage, survey, and samples banked. Buy an upgrade or restart for another descent." : next.run.objective;
     next.log.unshift({
       tick: next.tick,
-      message: `Lift banked ${bankedSamples} sample(s), ${bankedMapProgress + bankedPumpworksMapProgress} map, and ${bankedValue + bankedSurveyValue + bankedPumpworksValue}cr.`,
+      message: `Lift banked ${bankedSamples} sample(s), ${bankedMapProgress + bankedPumpworksMapProgress + bankedVentMapProgress} map, and ${bankedValue + bankedSurveyValue + bankedPumpworksValue + bankedVentValue}cr.`,
     });
     return syncDerivedState(next);
   }
@@ -2353,6 +3260,7 @@ const IronLanternDescent = (() => {
       runCount: state.run.count + 1,
       surveyLedger: state.survey ? state.survey.ledger : 0,
       pumpworksLedger: state.pumpworks ? state.pumpworks.ledger : 0,
+      ventNetworkLedger: state.ventNetwork ? state.ventNetwork.ledger : 0,
     });
     next.log.unshift({ tick: 0, message: `Run ${next.run.count} initialized with carryover.` });
     return syncDerivedState(next);
@@ -2393,6 +3301,18 @@ const IronLanternDescent = (() => {
     }
     if (controls.turnValve) {
       next = turnPressureValve(next);
+    }
+    if (controls.openDraftGate) {
+      next = openDraftGate(next);
+    }
+    if (controls.deployFilter) {
+      next = deployFilterCartridge(next);
+    }
+    if (controls.startFan) {
+      next = startPressureFan(next);
+    }
+    if (controls.ventGas) {
+      next = ventGasPocket(next);
     }
     if (controls.interact) {
       next = returnToLift(next);
@@ -3619,6 +4539,7 @@ const IronLanternDescent = (() => {
     createHazardZones,
     createSurveySites,
     createPumpworksSites,
+    createVentSites,
     stepRun,
     applyMovement,
     placeLantern,
@@ -3630,6 +4551,10 @@ const IronLanternDescent = (() => {
     turnPressureValve,
     deploySiphonCharge,
     sealLeakSeam,
+    openDraftGate,
+    deployFilterCartridge,
+    startPressureFan,
+    ventGasPocket,
     mineNearestSample,
     pulseScanner,
     returnToLift,
@@ -3644,12 +4569,16 @@ const IronLanternDescent = (() => {
     computeRouteStability,
     surveySiteWindowState,
     pumpworksWindowState,
+    ventWindowState,
     surveyOxygenDrain,
     pumpworksOxygenDrain,
+    ventNetworkOxygenDrain,
     nearestSurveySite,
     nearestPumpworksSite,
+    nearestVentSite,
     sampleSurveyValueBonus,
     samplePumpworksValueBonus,
+    sampleVentValueBonus,
     currentHazardExposure,
     nearestSample,
     cavePassageAt,

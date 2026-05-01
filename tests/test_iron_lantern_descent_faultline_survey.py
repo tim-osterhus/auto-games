@@ -24,6 +24,8 @@ class IronLanternDescentFaultlineSurveyTests(unittest.TestCase):
               release: state.survey.release.label,
               pumpworksBaseRelease: state.pumpworks.release.baseRelease,
               pumpworksRelease: state.pumpworks.release.label,
+              ventBaseRelease: state.ventNetwork.release.baseRelease,
+              ventRelease: state.ventNetwork.release.label,
               passageIds: game.GAME_DATA.cave.passages.map((passage) => passage.id),
               collisionPassage: state.movement.collision.lastPassage,
               surveyCount: state.surveySites.length,
@@ -43,6 +45,8 @@ class IronLanternDescentFaultlineSurveyTests(unittest.TestCase):
         self.assertEqual("v0.1.0 Faultline Survey", result["release"])
         self.assertEqual("v0.1.0 Faultline Survey", result["pumpworksBaseRelease"])
         self.assertEqual("v0.2.0 Deep Pumpworks", result["pumpworksRelease"])
+        self.assertEqual("v0.2.0 Deep Pumpworks", result["ventBaseRelease"])
+        self.assertEqual("v0.3.0 Cinder Vent Network", result["ventRelease"])
         self.assertIn("fault-gallery", result["passageIds"])
         self.assertEqual("fault-gallery", result["collisionPassage"])
         self.assertGreaterEqual(result["surveyCount"], 2)

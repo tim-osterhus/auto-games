@@ -106,6 +106,19 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
                 typeof game.sealLeakSeam,
               ],
               siphonCharges: state.pumpworks.siphons,
+              ventRelease: game.GAME_DATA.cinderVentNetwork.release.label,
+              ventBaseRelease: game.GAME_DATA.cinderVentNetwork.release.baseRelease,
+              ventCount: state.ventSites.length,
+              ventPassages: state.ventSites.map((site) => site.passageId).sort(),
+              ventContractRelays: state.ventNetwork.contract.targetRelays,
+              ventContractMap: state.ventNetwork.contract.targetMapProgress,
+              ventChoices: [
+                typeof game.openDraftGate,
+                typeof game.deployFilterCartridge,
+                typeof game.startPressureFan,
+                typeof game.ventGasPocket,
+              ],
+              filterCharges: state.ventNetwork.filters,
               routeStability: state.routeStability.stability,
               surveyChoices: [
                 typeof game.plantSurveyStake,
@@ -153,6 +166,15 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertEqual(2, result["pumpworksContractTarget"])
         self.assertEqual(["function", "function", "function", "function"], result["pumpworksChoices"])
         self.assertEqual(1, result["siphonCharges"])
+        self.assertEqual("v0.3.0 Cinder Vent Network", result["ventRelease"])
+        self.assertEqual("v0.2.0 Deep Pumpworks", result["ventBaseRelease"])
+        self.assertGreaterEqual(result["ventCount"], 2)
+        self.assertIn("cinder-vent-shaft", result["ventPassages"])
+        self.assertIn("fan-relay-bay", result["ventPassages"])
+        self.assertEqual(2, result["ventContractRelays"])
+        self.assertEqual(3, result["ventContractMap"])
+        self.assertEqual(["function", "function", "function", "function"], result["ventChoices"])
+        self.assertEqual(1, result["filterCharges"])
         self.assertGreater(result["routeStability"], 0)
         self.assertEqual(["function", "function", "function", "function"], result["surveyChoices"])
         self.assertGreater(result["scannerRange"], 10)
@@ -160,7 +182,10 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertEqual("active", result["runStatus"])
         self.assertEqual(0, result["credits"])
         self.assertGreaterEqual(result["upgradeCount"], 1)
-        self.assertEqual(["drillPowerBonus", "lanternChargeBonus", "oxygenMaxBonus", "siphonChargeBonus"], result["carryoverKeys"])
+        self.assertEqual(
+            ["drillPowerBonus", "filterCartridgeBonus", "lanternChargeBonus", "oxygenMaxBonus", "siphonChargeBonus"],
+            result["carryoverKeys"],
+        )
         self.assertEqual("close-third", result["cameraMode"])
         self.assertTrue(result["hasCameraVectors"])
 

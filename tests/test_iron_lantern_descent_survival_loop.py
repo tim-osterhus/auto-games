@@ -166,6 +166,8 @@ class IronLanternDescentSurvivalLoopTests(unittest.TestCase):
               restartedCredits: restarted.credits,
               restartedPumpworksLedger: restarted.pumpworks.ledger,
               restartedSiphons: restarted.pumpworks.siphons,
+              restartedVentLedger: restarted.ventNetwork.ledger,
+              restartedFilters: restarted.ventNetwork.filters,
               purchased: restarted.upgrades.purchased,
               runCount: restarted.run.count,
             }));
@@ -182,6 +184,8 @@ class IronLanternDescentSurvivalLoopTests(unittest.TestCase):
         self.assertEqual(10, result["restartedCredits"])
         self.assertEqual(0, result["restartedPumpworksLedger"])
         self.assertEqual(1, result["restartedSiphons"])
+        self.assertEqual(0, result["restartedVentLedger"])
+        self.assertEqual(1, result["restartedFilters"])
         self.assertEqual(["tank-weave"], result["purchased"])
         self.assertEqual(2, result["runCount"])
 

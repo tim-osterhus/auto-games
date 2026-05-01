@@ -23,6 +23,8 @@ class IronLanternDescentDeepPumpworksTests(unittest.TestCase):
             console.log(JSON.stringify({
               release: state.pumpworks.release.label,
               baseRelease: state.pumpworks.release.baseRelease,
+              ventBaseRelease: state.ventNetwork.release.baseRelease,
+              ventRelease: state.ventNetwork.release.label,
               passageIds: game.GAME_DATA.cave.passages.map((passage) => passage.id),
               collisionPassage: state.movement.collision.lastPassage,
               pumpworksCount: state.pumpworksSites.length,
@@ -42,6 +44,8 @@ class IronLanternDescentDeepPumpworksTests(unittest.TestCase):
 
         self.assertEqual("v0.2.0 Deep Pumpworks", result["release"])
         self.assertEqual("v0.1.0 Faultline Survey", result["baseRelease"])
+        self.assertEqual("v0.2.0 Deep Pumpworks", result["ventBaseRelease"])
+        self.assertEqual("v0.3.0 Cinder Vent Network", result["ventRelease"])
         self.assertIn("lower-pumpworks", result["passageIds"])
         self.assertIn("sump-bypass", result["passageIds"])
         self.assertEqual("deep-room", result["collisionPassage"])
