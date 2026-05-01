@@ -3364,6 +3364,10 @@ const IronLanternDescent = (() => {
       "flood-readout",
       "valve-readout",
       "drainage-readout",
+      "vent-readout",
+      "airflow-readout",
+      "filter-readout",
+      "gas-readout",
       "scanner-readout",
       "tremor-readout",
       "map-readout",
@@ -3376,6 +3380,7 @@ const IronLanternDescent = (() => {
       "target-name",
       "survey-site-list",
       "pumpworks-site-list",
+      "vent-site-list",
       "sample-list",
       "event-log",
       "lantern-action",
@@ -3389,6 +3394,10 @@ const IronLanternDescent = (() => {
       "valve-action",
       "siphon-action",
       "seal-action",
+      "gate-action",
+      "filter-action",
+      "fan-action",
+      "vent-action",
       "lift-action",
       "upgrade-action",
       "restart-action",
@@ -3490,6 +3499,53 @@ const IronLanternDescent = (() => {
     return [flood, pump, valve, leak, siphon];
   }
 
+  function formatVentWindow(site, elapsed) {
+    const windowState = site.windowState || ventWindowState(site, elapsed || 0);
+    const window = site.draftWindow || {};
+    if (windowState === "pending") {
+      return `opens in ${Math.max(0, Math.ceil(window.opensAt - elapsed))}s`;
+    }
+    if (windowState === "draft") {
+      return `draft ${Math.max(0, Math.ceil(window.closesAt - elapsed))}s`;
+    }
+    if (windowState === "gas") {
+      return `gas ${Math.max(0, Math.ceil(window.failAt - elapsed))}s`;
+    }
+    return "overrun";
+  }
+
+  function activeVentSite(state) {
+    return state.ventSites.find((site) => site.id === state.ventNetwork.activeSiteId) ||
+      nearestVentSite(state, { includeCompleted: true })?.site ||
+      null;
+  }
+
+  function ventRequirementText(state, site) {
+    const requirements = ventRequirementStatus(state, site, {
+      requireGate: true,
+      requirePumpworks: true,
+      requireFilter: true,
+      requireFan: true,
+    });
+    if (requirements.ready) {
+      return "requirements clear";
+    }
+    return `needs ${requirements.missing.join(" + ")}`;
+  }
+
+  function ventLineText(site) {
+    const gate = `gate ${site.gateState}`;
+    const fan = `fan ${site.fanState}`;
+    const filter = site.filterDeployed
+      ? "filter deployed"
+      : site.filter.required
+        ? "filter required"
+        : "filter optional";
+    const gas = `gas ${Math.round((site.gasPressure || 0) * 100)} / stale ${Math.round((site.staleAirPressure || 0) * 100)}`;
+    const route = `route +${site.route.relayBonus} / risk -${site.route.failurePenalty}`;
+    return [site.airflowState, gate, fan, filter, gas, route];
+  }
+
   function renderHud(state) {
     if (!dom.root) {
       return;
@@ -3500,6 +3556,7 @@ const IronLanternDescent = (() => {
     const nearest = nearestSample(state);
     const activeSite = activeSurveySite(state);
     const activePump = activePumpworksSite(state);
+    const activeVent = activeVentSite(state);
     const surveyTarget = activeSite
       ? `${activeSite.name} / ${activeSite.status} / ${Math.round(activeSite.distance || 0)}m`
       : "survey complete";
@@ -3514,13 +3571,26 @@ const IronLanternDescent = (() => {
       ? `${activePump.valveId.replace("valve-", "")} / ${activePump.valveState} / ${state.routeStability.pressure}p`
       : `${state.routeStability.pressure}p`;
     const drainageText = `${state.pumpworks.completedSites} / ${state.pumpworks.contract.targetDrainedSites} sites  ${state.pumpworks.mapProgress + state.pumpworks.ledger} / ${state.pumpworks.contract.targetMapProgress} map  siphon ${state.pumpworks.siphons}`;
-    const targetName = state.scanner.targetKind === "pumpworks" && activePump
-      ? activePump.name
-      : state.scanner.targetKind === "survey" && activeSite
-        ? activeSite.name
-        : nearest
-          ? nearest.node.name
-          : "Iron Lift";
+    const ventTarget = activeVent
+      ? `${activeVent.name} / ${activeVent.status} / ${Math.round(activeVent.distance || 0)}m`
+      : "vent network fresh";
+    const airflowText = activeVent
+      ? `${activeVent.airflowState} / ${formatVentWindow(activeVent, state.elapsed)}`
+      : "fresh relay route";
+    const filterText = `${state.ventNetwork.filters} / ${state.ventNetwork.maxFilters} filters  ${state.ventNetwork.relaysOnline} / ${state.ventNetwork.contract.targetRelays} relays`;
+    const gasText = activeVent
+      ? `${Math.round(state.ventNetwork.gasPressure * 100)}g avg / stale ${Math.round(state.ventNetwork.staleAirPressure * 100)} / clear ${state.ventNetwork.gasCleared}`
+      : `${state.ventNetwork.gasCleared} / ${state.ventNetwork.contract.targetGasCleared} cleared`;
+    let targetName = "Iron Lift";
+    if (state.scanner.targetKind === "vent-network" && activeVent) {
+      targetName = activeVent.name;
+    } else if (state.scanner.targetKind === "pumpworks" && activePump) {
+      targetName = activePump.name;
+    } else if (state.scanner.targetKind === "survey" && activeSite) {
+      targetName = activeSite.name;
+    } else if (nearest) {
+      targetName = nearest.node.name;
+    }
     dom["run-status"].textContent = `${state.run.status} / ${state.renderer.status}`;
     dom["objective-readout"].textContent = state.run.objective;
     dom["oxygen-readout"].textContent = `${Math.ceil(state.oxygen.current)} / ${state.oxygen.max}  -${state.oxygen.lastDrainPerSecond.toFixed(1)}/s`;
@@ -3536,6 +3606,10 @@ const IronLanternDescent = (() => {
     dom["flood-readout"].textContent = floodText;
     dom["valve-readout"].textContent = valveText;
     dom["drainage-readout"].textContent = drainageText;
+    dom["vent-readout"].textContent = ventTarget;
+    dom["airflow-readout"].textContent = airflowText;
+    dom["filter-readout"].textContent = filterText;
+    dom["gas-readout"].textContent = gasText;
     dom["scanner-readout"].textContent = state.scanner.status;
     dom["tremor-readout"].textContent = tremorText;
     dom["map-readout"].textContent = `${state.survey.mapProgress + state.survey.ledger} / ${state.survey.contract.targetMapProgress} map  ${state.survey.value}cr`;
@@ -3563,6 +3637,10 @@ const IronLanternDescent = (() => {
     setReadoutTone(dom["flood-readout"], activePump && (activePump.windowState === "flood" || activePump.windowState === "overrun") ? "danger" : activePump && activePump.windowState === "surge" ? "warn" : null);
     setReadoutTone(dom["valve-readout"], activePump && activePump.drainageState === "success" ? "signal" : activePump && activePump.valveState === "overrun" ? "danger" : null);
     setReadoutTone(dom["drainage-readout"], state.pumpworks.completedSites > 0 ? "signal" : null);
+    setReadoutTone(dom["vent-readout"], activeVent && activeVent.inRange ? "signal" : null);
+    setReadoutTone(dom["airflow-readout"], activeVent && activeVent.relayState === "success" ? "signal" : activeVent && activeVent.fanState === "surging" ? "warn" : null);
+    setReadoutTone(dom["filter-readout"], state.ventNetwork.filters <= 0 ? "warn" : null);
+    setReadoutTone(dom["gas-readout"], activeVent && activeVent.windowState === "overrun" ? "danger" : activeVent && activeVent.windowState === "gas" ? "warn" : null);
     setReadoutTone(dom["tremor-readout"], activeSite && activeSite.windowState === "collapsed" ? "danger" : activeSite && activeSite.windowState === "tremor" ? "warn" : null);
 
     dom["survey-site-list"].replaceChildren(
@@ -3608,6 +3686,37 @@ const IronLanternDescent = (() => {
           ...pumpworksLineText(site),
           pumpworksRequirementText(state, site),
           `+${site.rewards.payout}cr / +${site.rewards.mapProgress} map`,
+        ].forEach((text) => {
+          const part = document.createElement("span");
+          part.textContent = text;
+          meta.append(part);
+        });
+        item.append(line, meta);
+        return item;
+      })
+    );
+
+    dom["vent-site-list"].replaceChildren(
+      ...state.ventSites.map((site) => {
+        const item = document.createElement("li");
+        item.dataset.window = site.windowState;
+        item.dataset.state = site.relayState;
+        item.dataset.gate = site.gateState;
+        item.dataset.fan = site.fanState;
+        const line = document.createElement("div");
+        line.className = "vent-line";
+        const name = document.createElement("strong");
+        name.textContent = site.name;
+        const passage = document.createElement("span");
+        passage.textContent = `${site.passageId} / ${Math.round(site.distance || 0)}m`;
+        line.append(name, passage);
+        const meta = document.createElement("div");
+        meta.className = "vent-meta";
+        [
+          formatVentWindow(site, state.elapsed),
+          ...ventLineText(site),
+          ventRequirementText(state, site),
+          `+${site.rewards.payout}cr / +${site.rewards.mapProgress} map / +${site.rewards.airflowRelief} air`,
         ].forEach((text) => {
           const part = document.createElement("span");
           part.textContent = text;
@@ -3702,6 +3811,26 @@ const IronLanternDescent = (() => {
         renderHud(currentState);
         return;
       }
+      if (control === "openDraftGate") {
+        currentState = openDraftGate(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "deployFilter") {
+        currentState = deployFilterCartridge(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "startFan") {
+        currentState = startPressureFan(currentState);
+        renderHud(currentState);
+        return;
+      }
+      if (control === "ventGas") {
+        currentState = ventGasPocket(currentState);
+        renderHud(currentState);
+        return;
+      }
       if (control === "interact") {
         currentState = returnToLift(currentState);
         renderHud(currentState);
@@ -3768,6 +3897,22 @@ const IronLanternDescent = (() => {
     });
     dom["seal-action"].addEventListener("click", () => {
       currentState = sealLeakSeam(currentState);
+      renderHud(currentState);
+    });
+    dom["gate-action"].addEventListener("click", () => {
+      currentState = openDraftGate(currentState);
+      renderHud(currentState);
+    });
+    dom["filter-action"].addEventListener("click", () => {
+      currentState = deployFilterCartridge(currentState);
+      renderHud(currentState);
+    });
+    dom["fan-action"].addEventListener("click", () => {
+      currentState = startPressureFan(currentState);
+      renderHud(currentState);
+    });
+    dom["vent-action"].addEventListener("click", () => {
+      currentState = ventGasPocket(currentState);
       renderHud(currentState);
     });
     dom["lift-action"].addEventListener("click", () => {
@@ -4140,6 +4285,95 @@ const IronLanternDescent = (() => {
     return group;
   }
 
+  function createVentSiteMesh(THREE, site) {
+    const group = new THREE.Group();
+    group.userData.siteId = site.id;
+
+    const haze = new THREE.Mesh(
+      new THREE.CylinderGeometry(site.radius * 1.35, site.radius * 1.35, 0.08, 48),
+      new THREE.MeshBasicMaterial({ color: 0xd46857, transparent: true, opacity: 0.12, depthWrite: false })
+    );
+    haze.position.y = 0.12;
+    haze.userData.role = "gas-haze-volume";
+    group.add(haze);
+
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.48, 0.62, 1.8, 18),
+      new THREE.MeshStandardMaterial({ color: 0x1c2522, roughness: 0.72, metalness: 0.28 })
+    );
+    shaft.rotation.z = Math.PI / 2;
+    shaft.position.set(-0.34, 0.78, 0);
+    shaft.userData.role = "vent-shaft";
+    group.add(shaft);
+
+    const gate = new THREE.Mesh(
+      new THREE.TorusGeometry(0.58, 0.045, 8, 40),
+      new THREE.MeshBasicMaterial({ color: 0xc9a653, transparent: true, opacity: 0.78 })
+    );
+    gate.rotation.y = Math.PI / 2;
+    gate.position.set(0.72, 0.8, 0);
+    gate.userData.role = "draft-gate-wheel";
+    group.add(gate);
+
+    const fanHousing = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.72, 0.26, 24),
+      new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.28 })
+    );
+    fanHousing.rotation.x = Math.PI / 2;
+    fanHousing.position.set(-0.82, 0.8, -0.8);
+    fanHousing.userData.role = "fan-housing";
+    group.add(fanHousing);
+
+    const fanBlades = new THREE.Group();
+    fanBlades.userData.role = "pressure-fan-blades";
+    for (let index = 0; index < 4; index += 1) {
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.74, 0.035, 0.11),
+        new THREE.MeshBasicMaterial({ color: 0xe0e7e3, transparent: true, opacity: 0.5 })
+      );
+      blade.rotation.y = index * Math.PI / 2;
+      fanBlades.add(blade);
+    }
+    fanBlades.position.set(-0.82, 0.8, -0.8);
+    group.add(fanBlades);
+
+    const filterRack = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 1.0, 0.86),
+      new THREE.MeshBasicMaterial({ color: 0xe0e7e3, transparent: true, opacity: 0.28 })
+    );
+    filterRack.position.set(0.1, 0.6, 0.92);
+    filterRack.userData.role = "filter-rack";
+    group.add(filterRack);
+
+    const relay = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 14, 8),
+      new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.34 })
+    );
+    relay.position.set(0.24, 1.48, 0.08);
+    relay.userData.role = "fresh-air-relay-marker";
+    group.add(relay);
+
+    const airflow = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-site.radius * 0.8, 0.24, 0.48),
+        new THREE.Vector3(-site.radius * 0.3, 0.3, 0.12),
+        new THREE.Vector3(site.radius * 0.16, 0.24, -0.12),
+        new THREE.Vector3(site.radius * 0.78, 0.3, -0.46),
+      ]),
+      new THREE.LineBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.2 })
+    );
+    airflow.userData.role = "airflow-overlay";
+    group.add(airflow);
+
+    const light = new THREE.PointLight(0x4bd6c0, 0.36, site.influenceRadius);
+    light.position.set(0, 1.3, 0);
+    light.userData.role = "vent-signal-light";
+    group.add(light);
+
+    group.position.set(site.position.x, 0, site.position.z);
+    return group;
+  }
+
   function createLanternMesh(THREE, anchor, assets = {}) {
     const group = new THREE.Group();
     const base = new THREE.Mesh(
@@ -4233,6 +4467,13 @@ const IronLanternDescent = (() => {
       scene.add(mesh);
     });
 
+    const ventMeshes = new Map();
+    state.ventSites.forEach((site) => {
+      const mesh = createVentSiteMesh(THREE, site);
+      ventMeshes.set(site.id, mesh);
+      scene.add(mesh);
+    });
+
     const scannerRing = new THREE.Mesh(
       new THREE.RingGeometry(3.8, 4.0, 48),
       new THREE.MeshBasicMaterial({ color: 0x4bd6c0, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
@@ -4258,6 +4499,7 @@ const IronLanternDescent = (() => {
         hazardMeshes,
         surveyMeshes,
         pumpworksMeshes,
+        ventMeshes,
         lanternMeshes: new Map(),
         routeGroup,
         routeSignature: "",
@@ -4441,12 +4683,97 @@ const IronLanternDescent = (() => {
     });
   }
 
+  function updateVentMeshes(handle, state, timeSeconds) {
+    state.ventSites.forEach((site) => {
+      const mesh = handle.objects.ventMeshes.get(site.id);
+      if (!mesh) {
+        return;
+      }
+      const haze = mesh.children.find((child) => child.userData.role === "gas-haze-volume");
+      const shaft = mesh.children.find((child) => child.userData.role === "vent-shaft");
+      const gate = mesh.children.find((child) => child.userData.role === "draft-gate-wheel");
+      const fanHousing = mesh.children.find((child) => child.userData.role === "fan-housing");
+      const fanBlades = mesh.children.find((child) => child.userData.role === "pressure-fan-blades");
+      const filterRack = mesh.children.find((child) => child.userData.role === "filter-rack");
+      const relay = mesh.children.find((child) => child.userData.role === "fresh-air-relay-marker");
+      const airflow = mesh.children.find((child) => child.userData.role === "airflow-overlay");
+      const light = mesh.children.find((child) => child.userData.role === "vent-signal-light");
+      const urgent = site.windowState === "gas" || site.windowState === "overrun" || site.relayState === "failed" || site.gasState === "erupted";
+      const complete = site.relayState === "success" || site.relayState === "partial";
+      const active =
+        site.inRange ||
+        site.gateState !== "sealed" ||
+        site.filterDeployed ||
+        site.fanState !== "idle" ||
+        complete;
+      const pulse = 0.5 + Math.sin(timeSeconds * (urgent ? 5.8 : 2.2) + site.position.x) * 0.5;
+
+      mesh.scale.setScalar(site.inRange ? 1.12 : 1);
+      if (haze && haze.material) {
+        haze.material.color.setHex(urgent ? 0xd46857 : complete ? 0x4bd6c0 : 0xc9a653);
+        haze.material.opacity = complete
+          ? 0.05
+          : Math.min(0.34, 0.06 + (site.gasPressure || 0) * 0.2 + pulse * 0.08);
+      }
+      if (shaft && shaft.material) {
+        shaft.material.color.setHex(complete ? 0x243a35 : urgent ? 0x3a201d : 0x1c2522);
+        if (shaft.material.emissive) {
+          shaft.material.emissive.setHex(complete ? 0x061f1a : 0x000000);
+        }
+      }
+      if (gate && gate.material) {
+        gate.material.color.setHex(site.gateState === "jammed" ? 0xd46857 : site.gateState === "open" ? 0x4bd6c0 : 0xc9a653);
+        gate.material.opacity = site.gateState === "sealed" ? 0.52 : 0.84;
+        gate.rotation.z = site.gateState === "open" ? timeSeconds * 0.65 : site.gateState === "cracked" ? 0.45 : 0;
+      }
+      if (fanHousing && fanHousing.material) {
+        fanHousing.material.color.setHex(urgent ? 0xd46857 : site.fanState === "running" ? 0x4bd6c0 : 0x87938d);
+        fanHousing.material.opacity = site.fanState === "idle" ? 0.24 : 0.44 + pulse * 0.16;
+      }
+      if (fanBlades) {
+        fanBlades.visible = site.fanState !== "idle";
+        fanBlades.rotation.y = site.fanState === "running"
+          ? timeSeconds * 5.2
+          : site.fanState === "surging"
+            ? timeSeconds * 2.4
+            : 0;
+        fanBlades.children.forEach((blade) => {
+          if (blade.material) {
+            blade.material.color.setHex(site.fanState === "stalled" ? 0xd46857 : 0xe0e7e3);
+            blade.material.opacity = site.fanState === "running" ? 0.74 : 0.42;
+          }
+        });
+      }
+      if (filterRack && filterRack.material) {
+        filterRack.visible = Boolean(site.filter.required || site.filterDeployed);
+        filterRack.material.color.setHex(site.filterDeployed ? 0x4bd6c0 : 0xe0e7e3);
+        filterRack.material.opacity = site.filterDeployed ? 0.74 : site.filter.required ? 0.38 : 0.2;
+      }
+      if (relay && relay.material) {
+        relay.visible = active;
+        relay.material.color.setHex(site.relayState === "failed" ? 0xd46857 : complete ? 0xc9a653 : 0x4bd6c0);
+        relay.material.opacity = active ? 0.34 + pulse * 0.4 : 0.18;
+      }
+      if (airflow && airflow.material) {
+        airflow.visible = active;
+        airflow.material.color.setHex(site.relayState === "failed" ? 0xd46857 : complete ? 0xc9a653 : 0x4bd6c0);
+        airflow.material.opacity = active ? 0.22 + pulse * 0.18 : 0.1;
+      }
+      if (light) {
+        light.color.setHex(urgent ? 0xd46857 : complete ? 0xc9a653 : 0x4bd6c0);
+        light.intensity = active ? 0.42 + pulse * 0.32 : 0.18;
+        light.distance = site.influenceRadius;
+      }
+    });
+  }
+
   function updateScene(handle, state, timeSeconds) {
     resizeScene(handle);
     syncLanternMeshes(handle, state);
     syncRouteMeshes(handle, state);
     updateSurveyMeshes(handle, state, timeSeconds);
     updatePumpworksMeshes(handle, state, timeSeconds);
+    updateVentMeshes(handle, state, timeSeconds);
     handle.objects.player.position.set(state.player.position.x, 0, state.player.position.z);
     handle.objects.player.rotation.y = state.player.facing;
     handle.objects.playerLamp.position.set(state.player.position.x, state.player.position.y + 0.4, state.player.position.z);

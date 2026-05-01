@@ -154,6 +154,12 @@ class IronLanternDescentAssetPackTests(unittest.TestCase):
         self.assertIn("oxygen-light-icons", ids)
         self.assertIn("arcade-title-card", ids)
 
+        for procedural_category in ("vent", "draft", "fan", "filter", "gas", "airflow"):
+            self.assertFalse(
+                any(procedural_category in asset_id for asset_id in ids),
+                procedural_category,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

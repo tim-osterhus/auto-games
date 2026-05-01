@@ -80,6 +80,22 @@
         <strong id="drainage-readout">0 / 2 sites</strong>
       </article>
       <article class="readout">
+        <span>Cinder Vents</span>
+        <strong id="vent-readout">vent network sealed</strong>
+      </article>
+      <article class="readout">
+        <span>Airflow</span>
+        <strong id="airflow-readout">draft pending</strong>
+      </article>
+      <article class="readout">
+        <span>Filters</span>
+        <strong id="filter-readout">1 / 1 cartridge</strong>
+      </article>
+      <article class="readout">
+        <span>Gas</span>
+        <strong id="gas-readout">pocketed / stale</strong>
+      </article>
+      <article class="readout">
         <span class="readout-label"><span class="readout-icon readout-icon-scanner" aria-hidden="true"></span>Scanner</span>
         <strong id="scanner-readout">ready / node</strong>
       </article>
@@ -115,6 +131,7 @@
         <span id="collision-readout">collision clear</span>
         <span id="mining-readout">drill idle</span>
       </div>
+      <ol class="vent-list" id="vent-site-list" aria-label="Cinder Vent Network sites"></ol>
       <ol class="survey-list" id="survey-site-list" aria-label="Faultline survey sites"></ol>
       <ol class="pumpworks-list" id="pumpworks-site-list" aria-label="Deep Pumpworks stations"></ol>
       <ol class="sample-list" id="sample-list" aria-label="Sample nodes"></ol>
@@ -131,6 +148,10 @@
         <button type="button" id="valve-action">Valve</button>
         <button type="button" id="siphon-action">Siphon</button>
         <button type="button" id="seal-action">Seal</button>
+        <button type="button" id="gate-action">Gate</button>
+        <button type="button" id="filter-action">Filter</button>
+        <button type="button" id="fan-action">Fan</button>
+        <button type="button" id="vent-action">Vent</button>
         <button type="button" id="lift-action">Lift</button>
         <button type="button" id="upgrade-action">Upgrade</button>
         <button type="button" id="restart-action">Restart</button>
@@ -152,6 +173,10 @@
       <span>O valve</span>
       <span>Y siphon</span>
       <span>H seal</span>
+      <span>G gate</span>
+      <span>J filter</span>
+      <span>K fan</span>
+      <span>T vent</span>
       <span>F/Enter lift</span>
       <span>U upgrade</span>
       <span>R restart</span>

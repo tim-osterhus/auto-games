@@ -269,6 +269,7 @@ button {
 .sample-list li,
 .survey-list li,
 .pumpworks-list li,
+.vent-list li,
 .event-log li {
   min-height: 30px;
   padding: 7px 8px;
@@ -280,6 +281,7 @@ button {
 .sample-list,
 .survey-list,
 .pumpworks-list,
+.vent-list,
 .event-log {
   display: grid;
   gap: 6px;
@@ -294,7 +296,8 @@ button {
 }
 
 .survey-list li,
-.pumpworks-list li {
+.pumpworks-list li,
+.vent-list li {
   display: grid;
   gap: 5px;
   border-left: 2px solid var(--signal);
@@ -327,10 +330,33 @@ button {
   border-left-color: var(--lantern);
 }
 
+.vent-list {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.vent-list li[data-window="gas"],
+.vent-list li[data-window="overrun"],
+.vent-list li[data-state="failed"] {
+  border-left-color: var(--danger);
+}
+
+.vent-list li[data-state="success"],
+.vent-list li[data-state="partial"] {
+  border-left-color: var(--lantern);
+}
+
+.vent-list li[data-gate="open"],
+.vent-list li[data-fan="running"] {
+  background: rgba(75, 214, 192, 0.055);
+}
+
 .survey-line,
 .survey-meta,
 .pumpworks-line,
-.pumpworks-meta {
+.pumpworks-meta,
+.vent-line,
+.vent-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
@@ -338,7 +364,8 @@ button {
 }
 
 .survey-line strong,
-.pumpworks-line strong {
+.pumpworks-line strong,
+.vent-line strong {
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 600;
@@ -347,6 +374,7 @@ button {
 
 .survey-meta span,
 .pumpworks-meta span,
+.vent-meta span,
 .event-log li {
   overflow-wrap: anywhere;
 }

@@ -28,10 +28,16 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
             "flood-readout",
             "valve-readout",
             "drainage-readout",
+            "Cinder Vents",
+            "vent-readout",
+            "airflow-readout",
+            "filter-readout",
+            "gas-readout",
             "tremor-readout",
             "map-readout",
             "survey-site-list",
             "pumpworks-site-list",
+            "vent-site-list",
             "event-log",
             "stake-action",
             "brace-action",
@@ -41,21 +47,31 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
             "valve-action",
             "siphon-action",
             "seal-action",
+            "gate-action",
+            "filter-action",
+            "fan-action",
+            "vent-action",
         ):
             self.assertIn(token, html)
 
         for token in (
             ".survey-list",
             ".pumpworks-list",
+            ".vent-list",
             ".survey-line",
             ".pumpworks-line",
+            ".vent-line",
             ".survey-meta",
             ".pumpworks-meta",
+            ".vent-meta",
             ".event-log",
             'li[data-window="tremor"]',
             'li[data-window="flood"]',
+            'li[data-window="gas"]',
             'li[data-status="success"]',
             'li[data-state="success"]',
+            'li[data-gate="open"]',
+            'li[data-fan="running"]',
             "overflow-wrap: anywhere",
             "grid-template-columns: repeat(2, minmax(0, 1fr))",
         ):
@@ -96,19 +112,36 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
             "activePumpworksSite",
             "pumpworksRequirementText",
             "pumpworksLineText",
+            "formatVentWindow",
+            "activeVentSite",
+            "ventRequirementText",
+            "ventLineText",
             'dom["pumpworks-readout"].textContent',
             'dom["flood-readout"].textContent',
             'dom["valve-readout"].textContent',
             'dom["drainage-readout"].textContent',
+            'dom["vent-readout"].textContent',
+            'dom["airflow-readout"].textContent',
+            'dom["filter-readout"].textContent',
+            'dom["gas-readout"].textContent',
             'dom["pumpworks-site-list"].replaceChildren',
+            'dom["vent-site-list"].replaceChildren',
             'dom["pump-action"].addEventListener',
             'dom["valve-action"].addEventListener',
             'dom["siphon-action"].addEventListener',
             'dom["seal-action"].addEventListener',
+            'dom["gate-action"].addEventListener',
+            'dom["filter-action"].addEventListener',
+            'dom["fan-action"].addEventListener',
+            'dom["vent-action"].addEventListener',
             "primePumpStation(currentState)",
             "turnPressureValve(currentState)",
             "deploySiphonCharge(currentState)",
             "sealLeakSeam(currentState)",
+            "openDraftGate(currentState)",
+            "deployFilterCartridge(currentState)",
+            "startPressureFan(currentState)",
+            "ventGasPocket(currentState)",
         ):
             self.assertIn(token, script)
 
@@ -138,6 +171,16 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
             "userData.role = \"siphon-canister\"",
             "userData.role = \"pressure-gauge\"",
             "userData.role = \"drainage-route-overlay\"",
+            "createVentSiteMesh",
+            "updateVentMeshes",
+            "ventMeshes",
+            "userData.role = \"vent-shaft\"",
+            "userData.role = \"draft-gate-wheel\"",
+            "userData.role = \"fan-housing\"",
+            "userData.role = \"filter-rack\"",
+            "userData.role = \"gas-haze-volume\"",
+            "userData.role = \"fresh-air-relay-marker\"",
+            "userData.role = \"airflow-overlay\"",
             "0x4bd6c0",
             "0xd46857",
             "0xc9a653",
@@ -169,6 +212,12 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
             "siphon",
             "gauge",
             "drain",
+            "vent",
+            "draft",
+            "fan",
+            "filter",
+            "gas",
+            "airflow",
         ):
             self.assertNotRegex(script, rf'assets/[^"\'\)\s]*{re.escape(stale_raster)}[^"\'\)\s]*\.png')
 
@@ -267,6 +316,71 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
         self.assertGreater(result["routeAfter"], result["before"]["routeConfidence"])
         self.assertLess(result["oxygenAfter"], result["before"]["oxygen"])
         self.assertIn("pressure valve success", result["lastLog"])
+
+    def test_surface_controls_change_cinder_vent_state_route_and_rewards(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/iron-lantern-descent/iron-lantern-descent.js");
+            let state = game.createInitialState({ seed: 91 });
+            const survey = state.surveySites.find((site) => site.id === "survey-cinder-rib");
+            state.player.position = { x: survey.position.x, y: 1.6, z: survey.position.z };
+            state = game.placeLantern(game.syncDerivedState(state));
+            state = game.plantSurveyStake(state, "survey-cinder-rib");
+            state = game.chartFaultSurvey(state, "survey-cinder-rib");
+
+            const pump = state.pumpworksSites.find((site) => site.id === "pump-cinder-sump");
+            state.player.position = { x: pump.position.x, y: 1.6, z: pump.position.z };
+            state.elapsed = 50;
+            state = game.primePumpStation(game.syncDerivedState(state), "pump-cinder-sump");
+            state = game.turnPressureValve(state, "pump-cinder-sump");
+
+            const vent = state.ventSites.find((site) => site.id === "vent-cinder-rib-draft");
+            state.player.position = { x: vent.position.x, y: 1.6, z: vent.position.z };
+            state.elapsed = 70;
+            state = game.syncDerivedState(state);
+            const before = {
+              gas: state.ventSites[0].gasPressure,
+              routeConfidence: state.route.returnConfidence,
+              oxygen: state.oxygen.current,
+              drain: game.oxygenDrainRate(state),
+            };
+            state = game.openDraftGate(state, "vent-cinder-rib-draft");
+            const gated = JSON.parse(JSON.stringify(state));
+            state = game.startPressureFan(state, "vent-cinder-rib-draft");
+            state = game.ventGasPocket(state, "vent-cinder-rib-draft");
+
+            console.log(JSON.stringify({
+              before,
+              gateState: gated.ventSites[0].gateState,
+              fanState: state.ventSites[0].fanState,
+              relayState: state.ventSites[0].relayState,
+              gasState: state.ventSites[0].gasState,
+              gasAfter: state.ventSites[0].gasPressure,
+              staleAfter: state.ventSites[0].staleAirPressure,
+              ventValue: state.ventNetwork.value,
+              ventMap: state.ventNetwork.mapProgress,
+              airflowRelief: state.ventNetwork.airflowRelief,
+              routeAfter: state.route.returnConfidence,
+              oxygenAfter: state.oxygen.current,
+              drainAfter: game.oxygenDrainRate(state),
+              lastLog: state.log[0].message,
+            }));
+            """
+        )
+
+        self.assertEqual("open", result["gateState"])
+        self.assertEqual("running", result["fanState"])
+        self.assertEqual("success", result["relayState"])
+        self.assertEqual("cleared", result["gasState"])
+        self.assertLess(result["gasAfter"], result["before"]["gas"])
+        self.assertLess(result["staleAfter"], 0.2)
+        self.assertEqual(72, result["ventValue"])
+        self.assertEqual(1, result["ventMap"])
+        self.assertEqual(18, result["airflowRelief"])
+        self.assertGreater(result["routeAfter"], result["before"]["routeConfidence"])
+        self.assertLess(result["oxygenAfter"], result["before"]["oxygen"])
+        self.assertLess(result["drainAfter"], result["before"]["drain"])
+        self.assertIn("gas pocket success", result["lastLog"])
 
     def run_node(self, script: str) -> dict:
         completed = subprocess.run(
