@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "assets": [
+    {
+      "id": "lantern-anchor",
+      "path": "games/iron-lantern-descent/assets/lantern-anchor.png",
+      "role": "sprite",
+      "description": "Transparent iron lantern anchor treatment with cage, warm core, clamp hardware, and teal alignment signal.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "In-world route anchor sprite and lantern mesh texture.",
+      "notes": "Generated with Codex built-in image generation on a chroma-key source, converted to alpha, cropped, and resized to 256x256 PNG."
+    },
+    {
+      "id": "mineral-vein-material",
+      "path": "games/iron-lantern-descent/assets/mineral-vein-material.png",
+      "role": "texture",
+      "description": "Opaque cave mineral material with dark rock, teal crystal interference seams, and amber ore flecks.",
+      "width": 512,
+      "height": 512,
+      "intended_use": "Three.js cave floor and mineable sample node material texture.",
+      "notes": "Generated with Codex built-in image generation and center-cropped/resized to exact square texture dimensions."
+    },
+    {
+      "id": "drill-tool",
+      "path": "games/iron-lantern-descent/assets/drill-tool.png",
+      "role": "sprite",
+      "description": "Transparent compact handheld drill/sample tool with steel body, bit, work lamp, and teal status stripe.",
+      "width": 256,
+      "height": 256,
+      "intended_use": "Close-third-person player drill sprite and mining tool visual cue.",
+      "notes": "Generated with Codex built-in image generation on a chroma-key source, converted to alpha, cropped, and resized to 256x256 PNG."
+    },
+    {
+      "id": "oxygen-light-icons",
+      "path": "games/iron-lantern-descent/assets/oxygen-light-icons.png",
+      "role": "icon",
+      "description": "Transparent three-cell atlas for oxygen tank, lantern light, and scanner route-pulse icons.",
+      "width": 384,
+      "height": 128,
+      "intended_use": "HUD oxygen, light, and scanner icon atlas.",
+      "notes": "Generated with Codex built-in image generation on a chroma-key source, converted to alpha, and resized to a 3x128 icon atlas."
+    },
+    {
+      "id": "arcade-title-card",
+      "path": "games/iron-lantern-descent/assets/arcade-title-card.png",
+      "role": "background",
+      "description": "Opaque title-card art showing a cave descent from the iron lift with route lanterns, mineral veins, and drill cues.",
+      "width": 800,
+      "height": 450,
+      "intended_use": "Game title-card band and arcade thumbnail art.",
+      "notes": "Generated with Codex built-in image generation and center-cropped/resized to exact 16:9 dimensions."
+    }
+  ],
+  "notes": "Original Iron Lantern Descent raster asset pack generated through the visual-asset-pipeline Codex bridge; final project-consumed PNGs are local under games/iron-lantern-descent/assets.",
+  "request_manifest": "_visual-check/iron-lantern-descent-assets/asset-request-manifest.json"
+}

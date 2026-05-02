@@ -1,176 +1,175 @@
 {
   "schema_version": 1,
-  "generatedAt": "2026-05-01T17:00:57Z",
-  "baseUrl": "http://127.0.0.1:8770/",
+  "generatedAt": "2026-05-02T20:49:41.465Z",
+  "baseUrl": "http://127.0.0.1:8775/",
+  "game": "iron-lantern-descent",
+  "version": "0.5.0",
+  "release": "v0.5.0 Cave Readability Repair",
   "screenshots": {
-    "arcadeCard": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-arcade-card.png",
-    "desktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-desktop.png",
-    "narrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-mobile.png"
+    "arcadeDesktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-arcade-desktop.png",
+    "arcadeNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-arcade-narrow.png",
+    "selectionSurface": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-selection-surface.png",
+    "freshLiftScene": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-fresh-lift-scene.png",
+    "lanternPlacement": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-lantern-placement.png",
+    "mining": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-mining.png",
+    "returnBanking": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-return-banking.png",
+    "advancedLedger": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-advanced-ledger.png",
+    "narrowSmoke": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-narrow.png",
+    "snapshot050": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-snapshot.png"
   },
   "arcade": {
     "desktop": {
       "title": "Millrace Arcade",
-      "hasIronCard": 1,
-      "hasDirectLaunch": 1,
-      "hasSnapshot040": 1,
-      "hasSnapshot030": 1,
-      "hasSnapshot020": 1,
-      "hasSnapshot010": 1,
-      "hasSnapshot001": 1,
-      "versionText": "playable / v0.4.0",
-      "releaseLabel": "v0.4.0 Echo Relay Network",
-      "copyIncludesEchoRelays": true,
-      "copyIncludesSignalCables": true,
-      "copyIncludesRescueCaches": true,
-      "overflow": {
-        "width": 1280,
-        "scrollWidth": 1280,
-        "overflowing": false
-      }
+      "hasIronCard": true,
+      "hasDirectLaunch": true,
+      "hasSnapshot050": true,
+      "hasSnapshot040": true,
+      "hasSnapshot030": true,
+      "hasSnapshot020": true,
+      "hasSnapshot010": true,
+      "hasSnapshot001": true,
+      "versionText": "playable / v0.5.0",
+      "releaseLabel": "v0.5.0 Cave Readability Repair",
+      "copyIncludesRepair": true,
+      "copyIncludesCopperIris": true,
+      "copyIncludesAdvancedLedgers": true
     },
     "narrow": {
       "title": "Millrace Arcade",
-      "hasIronCard": 1,
-      "hasDirectLaunch": 1,
-      "hasSnapshot040": 1,
-      "hasSnapshot030": 1,
-      "hasSnapshot020": 1,
-      "hasSnapshot010": 1,
-      "hasSnapshot001": 1,
-      "versionText": "playable / v0.4.0",
-      "releaseLabel": "v0.4.0 Echo Relay Network",
-      "copyIncludesEchoRelays": true,
-      "copyIncludesSignalCables": true,
-      "copyIncludesRescueCaches": true,
-      "overflow": {
-        "width": 390,
-        "scrollWidth": 390,
-        "overflowing": false
-      }
+      "hasIronCard": true,
+      "hasDirectLaunch": true,
+      "hasSnapshot050": true,
+      "hasSnapshot040": true,
+      "hasSnapshot030": true,
+      "hasSnapshot020": true,
+      "hasSnapshot010": true,
+      "hasSnapshot001": true,
+      "versionText": "playable / v0.5.0",
+      "releaseLabel": "v0.5.0 Cave Readability Repair",
+      "copyIncludesRepair": true,
+      "copyIncludesCopperIris": true,
+      "copyIncludesAdvancedLedgers": true
     }
   },
   "direct": {
-    "desktop": {
+    "selectionSurface": {
+      "title": "Iron Lantern Descent",
+      "visible": true,
+      "heading": "Iron Lantern Descent",
+      "selectedDepth": "Copper Iris",
+      "readiness": "3 lanterns / 96 oxygen / drill ready",
+      "reward": "32cr Copper Iris sample / first upgrade preview",
+      "route": "Iron Lift to Copper Iris, lantern return marker advised",
+      "beginVisible": true,
+      "canvas": {
+        "nonDark": 136796,
+        "bright": 59868
+      }
+    },
+    "freshLiftScene": {
       "title": "Iron Lantern Descent",
       "renderer": "active / local renderer + assets",
-      "eyebrow": "v0.4.0 echo relay network",
-      "objective": "Descend, mark the route, drain pumpworks, restore cinder vents, triangulate echo relays, bank samples at the lift.",
-      "relayReadout": "Cinder Echo Pylon / dark / 106m",
-      "cableReadout": "cinder-lantern-line / broken / 61 pressure",
-      "echoReadout": "2 / 2 charges  46 noise  opens in 58s",
-      "rescueReadout": "cache sealed / beacon armed / 0 caches",
-      "ventReadout": "Cinder Rib Draft Gate / sealed / 84m",
-      "pumpworksReadout": "Cinder Sump Pump / flooded / 81m",
-      "surveyReadout": "Cinder Rib Fault / unmapped / 43m",
-      "scannerReadout": "Copper Iris bearing 185 / 26m",
-      "position": "pos 0.0 / 8.0",
-      "lastLog": "000 / Iron Lift ready. Main cut is open.",
-      "relayRows": [
-        {
-          "state": "open",
-          "window": "pending",
-          "cable": "broken",
-          "beacon": "armed",
-          "text": "Cinder Echo Pylonecho-relay-alcove / 106mopens in 58spylon damagedcinder-lantern-line brokenecho 1 / noise 42cache sealedbeacon armed / cost 10crroute +18 / risk -16needs partial survey chart + partial pumpworks drainage + partial cinder vent relay + repaired relay pylon + spooled cable span+88cr / +1 map / +18 route"
-        },
-        {
-          "state": "open",
-          "window": "pending",
-          "cable": "severed",
-          "beacon": "armed",
-          "text": "Basalt Beacon Stationlift-beacon-station / 114mopens in 82spylon damagedbasalt-lift-return severedecho 1 / noise 50cache sealedbeacon armed / cost 20crroute +24 / risk -20needs success survey chart + success pumpworks drainage + success cinder vent relay + lantern anchor + repaired relay pylon + spooled cable span+132cr / +2 map / +24 route"
-        }
+      "eyebrow": "v0.5.0 cave readability repair",
+      "objective": "Move toward Copper Iris.",
+      "contextAction": "Move Toward Copper Iris",
+      "hudCardCount": 6,
+      "controlHintCount": 4,
+      "worldLabels": [
+        "Gas Vent hazard edge",
+        "Cinder Rib Fault sample route survey",
+        "Iron Bloom 1 sample / 44cr",
+        "Copper Iris ready sample vein",
+        "Current Target Copper Iris"
       ],
       "canvas": {
-        "width": 1280,
-        "height": 800,
-        "sampled": 1024000,
-        "nonDark": 466751,
-        "bright": 220922,
-        "nonDarkRatio": 0.4558115234375,
-        "brightRatio": 0.215744140625
+        "nonDark": 136793,
+        "bright": 59868
+      }
+    },
+    "visualStates": {
+      "lanternPlacement": {
+        "state": {
+          "phase": "first-sample-discovery",
+          "lanterns": {
+            "charges": 2,
+            "anchors": 1
+          },
+          "route": {
+            "status": "anchor safe",
+            "returnConfidence": 82
+          }
+        },
+        "feedbackRoute": "anchor safe / 82%",
+        "canvas": {
+          "nonDark": 103520,
+          "bright": 22662
+        }
       },
-      "overflow": {
-        "width": 1280,
-        "scrollWidth": 1280,
-        "overflowing": false
+      "mining": {
+        "state": {
+          "phase": "return-to-lift",
+          "cargo": {
+            "samples": 1,
+            "value": 32,
+            "capacity": 4
+          }
+        },
+        "feedbackMining": "Copper Iris depleted",
+        "canvas": {
+          "nonDark": 113826,
+          "bright": 26402
+        }
       },
-      "echoRelayDecision": {
-        "source": "window.IronLanternDescent direct-page API",
-        "release": "v0.4.0 Echo Relay Network",
-        "baseRelease": "v0.3.0 Cinder Vent Network",
-        "siteId": "relay-cinder-echo-pylon",
-        "relayId": "echo-cinder-pylon",
-        "cableSpanId": "cable-cinder-lantern-line",
-        "lastLog": "Cinder Echo Pylon echo triangulation success: +88cr / +1 map / +18 route.",
-        "cacheLog": "Cinder Echo Pylon rescue cache restored 12 oxygen and 16cr salvage.",
-        "beaconLog": "Cinder Echo Pylon emergency lift beacon fired at a 10cr cargo cost.",
-        "pylonState": "tuned",
-        "cableState": "toned",
-        "triangulationState": "success",
-        "cacheState": "claimed",
-        "beaconState": "fired",
-        "routeConfidenceBefore": 9,
-        "routeConfidenceAfter": 83,
-        "stabilityBefore": 23,
-        "stabilityAfter": 70,
-        "drainBefore": 2.894,
-        "drainAfter": 1.093,
-        "oxygenBefore": 82,
-        "oxygenAfterCache": 85,
-        "echoChargesBefore": 2,
-        "echoChargesAfter": 1,
-        "mapProgress": 1,
-        "routeRelief": 18,
-        "relayValue": 88,
-        "cachesClaimed": 1,
-        "beaconsFired": 1
+      "returnBanking": {
+        "runStatus": "extracted",
+        "state": {
+          "phase": "summary-upgrade-preview",
+          "banking": {
+            "lastTransfer": {
+              "samples": 1,
+              "credits": 32
+            }
+          }
+        },
+        "feedbackAction": "Lift banked 1 sample(s), 0 map, and 32cr.",
+        "canvas": {
+          "nonDark": 139701,
+          "bright": 63382
+        }
+      }
+    },
+    "advancedLedger": {
+      "visible": true,
+      "rootEvidenceState": "advancedLedger",
+      "ledgerTitle": "Iron Bloom",
+      "canvas": {
+        "nonDark": 139701,
+        "bright": 63382
       }
     },
     "narrow": {
       "title": "Iron Lantern Descent",
       "renderer": "active / local renderer + assets",
-      "eyebrow": "v0.4.0 echo relay network",
-      "objective": "Descend, mark the route, drain pumpworks, restore cinder vents, triangulate echo relays, bank samples at the lift.",
-      "relayReadout": "Cinder Echo Pylon / dark / 106m",
-      "cableReadout": "cinder-lantern-line / broken / 61 pressure",
-      "echoReadout": "2 / 2 charges  46 noise  opens in 58s",
-      "rescueReadout": "cache sealed / beacon armed / 0 caches",
-      "ventReadout": "Cinder Rib Draft Gate / sealed / 84m",
-      "pumpworksReadout": "Cinder Sump Pump / flooded / 81m",
-      "surveyReadout": "Cinder Rib Fault / unmapped / 43m",
-      "scannerReadout": "Copper Iris bearing 185 / 26m",
-      "position": "pos 0.0 / 8.0",
-      "lastLog": "000 / Iron Lift ready. Main cut is open.",
-      "relayRows": [
-        {
-          "state": "open",
-          "window": "pending",
-          "cable": "broken",
-          "beacon": "armed",
-          "text": "Cinder Echo Pylonecho-relay-alcove / 106mopens in 58spylon damagedcinder-lantern-line brokenecho 1 / noise 42cache sealedbeacon armed / cost 10crroute +18 / risk -16needs partial survey chart + partial pumpworks drainage + partial cinder vent relay + repaired relay pylon + spooled cable span+88cr / +1 map / +18 route"
-        },
-        {
-          "state": "open",
-          "window": "pending",
-          "cable": "severed",
-          "beacon": "armed",
-          "text": "Basalt Beacon Stationlift-beacon-station / 114mopens in 82spylon damagedbasalt-lift-return severedecho 1 / noise 50cache sealedbeacon armed / cost 20crroute +24 / risk -20needs success survey chart + success pumpworks drainage + success cinder vent relay + lantern anchor + repaired relay pylon + spooled cable span+132cr / +2 map / +24 route"
-        }
-      ],
+      "eyebrow": "v0.5.0 cave readability repair",
+      "objective": "Move toward Copper Iris.",
+      "contextAction": "Move Toward Copper Iris",
+      "hudCardCount": 6,
+      "controlHintCount": 4,
       "canvas": {
-        "width": 390,
-        "height": 800,
-        "sampled": 312000,
-        "nonDark": 195302,
-        "bright": 95571,
-        "nonDarkRatio": 0.6259679487179487,
-        "brightRatio": 0.3063173076923077
-      },
-      "overflow": {
-        "width": 390,
-        "scrollWidth": 390,
-        "overflowing": false
+        "nonDark": 114737,
+        "bright": 53220
+      }
+    },
+    "snapshot050": {
+      "title": "Iron Lantern Descent",
+      "eyebrow": "v0.5.0 cave readability repair",
+      "hasEvidenceHook": true,
+      "hasNestedVersionsText": false,
+      "faviconHref": "../../../../favicon.png",
+      "backlinkHref": "../../../../",
+      "canvas": {
+        "nonDark": 136792,
+        "bright": 59868
       }
     }
   },
@@ -178,11 +177,18 @@
   "checks": {
     "arcadeDesktop": true,
     "arcadeNarrow": true,
+    "selectionSurface": true,
+    "freshLiftScene": true,
+    "lanternPlacement": true,
+    "mining": true,
+    "returnBanking": true,
+    "advancedLedger": true,
     "desktopCanvasNonblank": true,
     "narrowCanvasNonblank": true,
-    "echoRelayDecision": true,
-    "consoleClean": true,
-    "directOverflow": true
+    "snapshot050Playable": true,
+    "directOverflow": true,
+    "consoleClean": true
   },
-  "ok": true
+  "ok": true,
+  "notes": "Browser smoke used a local static server, Playwright screenshots, and the page-local IronLanternDescent API to capture descent selection, fresh lift scene, lantern placement, mining, return-to-lift banking, advanced ledger disclosure, narrow layout, and v0.5.0 snapshot continuity."
 }

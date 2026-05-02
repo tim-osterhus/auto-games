@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.7.0 Factory Floor Repair release, Void Prospector's v0.7.0 Flight Readability Repair first-contract release, and Iron Lantern Descent's v0.4.0 Echo Relay Network release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.7.0 Factory Floor Repair release, Void Prospector's v0.7.0 Flight Readability Repair first-contract release, and Iron Lantern Descent's v0.5.0 Cave Readability Repair release."
   },
   "games": [
     {
@@ -219,16 +219,23 @@
     {
       "slug": "iron-lantern-descent",
       "title": "Iron Lantern Descent",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "status": "playable",
-      "summary": "Descend from the iron lift into a compact 3D faultline cave, manage oxygen, lantern route confidence, survey seams, Deep Pumpworks flood pressure, Cinder Vent Network airflow, and Echo Relay Network signals, then repair relay pylons, spool broken signal cables, triangulate echo routes, claim rescue caches, fire emergency lift beacons, mine boosted samples, bank map plates, and buy carryover upgrades.",
+      "summary": "Descend from the iron lift into a readable cave-first extraction loop with a lantern-lit descent board, Copper Iris onboarding, compact survival HUD, contextual lantern, mining, and lift banking actions, in-world labels, feedback meters, and hidden advanced ledgers preserving Deep Pumpworks, Cinder Vent Network, and Echo Relay Network history.",
       "path": "games/iron-lantern-descent/",
       "thumbnail": "games/iron-lantern-descent/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.4.0 Echo Relay Network",
-        "copy": "Echo Relay Network extends Cinder Vent Network with repairable echo pylons, broken signal cable spans, echo-charge triangulation, rescue caches, emergency lift beacons, relay-window pressure, survey, pumpworks, and vent prerequisites, route-stability relief, sample bonuses, and lift-banked echo map progress."
+        "label": "v0.5.0 Cave Readability Repair",
+        "copy": "Cave Readability Repair rebuilds Iron Lantern's first run around the scene: a lantern-lit descent board, compact oxygen, light, sample, and route HUD, Copper Iris guidance, contextual lantern, mining, and lift banking, in-world labels, feedback meters, and hidden advanced ledgers keep Deep Pumpworks, Cinder Vent Network, and Echo Relay Network intact without filling the default cave view."
       },
       "versions": [
+        {
+          "version": "0.5.0",
+          "path": "games/iron-lantern-descent/versions/0.5.0/",
+          "releasedAt": "2026-05-02",
+          "label": "v0.5.0 Cave Readability Repair",
+          "summary": "Lantern-lit descent selection, Copper Iris first-expedition onboarding, compact cave-first survival HUD, contextual lantern, mining, and lift banking actions, in-world labels, feedback meters, local title art, and hidden advanced ledgers publish on top of Echo Relay Network."
+        },
         {
           "version": "0.4.0",
           "path": "games/iron-lantern-descent/versions/0.4.0/",

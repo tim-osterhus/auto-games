@@ -21,7 +21,7 @@ class IronLanternDescentFaultlineSurfaceTests(unittest.TestCase):
         css = source_text("iron-lantern-descent.css")
 
         for token in (
-            "v0.4.0 echo relay network",
+            "v0.5.0 cave readability repair",
             "survey-readout",
             "stability-readout",
             "pumpworks-readout",
