@@ -27,6 +27,9 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
             "light-readout",
             "lantern-readout",
             "samples-readout",
+            "context-action",
+            "context-action-readout",
+            "context-action-detail",
             "credits-readout",
             "lift-readout",
             "route-readout",
@@ -55,12 +58,52 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
             "upgrade-action",
             "restart-action",
             "control-strip",
+            "advanced-ledger",
         ):
             self.assertIn(region, html)
 
         vendor = GAME_DIR / "vendor" / "three.min.js"
         self.assertTrue(vendor.is_file())
         self.assertIn("SPDX-License-Identifier: MIT", vendor.read_text(encoding="utf-8")[:180])
+
+    def test_active_play_surface_defaults_to_compact_hud_and_hidden_ledgers(self) -> None:
+        html = (GAME_DIR / "index.html").read_text(encoding="utf-8")
+        css = (GAME_DIR / "iron-lantern-descent.css").read_text(encoding="utf-8")
+        hud = html.split('id="lantern-hud"', 1)[1].split("</section>", 1)[0]
+        ledger = html.split('id="advanced-ledger"', 1)[1].split("</aside>", 1)[0]
+        controls = html.split('id="control-strip"', 1)[1].split("</footer>", 1)[0]
+
+        self.assertIn('aria-label="Survival HUD"', html)
+        self.assertIn('id="advanced-ledger" aria-label="Advanced ledgers" tabindex="-1" hidden', html)
+        self.assertEqual(6, hud.count('<article class="readout'))
+        for token in (
+            "objective-readout",
+            "oxygen-readout",
+            "lantern-readout",
+            "samples-readout",
+            "route-readout",
+            "lift-readout",
+            "context-action",
+        ):
+            self.assertIn(token, hud)
+        for advanced_token in (
+            "pumpworks-readout",
+            "vent-readout",
+            "relay-readout",
+            "rescue-readout",
+            "survey-site-list",
+            "event-log",
+            "upgrade-action",
+        ):
+            self.assertNotIn(advanced_token, hud)
+            self.assertIn(advanced_token, ledger)
+        self.assertLessEqual(controls.count("<span>"), 4)
+        self.assertIn("position: fixed", css)
+        self.assertIn("max-height: min(25vh, 210px)", css)
+        self.assertIn(".advanced-ledger[hidden]", css)
+        self.assertIn("overflow: hidden", css)
+        self.assertIn('data-tone="danger"', css)
+        self.assertIn("outline: 2px solid var(--signal)", css)
 
     def test_state_data_exposes_cave_run_and_upgrade_seams(self) -> None:
         result = self.run_node(
@@ -282,9 +325,10 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertIn("pumpworks", result["advancedSuppressed"])
         self.assertEqual("first-sample-discovery", result["discoveredPhase"])
         self.assertEqual("Move toward Copper Iris.", result["discoveredObjective"])
-        self.assertIn("pumpworks", result["lateDefaultHud"])
-        self.assertIn("cinderVents", result["lateDefaultHud"])
-        self.assertIn("echoRelays", result["lateDefaultHud"])
+        self.assertEqual([], result["lateDefaultHud"])
+        self.assertTrue(result["lateVisible"]["pumpworks"])
+        self.assertTrue(result["lateVisible"]["cinderVents"])
+        self.assertTrue(result["lateVisible"]["echoRelays"])
         self.assertTrue(result["lateVisible"]["rescue"])
 
     def test_core_controls_move_player_update_camera_collision_and_lift_bearing(self) -> None:

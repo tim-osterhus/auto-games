@@ -2142,11 +2142,11 @@ const IronLanternDescent = (() => {
     const runCount = state.run ? state.run.count : 1;
     const progress = systemProgressFlags(state);
     const systems = {
-      survey: disclosureSystem(Boolean(state.survey && state.surveySites), runCount >= 2 || progress.survey, runCount >= 2 || progress.survey, "run 2 survey introduction"),
+      survey: disclosureSystem(Boolean(state.survey && state.surveySites), runCount >= 2 || progress.survey, false, "run 2 survey introduction"),
       fullSurvey: disclosureSystem(Boolean(state.survey && state.surveySites), runCount >= 2 || progress.survey, false, "advanced ledger only"),
-      pumpworks: disclosureSystem(Boolean(state.pumpworks && state.pumpworksSites), runCount >= 3 || progress.pumpworks, runCount >= 3 || progress.pumpworks, "run 3 pumpworks introduction"),
-      cinderVents: disclosureSystem(Boolean(state.ventNetwork && state.ventSites), runCount >= 4 || progress.cinderVents, runCount >= 4 || progress.cinderVents, "run 4 cinder vent introduction"),
-      echoRelays: disclosureSystem(Boolean(state.echoRelayNetwork && state.relaySites), runCount >= 5 || progress.echoRelays, runCount >= 5 || progress.echoRelays, "run 5 echo relay introduction"),
+      pumpworks: disclosureSystem(Boolean(state.pumpworks && state.pumpworksSites), runCount >= 3 || progress.pumpworks, false, "run 3 pumpworks introduction"),
+      cinderVents: disclosureSystem(Boolean(state.ventNetwork && state.ventSites), runCount >= 4 || progress.cinderVents, false, "run 4 cinder vent introduction"),
+      echoRelays: disclosureSystem(Boolean(state.echoRelayNetwork && state.relaySites), runCount >= 5 || progress.echoRelays, false, "run 5 echo relay introduction"),
       rescue: disclosureSystem(Boolean(state.echoRelayNetwork && state.relaySites), runCount >= 5 || progress.rescue, false, "rescue appears beside echo relays"),
       logs: disclosureSystem(true, runCount >= 2 || state.log.length > 1, false, "advanced ledger only"),
     };
@@ -2576,6 +2576,11 @@ const IronLanternDescent = (() => {
     });
   }
 
+  function advancedSystemVisible(state, systemId) {
+    const disclosure = state.disclosure || buildDisclosureState(state);
+    return Boolean(disclosure.advancedVisible && disclosure.advancedVisible[systemId]);
+  }
+
   function resolveContextAction(state) {
     if (state.run.status === "failed") {
       return contextAction({
@@ -2608,19 +2613,27 @@ const IronLanternDescent = (() => {
       });
     }
 
-    const relay = nearestRelaySite(state, { includeCompleted: true });
+    const relay = advancedSystemVisible(state, "echoRelays")
+      ? nearestRelaySite(state, { includeCompleted: true })
+      : null;
     if (relay && relay.distance <= GAME_DATA.echoRelayNetwork.actionRange) {
       return relayContextAction(state, relay);
     }
-    const vent = nearestVentSite(state, { includeCompleted: true });
+    const vent = advancedSystemVisible(state, "cinderVents")
+      ? nearestVentSite(state, { includeCompleted: true })
+      : null;
     if (vent && vent.distance <= GAME_DATA.cinderVentNetwork.actionRange) {
       return ventContextAction(state, vent);
     }
-    const pumpworks = nearestPumpworksSite(state, { includeCompleted: true });
+    const pumpworks = advancedSystemVisible(state, "pumpworks")
+      ? nearestPumpworksSite(state, { includeCompleted: true })
+      : null;
     if (pumpworks && pumpworks.distance <= GAME_DATA.pumpworks.actionRange) {
       return pumpworksContextAction(state, pumpworks);
     }
-    const survey = nearestSurveySite(state, { includeCompleted: true });
+    const survey = advancedSystemVisible(state, "survey")
+      ? nearestSurveySite(state, { includeCompleted: true })
+      : null;
     if (survey && survey.distance <= GAME_DATA.survey.actionRange) {
       return surveyContextAction(state, survey);
     }
@@ -2768,9 +2781,7 @@ const IronLanternDescent = (() => {
     const defaultCards = ["oxygen", "light", "samples", "route", "objective", "contextAction", "returnMarker"];
     const disclosure = state.disclosure || buildDisclosureState(state);
     defaultCards.push(...disclosure.defaultHudSystems);
-    const controlHints = state.run.count === 1
-      ? ["Move", state.contextAction.label, "Lantern", state.contextAction.hold ? "Hold Context" : "Context"].slice(0, 4)
-      : ["Move", state.contextAction.label, "Scanner", "Ledger"].slice(0, 4);
+    const controlHints = ["W/S move", "A/D look", "F context", "L lantern"].slice(0, 4);
     return {
       defaultCards,
       controlHints,
@@ -5218,12 +5229,17 @@ const IronLanternDescent = (() => {
     const ids = [
       "iron-lantern-descent",
       "iron-lantern-scene",
+      "control-strip",
+      "advanced-ledger",
       "run-status",
       "objective-readout",
       "oxygen-readout",
       "light-readout",
       "lantern-readout",
       "samples-readout",
+      "context-action",
+      "context-action-readout",
+      "context-action-detail",
       "credits-readout",
       "lift-readout",
       "route-readout",
@@ -5473,6 +5489,33 @@ const IronLanternDescent = (() => {
     return [pylon, cable, echo, cache, beacon, route];
   }
 
+  function renderControlHints(state) {
+    if (!dom["control-strip"]) {
+      return;
+    }
+    const hints = ((state.hud && state.hud.controlHints) || []).slice(0, 4);
+    dom["control-strip"].replaceChildren(
+      ...hints.map((hint) => {
+        const item = document.createElement("span");
+        item.textContent = hint;
+        return item;
+      })
+    );
+  }
+
+  function toggleAdvancedLedger(forceVisible) {
+    if (!dom["advanced-ledger"]) {
+      return;
+    }
+    const show = forceVisible === undefined ? dom["advanced-ledger"].hidden : Boolean(forceVisible);
+    dom["advanced-ledger"].hidden = !show;
+    if (show) {
+      dom["advanced-ledger"].focus({ preventScroll: true });
+    } else {
+      dom.root.focus({ preventScroll: true });
+    }
+  }
+
   function renderHud(state) {
     if (!dom.root) {
       return;
@@ -5533,15 +5576,28 @@ const IronLanternDescent = (() => {
     } else if (nearest) {
       targetName = nearest.node.name;
     }
+    const context = state.contextAction || resolveContextAction(state);
+    const contextDistance = context.distance === null ? "" : ` / ${Math.round(context.distance)}m`;
+    const contextDetail = context.targetName
+      ? `${context.targetName}${contextDistance}`
+      : context.hold
+        ? "hold F or Enter"
+        : "F or Enter";
     dom["run-status"].textContent = `${state.run.status} / ${state.renderer.status}`;
     dom["objective-readout"].textContent = state.run.objective;
-    dom["oxygen-readout"].textContent = `${Math.ceil(state.oxygen.current)} / ${state.oxygen.max}  -${state.oxygen.lastDrainPerSecond.toFixed(1)}/s`;
+    dom["oxygen-readout"].textContent = `${Math.ceil(state.oxygen.current)} / ${state.oxygen.max}`;
     dom["light-readout"].textContent = `${state.light.status} / ${state.light.currentRadius}m`;
-    dom["lantern-readout"].textContent = `${state.lanterns.charges} / ${state.lanterns.max}  ${state.lanterns.anchors.length} set`;
-    dom["samples-readout"].textContent = `${state.cargo.samples} / ${state.cargo.capacity}  ${state.cargo.value}cr`;
+    dom["lantern-readout"].textContent = `${state.lanterns.charges} / ${state.lanterns.max}`;
+    dom["samples-readout"].textContent = `${state.cargo.samples} / ${state.cargo.capacity}`;
+    dom["context-action"].textContent = context.label;
+    dom["context-action"].dataset.action = context.action;
+    dom["context-action"].dataset.enabled = String(context.enabled);
+    dom["context-action"].dataset.hold = String(context.hold);
+    dom["context-action-readout"].textContent = context.prompt;
+    dom["context-action-detail"].textContent = contextDetail;
     dom["credits-readout"].textContent = `${state.credits}cr`;
-    dom["lift-readout"].textContent = `${formatBearing(state.lift.bearing)} / ${Math.round(state.lift.distance)}m`;
-    dom["route-readout"].textContent = `${state.route.status} / ${state.route.returnConfidence}%  ${state.route.suggestedAction}`;
+    dom["lift-readout"].textContent = `${state.route.status} / ${formatBearing(state.lift.bearing)} / ${Math.round(state.lift.distance)}m`;
+    dom["route-readout"].textContent = `${state.route.returnConfidence}%`;
     dom["survey-readout"].textContent = surveyTarget;
     dom["stability-readout"].textContent = `${state.routeStability.status} / ${state.routeStability.stability}% / ${state.routeStability.pressure}p`;
     dom["pumpworks-readout"].textContent = pumpworksTarget;
@@ -5727,6 +5783,7 @@ const IronLanternDescent = (() => {
         return item;
       })
     );
+    renderControlHints(state);
   }
 
   function controlForCode(code) {
@@ -5735,6 +5792,11 @@ const IronLanternDescent = (() => {
 
   function bindControls() {
     window.addEventListener("keydown", (event) => {
+      if (event.code === "KeyI") {
+        event.preventDefault();
+        toggleAdvancedLedger();
+        return;
+      }
       const control = controlForCode(event.code);
       if (!control) {
         return;
@@ -5861,6 +5923,10 @@ const IronLanternDescent = (() => {
       }
     });
 
+    dom["context-action"].addEventListener("click", () => {
+      currentState = performContextAction(currentState);
+      renderHud(currentState);
+    });
     dom["lantern-action"].addEventListener("click", () => {
       currentState = placeLantern(currentState);
       renderHud(currentState);

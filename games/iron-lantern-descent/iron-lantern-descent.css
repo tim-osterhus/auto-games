@@ -24,7 +24,8 @@
 html,
 body {
   min-width: 320px;
-  min-height: 100%;
+  width: 100%;
+  height: 100%;
   margin: 0;
   background: var(--bg);
 }
@@ -40,7 +41,9 @@ button {
 
 .lantern-shell {
   position: relative;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
   isolation: isolate;
   overflow: hidden;
   background:
@@ -70,31 +73,36 @@ button {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 45%, rgba(75, 214, 192, 0.07), transparent 28%),
-    linear-gradient(180deg, rgba(5, 7, 6, 0.72) 0%, rgba(5, 7, 6, 0.04) 36%, rgba(5, 7, 6, 0.36) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, transparent 21%, transparent 79%, rgba(0, 0, 0, 0.42) 100%);
+    radial-gradient(circle at 50% 45%, rgba(75, 214, 192, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(5, 7, 6, 0.48) 0%, rgba(5, 7, 6, 0.02) 36%, rgba(5, 7, 6, 0.3) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.38) 0%, transparent 19%, transparent 81%, rgba(0, 0, 0, 0.38) 100%);
 }
 
 .topline,
 .hud-grid,
 .target-panel,
 .control-strip {
-  position: relative;
   z-index: 2;
 }
 
 .topline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   display: grid;
-  grid-template-columns: minmax(120px, auto) 1fr minmax(150px, auto);
-  gap: 16px;
+  grid-template-columns: minmax(120px, auto) 1fr minmax(148px, auto);
+  gap: 14px;
   align-items: center;
-  padding: 16px 18px 0;
+  padding: 10px 14px 0;
+  pointer-events: none;
 }
 
 .backlink,
 .eyebrow,
 .run-chip,
 .readout span,
+.readout small,
 .panel-head span,
 .target-data,
 .control-strip,
@@ -114,40 +122,46 @@ button {
   width: fit-content;
   color: var(--muted);
   text-decoration: none;
+  pointer-events: auto;
 }
 
 .backlink:hover,
 .backlink:focus-visible {
   color: var(--signal);
-  outline: none;
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
 }
 
 .identity h1 {
   margin: 2px 0 0;
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-size: clamp(1.2rem, 2.2vw, 1.65rem);
   font-weight: 600;
   letter-spacing: 0;
-  line-height: 0.96;
+  line-height: 0.98;
 }
 
 .run-chip {
   justify-self: end;
-  min-width: 150px;
-  padding: 8px 10px;
+  min-width: 148px;
+  padding: 7px 9px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: rgba(8, 12, 11, 0.68);
   color: var(--signal);
   text-align: center;
   box-shadow: 0 14px 34px var(--shadow);
 }
 
 .hud-grid {
+  position: fixed;
+  top: 68px;
+  left: 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
-  gap: 8px;
-  width: min(920px, calc(100vw - 410px));
-  margin: 16px 18px 0;
-  pointer-events: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: min(540px, calc(100vw - 28px));
+  max-height: min(25vh, 210px);
+  overflow: hidden;
+  pointer-events: auto;
 }
 
 .readout,
@@ -160,8 +174,15 @@ button {
 }
 
 .readout {
-  min-height: 62px;
-  padding: 9px 10px;
+  position: relative;
+  min-height: 52px;
+  min-width: 0;
+  padding: 7px 8px;
+}
+
+.objective-card,
+.context-card {
+  grid-column: 1 / -1;
 }
 
 .readout-wide {
@@ -170,12 +191,51 @@ button {
 
 .readout strong {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.15;
+}
+
+.readout small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.readout[data-tone="danger"] {
+  border-left: 4px solid var(--danger);
+}
+
+.readout[data-tone="warn"] {
+  border-left: 4px double var(--lantern);
+}
+
+.readout[data-tone="signal"] {
+  border-left: 4px solid var(--signal);
+}
+
+.readout[data-tone="danger"]::before,
+.readout[data-tone="warn"]::before {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  color: currentColor;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.readout[data-tone="danger"]::before {
+  content: "!";
+  color: var(--danger);
+}
+
+.readout[data-tone="warn"]::before {
+  content: "/";
+  color: var(--lantern);
 }
 
 .readout[data-tone="danger"] strong {
@@ -218,13 +278,55 @@ button {
   background-position: -36px 0;
 }
 
+.context-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  min-height: 46px;
+}
+
+.context-card > span {
+  grid-row: 1;
+}
+
+.context-card > small {
+  justify-self: end;
+}
+
+.context-card > strong {
+  display: none;
+}
+
+.context-button {
+  min-height: 32px;
+  width: 100%;
+  border-color: rgba(75, 214, 192, 0.58);
+  background: rgba(75, 214, 192, 0.11);
+  color: var(--text);
+  text-align: left;
+}
+
+.context-button[data-enabled="true"] {
+  color: var(--signal);
+}
+
+.context-button[data-hold="true"] {
+  border-left: 4px double var(--lantern);
+}
+
 .target-panel {
   position: fixed;
-  right: 18px;
-  bottom: 76px;
-  width: min(368px, calc(100vw - 36px));
-  max-height: calc(100vh - 122px);
+  top: 68px;
+  right: 14px;
+  bottom: 14px;
+  width: min(560px, calc(100vw - 28px));
   overflow: auto;
+}
+
+.advanced-ledger[hidden],
+.target-panel[hidden] {
+  display: none;
 }
 
 .panel-head {
@@ -260,11 +362,20 @@ button {
   border: 1px solid rgba(75, 214, 192, 0.22);
 }
 
-.target-data {
+.target-data,
+.advanced-readouts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 10px;
+}
+
+.advanced-readouts {
+  border-top: 1px solid var(--line-soft);
+}
+
+.advanced-readouts .readout {
+  min-height: 58px;
 }
 
 .target-data span,
@@ -447,102 +558,136 @@ button:hover,
 button:focus-visible {
   border-color: var(--signal);
   color: var(--signal);
-  outline: none;
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
 }
 
 .control-strip {
   position: fixed;
-  left: 18px;
-  right: 18px;
-  bottom: 16px;
+  left: 14px;
+  bottom: 12px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  flex-wrap: nowrap;
+  gap: 8px;
   align-items: center;
-  min-height: 34px;
-  padding: 8px 10px;
+  max-width: min(540px, calc(100vw - 28px));
+  min-height: 32px;
+  padding: 6px 8px;
+  overflow: hidden;
 }
 
 .control-strip span {
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--line-soft);
   white-space: nowrap;
 }
 
 @media (max-width: 920px) {
-  body {
-    overflow: auto;
-  }
-
-  .lantern-shell {
-    min-height: 100svh;
-    padding-bottom: 12px;
-    overflow: hidden auto;
-  }
-
-  .scene-canvas,
-  .scene-vignette {
-    position: fixed;
-  }
-
   .topline {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     gap: 8px;
-    padding: 12px;
+    padding: 8px 10px 0;
+  }
+
+  .backlink {
+    display: none;
+  }
+
+  .eyebrow {
+    display: none;
+  }
+
+  .identity h1 {
+    font-size: 1.08rem;
   }
 
   .run-chip {
-    justify-self: start;
+    min-width: 116px;
+    padding: 6px 8px;
   }
 
   .hud-grid {
-    width: calc(100vw - 24px);
-    margin: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    top: 46px;
+    left: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    width: calc(100vw - 20px);
+    max-height: min(25vh, 214px);
   }
 
   .readout {
-    min-height: 54px;
-    padding: 8px;
+    min-height: 43px;
+    padding: 6px 7px;
   }
 
   .readout strong {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    margin-top: 3px;
   }
 
+  .readout small,
+  .readout span {
+    font-size: 0.68rem;
+  }
+
+  .route-card small,
+  .readout[data-hud-card="lanterns"] small {
+    display: none;
+  }
+
+  .objective-card,
+  .context-card,
   .readout-wide {
-    grid-column: span 2;
+    grid-column: 1 / -1;
+  }
+
+  .context-card {
+    min-height: 42px;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .context-card > small {
+    display: none;
+  }
+
+  .context-button {
+    min-height: 30px;
   }
 
   .target-panel {
-    position: relative;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    width: calc(100vw - 24px);
-    max-height: none;
-    margin: 12px;
+    top: 46px;
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
   }
 
   .control-strip {
-    position: relative;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    margin: 12px;
-    max-height: 52px;
-    overflow: auto;
+    left: 10px;
+    bottom: 10px;
+    max-width: calc(100vw - 20px);
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .control-strip span {
+    font-size: 0.66rem;
+    padding: 2px 4px;
   }
 }
 
 @media (max-width: 360px) {
   .hud-grid {
-    grid-template-columns: 1fr;
+    top: 44px;
+    max-height: min(25vh, 196px);
   }
 
-  .readout-wide {
-    grid-column: span 1;
+  .readout {
+    min-height: 40px;
   }
 
   .target-data,
+  .advanced-readouts,
   .action-panel {
     grid-template-columns: 1fr 1fr;
   }
