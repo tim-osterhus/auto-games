@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "version": "0.7.0",
+  "release": "v0.7.0 Factory Floor Repair",
+  "screenshots": {
+    "arcadeDesktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-arcade-root-v0-7-smoke.png",
+    "arcadeNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-arcade-root-v0-7-narrow-smoke.png",
+    "directFresh": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-fresh-v0-7-smoke.png",
+    "runningLane": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-running-lane-v0-7-smoke.png",
+    "jamRecovery": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-jam-recovery-v0-7-smoke.png",
+    "shiftSummary": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-shift-summary-v0-7-smoke.png",
+    "directNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-mobile-v0-7-smoke.png"
+  },
+  "arcade": {
+    "desktop": {
+      "versionText": "playable / v0.7.0",
+      "releaseLabel": "v0.7.0 Factory Floor Repair",
+      "hasSnapshot070": true,
+      "hasSnapshot060": true,
+      "hasThumbnail": true
+    },
+    "narrow": {
+      "overflowX": false,
+      "cardVisible": true
+    }
+  },
+  "direct": {
+    "freshLoad": {
+      "version": "0.7.0",
+      "release": "v0.7.0 Factory Floor Repair",
+      "objectiveText": "active objective make 3 circuits before the first dispatch bell Circuits 0/3 / 12 ticks",
+      "laneCount": 3,
+      "visibleResources": ["scrap", "power", "stability", "circuits"],
+      "contextualActions": ["Select Job"],
+      "logEntries": 1,
+      "advancedOpen": false,
+      "floorViewportRatio": 0.606,
+      "imagesComplete": true,
+      "horizontalOverflow": false
+    },
+    "runningLane": {
+      "status": "running",
+      "feedback": "production",
+      "motion": "belt",
+      "output": "circuits",
+      "contextualActions": ["overdrive", "pause"]
+    },
+    "jamState": {
+      "status": "blocked",
+      "feedback": "jam",
+      "motion": "still",
+      "recoverAvailable": true
+    },
+    "recoveryState": {
+      "status": "recovering",
+      "feedback": "recovery",
+      "motion": "diagnostic"
+    },
+    "shiftSummary": {
+      "summaryVisible": true,
+      "drawerOpen": true,
+      "summaryText": "Shift summary Training Shift status complete / produced circuits 3 upgrade choice available / next upgrade-choice / shift-02-advanced-systems",
+      "upgradeChoiceVisible": true,
+      "latestLog": "t5Training Shift complete; shift summary opened."
+    },
+    "narrow": {
+      "horizontalOverflow": false,
+      "objectiveFloorOverlap": false,
+      "floorActionsOverlap": false,
+      "objectiveActionsOverlap": false,
+      "laneCount": 3,
+      "contextualActions": ["Select Job"]
+    }
+  },
+  "consoleErrors": [],
+  "checks": {
+    "arcadeDesktop": true,
+    "arcadeNarrow": true,
+    "directFreshLoad": true,
+    "conceptHierarchy": true,
+    "nonblankFactoryFloor": true,
+    "runningLane": true,
+    "jamOrRecovery": true,
+    "shiftSummary": true,
+    "directOverflow": true,
+    "mobileNoOverlap": true,
+    "consoleClean": true
+  },
+  "notes": "Browser smoke used a local static server. Direct play exercised fresh load, click-first Smelt Circuits assignment to Forge Line, running production, forced tutorial jam, recovery, and Training Shift summary; arcade checks covered desktop and narrow entry surfaces."
+}

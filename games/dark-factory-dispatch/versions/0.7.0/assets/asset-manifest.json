@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "mode": "generate",
+  "workdir": "/mnt/f/_evolve/millrace-games/auto-games",
+  "request_manifest": "_visual-check/dark-factory-dispatch-assets/asset-request-manifest.json",
+  "assets": [
+    {
+      "id": "lane-forge-line",
+      "path": "games/dark-factory-dispatch/assets/lane-forge-line.png",
+      "role": "icon",
+      "description": "Transparent compact heated forge module icon with amber heat and teal signal accents.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for forge-line lane status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "lane-assembler-bay",
+      "path": "games/dark-factory-dispatch/assets/lane-assembler-bay.png",
+      "role": "icon",
+      "description": "Transparent balanced robotic assembler bay icon with paired arms and teal status details.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for assembler-bay lane status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "lane-clean-room",
+      "path": "games/dark-factory-dispatch/assets/lane-clean-room.png",
+      "role": "icon",
+      "description": "Transparent sealed clean-room fabrication module icon with gasketed chamber and teal viewport.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Production lane icon for clean-room lane status display.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-smelt-circuits",
+      "path": "games/dark-factory-dispatch/assets/job-smelt-circuits.png",
+      "role": "icon",
+      "description": "Transparent scrap plates and circuit-trace job icon with precise teal routing node.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for smelt-circuits work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-print-modules",
+      "path": "games/dark-factory-dispatch/assets/job-print-modules.png",
+      "role": "icon",
+      "description": "Transparent stacked machine-module job icon with aligned ports and teal indicators.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for print-modules work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-assemble-drones",
+      "path": "games/dark-factory-dispatch/assets/job-assemble-drones.png",
+      "role": "icon",
+      "description": "Transparent compact factory drones in a launch rack with teal readiness lights.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for assemble-drones work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "job-weave-defenses",
+      "path": "games/dark-factory-dispatch/assets/job-weave-defenses.png",
+      "role": "icon",
+      "description": "Transparent defensive mesh and shield-plate job icon with teal energy weave.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Job icon for weave-defenses work orders.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "fault-material-jam",
+      "path": "games/dark-factory-dispatch/assets/fault-material-jam.png",
+      "role": "icon",
+      "description": "Transparent clogged feed-chute warning icon with blocked industrial intake and amber hazard accents.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Fault icon for material-jam warnings.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "fault-logic-drift",
+      "path": "games/dark-factory-dispatch/assets/fault-logic-drift.png",
+      "role": "icon",
+      "description": "Transparent unstable processor-core warning icon with drifting teal circuit signals and amber containment frame.",
+      "width": 96,
+      "height": 96,
+      "intended_use": "Fault icon for logic-drift warnings.",
+      "notes": "Generated with Codex built-in image generation on chroma key, locally keyed to alpha, cropped, sharpened, and resized to 96x96 PNG."
+    },
+    {
+      "id": "arcade-title-card",
+      "path": "games/dark-factory-dispatch/assets/arcade-title-card.png",
+      "role": "background",
+      "description": "Opaque dark factory dispatch floor title art with three production lanes, queue rails, and teal signal lines.",
+      "width": 800,
+      "height": 450,
+      "intended_use": "Game title card and arcade thumbnail art.",
+      "notes": "Generated with Codex built-in image generation, center-cropped to 16:9, contrast/sharpness adjusted, and resized to 800x450 opaque PNG."
+    }
+  ],
+  "procedural_fallbacks": [
+    {
+      "id": "factory-floor-board",
+      "role": "factory-floor-board",
+      "hook": ".lane-board::before",
+      "implementation": "css:factory-floor-board",
+      "reason": "The floor board is generated from CSS rails and stateful lane cards so it can scale with live lane status without stale raster overlays."
+    },
+    {
+      "id": "resource-signal-glyphs",
+      "role": "core-resource-icons",
+      "hook": ".resource-glyph[data-resource-icon]",
+      "implementation": "css:resource-signal-glyphs",
+      "reason": "Core resource icons are procedural UI glyphs next to live counters because labels, amounts, shortage state, and output pulses must remain deterministic text and data attributes."
+    },
+    {
+      "id": "output-delivery-token",
+      "role": "output-delivery-feedback",
+      "hook": ".output-token[data-resource]",
+      "implementation": "css:output-delivery-token",
+      "reason": "Output travel is a stateful CSS token keyed by current job output resource instead of a baked image."
+    },
+    {
+      "id": "shortage-marker",
+      "role": "shortage-feedback",
+      "hook": "[data-shortage=\"true\"]",
+      "implementation": "css:shortage-marker",
+      "reason": "Shortage state is tied to deterministic affordability checks on queue, job, lane, and resource elements."
+    },
+    {
+      "id": "overdrive-heat-glow",
+      "role": "overdrive-feedback",
+      "hook": ".overdrive-glow[data-active=\"true\"]",
+      "implementation": "css:overdrive-heat-glow",
+      "reason": "Overdrive is rendered as heat and speed treatment from lane state, keeping the existing local lane machinery asset truthful."
+    },
+    {
+      "id": "jam-sparks",
+      "role": "jam-and-sparks-feedback",
+      "hook": ".feedback-sparks[data-active=\"true\"]",
+      "implementation": "css:jam-sparks",
+      "reason": "Jam sparks are procedural because the active fault icon already identifies the fault type and CSS carries the live blocked/recovery state."
+    },
+    {
+      "id": "sabotage-incident-marker",
+      "role": "incident-marker",
+      "hook": ".incident-marker[data-marker=\"sabotage\"]",
+      "implementation": "css:sabotage-incident-marker",
+      "reason": "Sabotage, freight, and crisis incident markers are state hooks on existing incident cards, avoiding unmanifested one-off raster badges."
+    },
+    {
+      "id": "shift-summary-header",
+      "role": "shift-summary-header",
+      "hook": ".shift-summary-card[data-feedback=\"summary-open\"]",
+      "implementation": "css:shift-summary-header",
+      "reason": "The shift summary header uses live produced totals and upgrade-choice state, so CSS treatment is more truthful than static text baked into an image."
+    },
+    {
+      "id": "upgrade-family-icons",
+      "role": "first-upgrade-family-icons",
+      "hook": ".upgrade-icon[data-upgrade-family]",
+      "implementation": "css:upgrade-family-icons",
+      "reason": "The first visible upgrade family is a procedural icon set keyed by upgrade ids and affordability state."
+    }
+  ],
+  "notes": "Original Dark Factory Dispatch asset pack generated through the visual-asset-pipeline Codex bridge; final project-consumed PNGs are local under games/dark-factory-dispatch/assets."
+}

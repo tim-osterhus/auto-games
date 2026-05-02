@@ -3,7 +3,7 @@
   "arcade": {
     "name": "Millrace Arcade",
     "status": "live",
-    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.6.0 Crisis Arbitration docket release, Void Prospector's v0.6.0 Signal Gate Expedition relay-gate release, and Iron Lantern Descent's v0.4.0 Echo Relay Network release."
+    "summary": "Playable browser games from Millrace, led by Corebound's v0.7.0 HUD Breakthrough release, Dark Factory Dispatch's v0.7.0 Factory Floor Repair release, Void Prospector's v0.6.0 Signal Gate Expedition relay-gate release, and Iron Lantern Descent's v0.4.0 Echo Relay Network release."
   },
   "games": [
     {
@@ -71,16 +71,23 @@
     {
       "slug": "dark-factory-dispatch",
       "title": "Dark Factory Dispatch",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "status": "playable",
-      "summary": "Run a compact machine-intelligence factory through Crisis Arbitration shifts with cross-system crisis dockets, evidence packets, binding priority rulings, emergency overrides, protected lanes and docks, timer pressure, outcome scars, Rail Sabotage containment, Freight Lockdown cargo windows, Signal Breach intrusion, Grid Siege power routing, audit relay directives, emergency coolant-diversion orders, lane overdrive calls, persistent scars, and upgrade decisions between shifts.",
+      "summary": "Run a compact machine-intelligence factory from a repaired factory-floor surface with a guided Training Shift, visible Forge Line, Assembler Bay, and Clean Room lanes, click-first job assignment, contextual Start, Overdrive, Pause, and Recover actions, deterministic production, jam and recovery feedback, shift summaries, local lane, job, fault, and title art, procedural output and incident signals, and advanced Grid Siege, Signal Breach, Freight Lockdown, Rail Sabotage, Crisis Arbitration, and upgrade systems staged behind later-shift disclosure.",
       "path": "games/dark-factory-dispatch/",
       "thumbnail": "games/dark-factory-dispatch/assets/arcade-title-card.png",
       "release": {
-        "label": "v0.6.0 Crisis Arbitration",
-        "copy": "Crisis Arbitration binds the existing grid, breach, freight, and rail pressures into live docket cases with evidence requirements, protected lane or dock decisions, priority rulings, emergency overrides, deferrals, timer failures, and full or partial outcomes that reshape queue policy, lane access, grid pressure, breach intensity, freight integrity, rail sabotage pressure, stability, reputation, and restart scars."
+        "label": "v0.7.0 Factory Floor Repair",
+        "copy": "Factory Floor Repair replaces the old default operations wall with a compact training-first dispatch surface: the first screen centers the factory floor, shows the current objective, core resources, incoming jobs, selected detail, contextual actions, and a short log, then preserves Crisis Arbitration, Rail Sabotage, Freight Lockdown, Signal Breach, Grid Siege, and upgrades behind progressive disclosure."
       },
       "versions": [
+        {
+          "version": "0.7.0",
+          "path": "games/dark-factory-dispatch/versions/0.7.0/",
+          "releasedAt": "2026-05-02",
+          "label": "v0.7.0 Factory Floor Repair",
+          "summary": "Guided Training Shift, dominant three-lane factory floor, click-first job and lane actions, assignment, production, output, jam, recovery, and overdrive feedback, shift-summary upgrade choice, local asset pack plus procedural feedback hooks, and progressive advanced-system disclosure publish on top of Crisis Arbitration."
+        },
         {
           "version": "0.6.0",
           "path": "games/dark-factory-dispatch/versions/0.6.0/",
