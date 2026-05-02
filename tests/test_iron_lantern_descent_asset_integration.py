@@ -23,6 +23,20 @@ def manifest_short_paths() -> set[str]:
     }
 
 
+def extract_css_block(css: str, anchor: str) -> str:
+    start = css.index(anchor)
+    brace_start = css.index("{", start)
+    depth = 0
+    for index in range(brace_start, len(css)):
+        if css[index] == "{":
+            depth += 1
+        elif css[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return css[start:index + 1]
+    raise AssertionError(f"CSS block for {anchor} was not closed")
+
+
 class IronLanternDescentAssetIntegrationTests(unittest.TestCase):
     def test_static_asset_references_are_project_local_manifest_assets(self) -> None:
         paths = manifest_short_paths()
@@ -165,6 +179,47 @@ class IronLanternDescentAssetIntegrationTests(unittest.TestCase):
             'button.setAttribute("aria-pressed", String(selected))',
         ):
             self.assertIn(token, script)
+
+    def test_narrow_expedition_start_surface_has_bounded_first_viewport_layout(self) -> None:
+        css = source_text("iron-lantern-descent.css")
+        mobile_block = extract_css_block(css, "@media (max-width: 620px)")
+        extra_narrow_block = extract_css_block(css, "@media (max-width: 360px)")
+
+        for token in (
+            ".expedition-start",
+            '"depth" auto',
+            '"cavern" minmax(148px, 18svh)',
+            '"detail" minmax(0, 1fr)',
+            '"summary" auto',
+            "height: 100svh",
+            "overflow: hidden",
+            ".depth-selector",
+            "grid-template-columns: repeat(3, minmax(0, 1fr))",
+            ".start-cavern-hero",
+            ".start-detail-panel",
+            "min-height: 188px",
+            "overflow-y: auto",
+            ".start-summary-grid",
+            "grid-template-columns: repeat(2, minmax(0, 1fr))",
+            ".begin-descent-action",
+            "min-height: 52px",
+            "margin-bottom: 0",
+            ".start-scroll-pad",
+            "display: none",
+        ):
+            self.assertIn(token, mobile_block)
+
+        for stale_mobile_layout in (
+            "min-height: 318px",
+            "grid-template-columns: 1fr;\n  }",
+            "min-height: 210px",
+            "margin-bottom: 8px",
+            "display: block;\n    height: 10px",
+        ):
+            self.assertNotIn(stale_mobile_layout, mobile_block)
+
+        self.assertNotIn(".depth-selector,\n  .start-card-list,\n  .start-summary-grid", extra_narrow_block)
+        self.assertNotIn(".start-summary-grid {\n    grid-template-columns: 1fr", extra_narrow_block)
 
     def test_scene_asset_loader_uses_generated_texture_paths(self) -> None:
         script = source_text("iron-lantern-descent.js")

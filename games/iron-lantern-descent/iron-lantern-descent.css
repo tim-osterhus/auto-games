@@ -1484,47 +1484,171 @@ button:focus-visible {
 }
 
 @media (max-width: 620px) {
-  .start-depth-rail {
-    min-height: 318px;
+  .expedition-start {
+    grid-template:
+      "depth" auto
+      "cavern" minmax(148px, 18svh)
+      "detail" minmax(0, 1fr)
+      "summary" auto /
+      minmax(0, 1fr);
+    gap: 8px;
+    height: 100vh;
+    height: 100svh;
+    min-height: 0;
+    padding: 10px;
+    overflow: hidden;
   }
 
-  .depth-selector,
+  .start-depth-rail {
+    min-height: 0;
+    gap: 8px;
+  }
+
+  .start-depth-rail,
+  .start-detail-panel,
+  .start-bottom-summary {
+    padding: 10px;
+  }
+
+  .depth-selector {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .depth-choice {
+    min-height: 70px;
+    padding: 7px 6px;
+    gap: 4px;
+  }
+
+  .depth-choice span {
+    font-size: 0.6rem;
+  }
+
+  .depth-choice strong {
+    font-size: 0.74rem;
+  }
+
+  .depth-choice small {
+    font-size: 0.6rem;
+    line-height: 1.15;
+  }
+
+  .start-cavern-hero {
+    min-height: 0;
+  }
+
+  .start-art img {
+    min-height: 0;
+  }
+
+  .hanging-lantern {
+    height: 148px;
+    transform: translateX(-50%) scale(0.72);
+    transform-origin: top center;
+  }
+
+  .start-hero-caption {
+    padding: 8px 10px;
+  }
+
+  .start-hero-caption span {
+    font-size: 0.64rem;
+  }
+
+  .start-hero-caption strong {
+    font-size: 0.78rem;
+  }
+
+  .start-detail-panel {
+    gap: 6px;
+    min-height: 188px;
+    overflow-y: auto;
+  }
+
+  .start-detail-panel h2 {
+    font-size: 1rem;
+  }
+
+  .start-detail-panel p {
+    font-size: 0.74rem;
+  }
+
+  .start-readiness {
+    gap: 6px;
+  }
+
+  .start-readiness div {
+    padding: 6px 7px;
+  }
+
+  .start-readiness dd {
+    font-size: 0.72rem;
+    line-height: 1.22;
+  }
+
+  .start-card-groups {
+    gap: 6px;
+  }
+
+  .start-card-group {
+    gap: 5px;
+  }
+
+  .start-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .start-item-card {
+    min-height: 40px;
+    padding: 6px;
+  }
+
+  .start-item-card span {
+    font-size: 0.58rem;
+  }
+
+  .start-item-card strong {
+    font-size: 0.68rem;
+  }
+
+  .start-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .start-summary-grid div {
+    padding: 6px 7px;
+  }
+
+  .start-summary-grid span {
+    font-size: 0.58rem;
+  }
+
+  .start-summary-grid strong {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    line-height: 1.16;
+  }
+
+  .begin-descent-action {
+    min-height: 52px;
+    margin-bottom: 0;
+  }
+
+  .start-scroll-pad {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
   .start-card-list {
     grid-template-columns: 1fr;
   }
 
   .depth-choice {
-    min-height: 74px;
-  }
-
-  .start-summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .start-art img {
-    min-height: 210px;
-  }
-
-  .begin-descent-action {
-    min-height: 54px;
-    margin-bottom: 8px;
-  }
-
-  .start-scroll-pad {
-    display: block;
-    height: 10px;
-  }
-}
-
-@media (max-width: 360px) {
-  .depth-selector,
-  .start-card-list,
-  .start-summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .depth-choice {
-    min-height: 74px;
+    min-height: 70px;
   }
 
   .hud-grid {
