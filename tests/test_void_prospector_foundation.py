@@ -71,13 +71,25 @@ class VoidProspectorFoundationTests(unittest.TestCase):
               contractStatus: state.contract.status,
               contractRequiredOre: state.contract.requiredOre,
               contractDeliveredOre: state.contract.deliveredOre,
+              tutorialStatus: state.tutorial.status,
+              tutorialPhase: state.tutorial.phase,
+              tutorialPhases: state.tutorial.phases.map((phase) => phase.id),
+              verticalAdjustmentRequired: state.tutorial.verticalAdjustmentRequired,
+              disclosure: state.disclosure,
+              systemAccess: state.systemAccess,
+              selectedPrompt: state.selectedTargetPrompt,
+              stationMenu: state.stationMenu,
               miningRange: state.mining.range,
               miningPower: state.ship.miningPower,
               upgradeCount: game.GAME_DATA.upgrades.length,
+              verticalUpControls: game.GAME_DATA.controls.ascend,
               targetKind: state.target.kind,
               pirateState: state.pirate.state,
+              pirateUnlockState: state.pirate.unlockState,
               cameraMode: state.camera.mode,
               hasCameraVectors: Boolean(state.camera.position && state.camera.target),
+              hasOrientation: Boolean(state.ship.orientation && state.ship.orientation.forward),
+              hasEngineState: Boolean(state.ship.engineState),
             }));
             """
         )
@@ -93,23 +105,54 @@ class VoidProspectorFoundationTests(unittest.TestCase):
         self.assertFalse(result["stationDockable"])
         self.assertIn("sell cargo", result["stationServices"])
         self.assertEqual("active", result["contractStatus"])
-        self.assertGreaterEqual(result["contractRequiredOre"], 1)
+        self.assertEqual(3, result["contractRequiredOre"])
         self.assertEqual(0, result["contractDeliveredOre"])
+        self.assertEqual("active", result["tutorialStatus"])
+        self.assertEqual("target-alignment", result["tutorialPhase"])
+        self.assertEqual(
+            [
+                "target-alignment",
+                "vertical-adjustment",
+                "thrust",
+                "closing-distance",
+                "mining",
+                "station-return",
+                "docking",
+                "cargo-sale",
+                "upgrade-preview",
+            ],
+            result["tutorialPhases"],
+        )
+        self.assertTrue(result["verticalAdjustmentRequired"])
+        self.assertFalse(result["disclosure"]["salvage"])
+        self.assertFalse(result["disclosure"]["convoy"])
+        self.assertFalse(result["disclosure"]["storm"])
+        self.assertFalse(result["disclosure"]["interdiction"])
+        self.assertFalse(result["disclosure"]["signalGate"])
+        self.assertFalse(result["disclosure"]["upgradeCatalog"])
+        self.assertFalse(result["systemAccess"]["pirate"])
+        self.assertEqual("closed", result["stationMenu"]["state"])
+        self.assertEqual("target-alignment", result["selectedPrompt"]["phase"])
+        self.assertIn("Cinder Node", result["selectedPrompt"]["prompt"])
         self.assertGreater(result["miningRange"], 1)
         self.assertGreater(result["miningPower"], 0)
         self.assertGreaterEqual(result["upgradeCount"], 1)
+        self.assertIn("KeyQ", result["verticalUpControls"])
         self.assertEqual("asteroid", result["targetKind"])
         self.assertEqual("dormant", result["pirateState"])
+        self.assertEqual("locked", result["pirateUnlockState"])
         self.assertEqual("chase", result["cameraMode"])
         self.assertTrue(result["hasCameraVectors"])
+        self.assertTrue(result["hasOrientation"])
+        self.assertTrue(result["hasEngineState"])
 
-    def test_core_controls_advance_ship_camera_target_and_pirate_state(self) -> None:
+    def test_core_controls_advance_ship_camera_target_and_keep_pirate_locked_during_tutorial(self) -> None:
         result = self.run_node(
             """
             const game = require("./games/void-prospector/void-prospector.js");
             let state = game.createInitialState({ seed: 22 });
             const start = JSON.parse(JSON.stringify(state));
-            state = game.stepSpaceflight(state, { thrust: true, turnRight: true }, 1);
+            state = game.stepSpaceflight(state, { thrust: true, turnRight: true, ascend: true }, 1);
             const afterThrust = JSON.parse(JSON.stringify(state));
             state = game.stepSpaceflight(state, { brake: true }, 1);
             const afterBrake = JSON.parse(JSON.stringify(state));
@@ -120,7 +163,16 @@ class VoidProspectorFoundationTests(unittest.TestCase):
             }
             console.log(JSON.stringify({
               moved: game.distance(start.ship.position, afterThrust.ship.position),
+              movedX: afterThrust.ship.position.x !== start.ship.position.x,
+              movedY: afterThrust.ship.position.y !== start.ship.position.y,
+              movedZ: afterThrust.ship.position.z !== start.ship.position.z,
               headingChanged: afterThrust.ship.heading !== start.ship.heading,
+              pitchChanged: afterThrust.ship.orientation.pitch !== start.ship.orientation.pitch,
+              bankVisible: Math.abs(afterThrust.ship.orientation.bank) > 0,
+              forwardVector: afterThrust.ship.orientation.forward,
+              thrusting: afterThrust.ship.engineState.thrusting,
+              verticalAxis: afterThrust.ship.engineState.verticalAxis,
+              braking: afterBrake.ship.engineState.braking,
               fuelSpent: start.ship.fuel - afterThrust.ship.fuel,
               speedAfterThrust: game.distance({ x: 0, y: 0, z: 0 }, afterThrust.ship.velocity),
               speedAfterBrake: game.distance({ x: 0, y: 0, z: 0 }, afterBrake.ship.velocity),
@@ -135,14 +187,119 @@ class VoidProspectorFoundationTests(unittest.TestCase):
         )
 
         self.assertGreater(result["moved"], 1)
+        self.assertTrue(result["movedX"])
+        self.assertTrue(result["movedY"])
+        self.assertTrue(result["movedZ"])
         self.assertTrue(result["headingChanged"])
+        self.assertTrue(result["pitchChanged"])
+        self.assertTrue(result["bankVisible"])
+        self.assertIn("x", result["forwardVector"])
+        self.assertTrue(result["thrusting"])
+        self.assertEqual(1, result["verticalAxis"])
+        self.assertTrue(result["braking"])
         self.assertGreater(result["fuelSpent"], 0)
         self.assertGreater(result["speedAfterThrust"], result["speedAfterBrake"])
         self.assertGreater(result["cameraMoved"], 1)
         self.assertNotEqual(result["targetBefore"], result["targetAfter"])
         self.assertIsInstance(result["stationBearing"], int)
-        self.assertEqual("shadowing", result["pirateState"])
-        self.assertIn(result["pirateEncounter"], ("distant", "shadow", "close"))
+        self.assertEqual("dormant", result["pirateState"])
+        self.assertEqual("distant", result["pirateEncounter"])
+
+    def test_first_contract_tutorial_completes_from_keyboard_actions_and_unlocks_later_systems(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/void-prospector/void-prospector.js");
+            let state = game.createInitialState({ seed: 33 });
+            const initialSalvageTarget = game.setTarget(state, "salvage", state.salvageSites[0].id);
+
+            let guard = 0;
+            while (Math.abs(state.target.bearing) > 10 && guard < 20) {
+              state = game.stepSpaceflight(state, { turnLeft: true }, 0.1);
+              guard += 1;
+            }
+            state = game.stepSpaceflight(state, { ascend: true }, 1);
+            state = game.stepSpaceflight(state, { thrust: true }, 1);
+
+            const node = state.asteroids[0];
+            state.ship.position = { x: node.position.x + 2, y: node.position.y, z: node.position.z + 1 };
+            state.ship.velocity = { x: 0, y: 0, z: 0 };
+            for (let pull = 0; pull < 3; pull += 1) {
+              state = game.stepSpaceflight(state, { mine: true }, 1);
+            }
+            const afterMining = JSON.parse(JSON.stringify(state));
+            state.ship.position = { ...state.station.position };
+            state.ship.velocity = { x: 0, y: 0, z: 0 };
+            state = game.stepSpaceflight(state, { interact: true }, 1);
+            const afterDock = JSON.parse(JSON.stringify(state));
+            const advancedTarget = game.setTarget(afterDock, "salvage", afterDock.salvageSites[0].id);
+            const restart = game.restartTutorial(afterDock);
+            let pirateLive = afterDock;
+            for (let index = 0; index < 7; index += 1) {
+              pirateLive = game.stepSpaceflight(pirateLive, {}, 1);
+            }
+            console.log(JSON.stringify({
+              initialSalvageTargetKind: initialSalvageTarget.target.kind,
+              afterMiningPhase: afterMining.tutorial.phase,
+              afterMiningPromptKind: afterMining.target.kind,
+              oreMined: afterMining.cargo.ore,
+              completedPhases: afterDock.tutorial.phases.filter((phase) => phase.complete).map((phase) => phase.id),
+              tutorialStatus: afterDock.tutorial.status,
+              tutorialPhase: afterDock.tutorial.phase,
+              contractStatus: afterDock.contract.status,
+              deliveredOre: afterDock.contract.deliveredOre,
+              stationMenu: afterDock.stationMenu,
+              disclosure: afterDock.disclosure,
+              systemAccess: afterDock.systemAccess,
+              advancedTargetKind: advancedTarget.target.kind,
+              pirateUnlockState: afterDock.pirate.unlockState,
+              pirateStateBeforeDelay: afterDock.pirate.state,
+              pirateSpawnTick: afterDock.pirate.spawnTick,
+              elapsedAfterDock: afterDock.elapsed,
+              pirateStateAfterDelay: pirateLive.pirate.state,
+              restartStatus: restart.tutorial.status,
+              restartPhase: restart.tutorial.phase,
+              restartCount: restart.tutorial.restartCount,
+              restartAccess: restart.systemAccess,
+            }));
+            """
+        )
+
+        self.assertEqual("asteroid", result["initialSalvageTargetKind"])
+        self.assertEqual("station-return", result["afterMiningPhase"])
+        self.assertEqual("station", result["afterMiningPromptKind"])
+        self.assertEqual(3, result["oreMined"])
+        self.assertEqual(
+            [
+                "target-alignment",
+                "vertical-adjustment",
+                "thrust",
+                "closing-distance",
+                "mining",
+                "station-return",
+                "docking",
+                "cargo-sale",
+                "upgrade-preview",
+            ],
+            result["completedPhases"],
+        )
+        self.assertEqual("complete", result["tutorialStatus"])
+        self.assertEqual("upgrade-preview", result["tutorialPhase"])
+        self.assertEqual("complete", result["contractStatus"])
+        self.assertEqual(3, result["deliveredOre"])
+        self.assertTrue(result["stationMenu"]["open"])
+        self.assertEqual("tutorial-summary", result["stationMenu"]["state"])
+        self.assertTrue(result["stationMenu"]["upgradePreview"]["visible"])
+        self.assertTrue(result["disclosure"]["salvage"])
+        self.assertTrue(result["systemAccess"]["signalGate"])
+        self.assertEqual("salvage", result["advancedTargetKind"])
+        self.assertEqual("unlocked", result["pirateUnlockState"])
+        self.assertEqual("dormant", result["pirateStateBeforeDelay"])
+        self.assertGreater(result["pirateSpawnTick"], result["elapsedAfterDock"])
+        self.assertEqual("shadowing", result["pirateStateAfterDelay"])
+        self.assertEqual("active", result["restartStatus"])
+        self.assertEqual("target-alignment", result["restartPhase"])
+        self.assertEqual(1, result["restartCount"])
+        self.assertFalse(result["restartAccess"]["salvage"])
 
     def test_mining_extracts_visible_ore_and_depletes_nodes(self) -> None:
         result = self.run_node(
@@ -206,7 +363,7 @@ class VoidProspectorFoundationTests(unittest.TestCase):
             """
         )
 
-        self.assertEqual(126, result["firstCredits"])
+        self.assertEqual(286, result["firstCredits"])
         self.assertEqual(6, result["firstDelivered"])
         self.assertEqual(0, result["firstCargo"])
         self.assertEqual(100, result["repairedHull"])
@@ -232,38 +389,30 @@ class VoidProspectorFoundationTests(unittest.TestCase):
               }
             }
 
-            mineNode(0, 5);
+            mineNode(0, 3);
             state.ship.position = { ...state.station.position };
             state = game.dockAtStation(state);
             const afterFirstReturn = JSON.parse(JSON.stringify(state));
 
-            mineNode(1, 3);
-            state.ship.position = { ...state.station.position };
-            state = game.dockAtStation(state);
-
             console.log(JSON.stringify({
               firstDelivered: afterFirstReturn.contract.deliveredOre,
               firstCredits: afterFirstReturn.credits,
-              finalDelivered: state.contract.deliveredOre,
-              finalCredits: state.credits,
-              finalCargo: state.cargo.ore,
-              contractStatus: state.contract.status,
-              runStatus: state.run.status,
-              oreMined: state.stats.oreMined,
-              oreSold: state.stats.oreSold,
+              finalCargo: afterFirstReturn.cargo.ore,
+              contractStatus: afterFirstReturn.contract.status,
+              runStatus: afterFirstReturn.run.status,
+              oreMined: afterFirstReturn.stats.oreMined,
+              oreSold: afterFirstReturn.stats.oreSold,
             }));
             """
         )
 
-        self.assertEqual(5, result["firstDelivered"])
+        self.assertEqual(3, result["firstDelivered"])
         self.assertGreater(result["firstCredits"], 0)
-        self.assertEqual(8, result["finalDelivered"])
-        self.assertGreater(result["finalCredits"], result["firstCredits"])
         self.assertEqual(0, result["finalCargo"])
         self.assertEqual("complete", result["contractStatus"])
         self.assertEqual("complete", result["runStatus"])
-        self.assertEqual(8, result["oreMined"])
-        self.assertEqual(8, result["oreSold"])
+        self.assertEqual(3, result["oreMined"])
+        self.assertEqual(3, result["oreSold"])
 
     def test_upgrades_change_later_runs_and_reset_flow(self) -> None:
         result = self.run_node(
@@ -306,7 +455,7 @@ class VoidProspectorFoundationTests(unittest.TestCase):
             let state = game.createInitialState({ seed: 5 });
             state.elapsed = game.GAME_DATA.pirate.spawnTick;
             state.pirate.state = "shadowing";
-            state.pirate.position = { x: 2, y: 0, z: 18 };
+            state.pirate.position = { x: state.ship.position.x + 2, y: state.ship.position.y, z: state.ship.position.z + 2 };
             state.cargo.ore = 2;
             state.cargo.value = 60;
             for (let index = 0; index < 4; index += 1) {

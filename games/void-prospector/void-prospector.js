@@ -25,6 +25,8 @@ const VoidProspector = (() => {
       brake: ["KeyS", "ArrowDown"],
       turnLeft: ["KeyA", "ArrowLeft"],
       turnRight: ["KeyD", "ArrowRight"],
+      ascend: ["KeyQ", "ShiftLeft", "ShiftRight"],
+      descend: ["ControlLeft", "ControlRight"],
       retarget: ["Tab", "KeyE"],
       mine: ["Space", "KeyM"],
       scan: ["KeyC"],
@@ -39,15 +41,39 @@ const VoidProspector = (() => {
       fuelMax: 100,
       cargoCapacity: 6,
       acceleration: 18,
+      verticalAcceleration: 12,
       brakeDrag: 0.34,
       cruiseDrag: 0.988,
       maxSpeed: 18,
       turnRate: 2.2,
       fuelBurnPerSecond: 4,
+      verticalFuelBurnPerSecond: 2,
       miningPower: 1,
-      startPosition: { x: 0, y: 0, z: 18 },
+      startPosition: { x: 18, y: 0, z: 2 },
       startVelocity: { x: 0, y: 0, z: 0 },
       startHeading: 0,
+    },
+    tutorial: {
+      id: "first-spoke-contract",
+      title: "First Spoke Contract",
+      requiredOre: 3,
+      targetId: "node-cinder-01",
+      stationId: "station-frontier-spoke",
+      alignmentDegrees: 12,
+      verticalTolerance: 1.25,
+      closeDistanceDelta: 8,
+      pirateUnlockDelay: 6,
+      phases: [
+        { id: "target-alignment", label: "Align to Cinder Node" },
+        { id: "vertical-adjustment", label: "Match target height" },
+        { id: "thrust", label: "Apply forward thrust" },
+        { id: "closing-distance", label: "Close mining distance" },
+        { id: "mining", label: "Mine three ore" },
+        { id: "station-return", label: "Return to Frontier Spoke" },
+        { id: "docking", label: "Dock at Frontier Spoke" },
+        { id: "cargo-sale", label: "Sell cargo" },
+        { id: "upgrade-preview", label: "Preview Refined Beam" },
+      ],
     },
     camera: {
       mode: "chase",
@@ -82,8 +108,8 @@ const VoidProspector = (() => {
     contract: {
       id: "charter-ore-spoke",
       title: "Spoke Charter",
-      objective: "Mine 8 ore, dock at Frontier Spoke, and keep the pirate wake off the hold.",
-      requiredOre: 8,
+      objective: "Mine 3 ore from Cinder Node, dock at Frontier Spoke, and preview the Refined Beam.",
+      requiredOre: 3,
       rewardCredits: 160,
       status: "active",
     },
@@ -181,8 +207,8 @@ const VoidProspector = (() => {
           tier: 1,
           condition: "Mapped harbor",
           charterTitle: "Spoke Charter",
-          objective: "Mine 8 ore, dock at Frontier Spoke, and keep the pirate wake off the hold.",
-          requiredOre: 8,
+          objective: "Mine 3 ore from Cinder Node, dock at Frontier Spoke, and preview the Refined Beam.",
+          requiredOre: 3,
           requiredScans: 0,
           requiredSalvageValue: 0,
           requiredRelics: 0,
@@ -1156,7 +1182,7 @@ const VoidProspector = (() => {
         {
           id: "node-cinder-01",
           name: "Cinder Node",
-          position: { x: -22, y: 1, z: -30 },
+          position: { x: -22, y: 5, z: -30 },
           radius: 4.2,
           oreRemaining: 5,
           oreValue: 18,
@@ -1226,6 +1252,8 @@ const VoidProspector = (() => {
     brake: false,
     turnLeft: false,
     turnRight: false,
+    ascend: false,
+    descend: false,
     mine: false,
     scan: false,
   };
@@ -1280,6 +1308,61 @@ const VoidProspector = (() => {
 
   function forwardVector(heading) {
     return vector(Math.sin(heading), 0, -Math.cos(heading));
+  }
+
+  function forwardVector3(heading, pitch = 0) {
+    const horizontal = Math.cos(pitch);
+    return normalize(vector(Math.sin(heading) * horizontal, Math.sin(pitch), -Math.cos(heading) * horizontal));
+  }
+
+  function createShipOrientation(heading = 0) {
+    const yaw = normalizeAngle(heading);
+    return {
+      yaw,
+      pitch: 0,
+      roll: 0,
+      bank: 0,
+      forward: forwardVector3(yaw, 0),
+    };
+  }
+
+  function createEngineState() {
+    return {
+      thrusting: false,
+      braking: false,
+      verticalAxis: 0,
+      thrustLevel: 0,
+      brakeLevel: 0,
+      speed: 0,
+      driftAngle: 0,
+    };
+  }
+
+  function syncShipFlightState(ship, input = {}) {
+    const speed = length(ship.velocity || vector());
+    const verticalAxis = (input.ascend ? 1 : 0) - (input.descend ? 1 : 0);
+    const turnAxis = (input.turnRight ? 1 : 0) - (input.turnLeft ? 1 : 0);
+    const pitch = clamp((ship.velocity.y / Math.max(1, ship.maxSpeed || GAME_DATA.ship.maxSpeed)) * 0.7 + verticalAxis * 0.2, -0.55, 0.55);
+    const bank = clamp(turnAxis * 0.42 + ((ship.orientation && ship.orientation.bank) || 0) * 0.35, -0.65, 0.65);
+    const yaw = normalizeAngle(ship.heading || 0);
+    const velocityBearing = speed > 0.2 ? Math.atan2(ship.velocity.x, -ship.velocity.z) : yaw;
+    ship.orientation = {
+      yaw,
+      pitch: round(pitch, 3),
+      roll: round(-bank, 3),
+      bank: round(bank, 3),
+      forward: forwardVector3(yaw, pitch),
+    };
+    ship.engineState = {
+      thrusting: Boolean(input.thrust),
+      braking: Boolean(input.brake),
+      verticalAxis,
+      thrustLevel: input.thrust ? 1 : 0,
+      brakeLevel: input.brake ? 1 : 0,
+      speed: round(speed, 2),
+      driftAngle: round(normalizeAngle(velocityBearing - yaw), 3),
+    };
+    return ship;
   }
 
   function normalizeAngle(angle) {
@@ -3037,6 +3120,302 @@ const VoidProspector = (() => {
     });
   }
 
+  function shouldStartTutorial(options = {}, ladder = {}) {
+    if (options.tutorialMode === false) {
+      return false;
+    }
+    if (options.tutorialMode === true || options.restartTutorial === true) {
+      return true;
+    }
+    const runCount = options.runCount || 1;
+    const currentSectorId = ladder.currentSectorId || GAME_DATA.surveyLadder.defaultSectorId;
+    const completed = ladder.completedSectorIds || [];
+    return (
+      runCount === 1 &&
+      currentSectorId === GAME_DATA.surveyLadder.defaultSectorId &&
+      !completed.includes(GAME_DATA.surveyLadder.defaultSectorId)
+    );
+  }
+
+  function createTutorialState(active, options = {}, asteroids = []) {
+    const config = GAME_DATA.tutorial;
+    const target = asteroids.find((asteroid) => asteroid.id === config.targetId) || asteroids[0] || null;
+    const targetDistance = target ? round(distance(GAME_DATA.ship.startPosition, target.position), 1) : 0;
+    const restored = options.tutorial || {};
+    const phases = config.phases.map((phase) => ({
+      ...phase,
+      complete: active ? false : true,
+    }));
+    return {
+      id: config.id,
+      title: config.title,
+      status: active ? "active" : "complete",
+      phase: active ? config.phases[0].id : "upgrade-preview",
+      phases,
+      targetId: config.targetId,
+      stationId: config.stationId,
+      requiredOre: config.requiredOre,
+      targetAlignmentComplete: false,
+      verticalAdjustmentRequired: active,
+      verticalAdjustmentComplete: !active,
+      thrustComplete: false,
+      closingDistanceStart: targetDistance,
+      closingDistanceComplete: false,
+      miningComplete: false,
+      stationReturnPrompted: false,
+      stationReturnComplete: false,
+      dockingComplete: false,
+      cargoSaleComplete: false,
+      upgradePreviewShown: !active,
+      resettable: true,
+      restartCount: restored.restartCount || 0,
+      pirateUnlocked: !active,
+      pirateUnlockedAt: active ? null : 0,
+      completedAt: active ? null : 0,
+      prompt: active ? "Align the reticle with Cinder Node." : "Tutorial complete. Advanced contracts are available.",
+    };
+  }
+
+  function advancedSystemsUnlocked(state) {
+    if (!state.tutorial) {
+      return true;
+    }
+    return state.tutorial.status === "complete" || state.ladder.currentSectorId !== GAME_DATA.surveyLadder.defaultSectorId || state.run.count > 1;
+  }
+
+  function createDisclosureState(advancedUnlocked = false) {
+    return {
+      tutorial: !advancedUnlocked,
+      objective: true,
+      targetPrompt: true,
+      stationMenu: true,
+      upgradePreview: advancedUnlocked,
+      upgradeCatalog: advancedUnlocked,
+      surveyLadder: advancedUnlocked,
+      salvage: advancedUnlocked,
+      convoy: advancedUnlocked,
+      storm: advancedUnlocked,
+      interdiction: advancedUnlocked,
+      signalGate: advancedUnlocked,
+      stationServices: advancedUnlocked,
+      rawTelemetry: advancedUnlocked,
+      pirate: advancedUnlocked,
+    };
+  }
+
+  function syncDisclosureState(state) {
+    const advancedUnlocked = advancedSystemsUnlocked(state);
+    const disclosure = createDisclosureState(advancedUnlocked);
+    disclosure.tutorial = Boolean(state.tutorial && state.tutorial.status === "active");
+    disclosure.upgradePreview = advancedUnlocked || Boolean(state.station && state.station.docked && state.tutorial && state.tutorial.upgradePreviewShown);
+    disclosure.pirate = advancedUnlocked || (state.pirate && state.pirate.state !== "dormant");
+    state.disclosure = disclosure;
+    state.systemAccess = {
+      asteroids: true,
+      station: true,
+      mining: true,
+      docking: true,
+      upgrades: advancedUnlocked,
+      surveyLadder: advancedUnlocked,
+      salvage: advancedUnlocked,
+      convoy: advancedUnlocked,
+      storm: advancedUnlocked,
+      interdiction: advancedUnlocked,
+      signalGate: advancedUnlocked,
+      stationServices: advancedUnlocked,
+      pirate: disclosure.pirate,
+      rawTelemetry: advancedUnlocked,
+    };
+    return state;
+  }
+
+  function tutorialPhasePrompt(phase) {
+    const prompts = {
+      "target-alignment": "Align the reticle with Cinder Node.",
+      "vertical-adjustment": "Use Q or Ctrl to match Cinder Node height.",
+      thrust: "Press W to thrust toward Cinder Node.",
+      "closing-distance": "Hold W until Cinder Node enters mining range.",
+      mining: "Hold Space or M to mine three ore.",
+      "station-return": "Return to the Frontier Spoke beacon.",
+      docking: "Press F or Enter inside the docking ring.",
+      "cargo-sale": "Ore sold at Frontier Spoke.",
+      "upgrade-preview": "Preview Refined Beam before the next sortie.",
+    };
+    return prompts[phase] || "Follow the active target prompt.";
+  }
+
+  function completeTutorialPhase(tutorial, phaseId, complete) {
+    const phase = tutorial.phases.find((item) => item.id === phaseId);
+    if (phase) {
+      phase.complete = Boolean(complete);
+    }
+  }
+
+  function syncTutorialState(state) {
+    if (!state.tutorial) {
+      return state;
+    }
+    if (state.tutorial.status !== "active") {
+      state.tutorial.phases.forEach((phase) => {
+        phase.complete = true;
+      });
+      state.tutorial.pirateUnlocked = true;
+      return state;
+    }
+
+    const config = GAME_DATA.tutorial;
+    const target = state.asteroids.find((asteroid) => asteroid.id === state.tutorial.targetId) || state.asteroids[0] || null;
+    if (!target) {
+      return state;
+    }
+
+    const targetDistance = distance(state.ship.position, target.position);
+    const targetBearing = Math.abs(bearingDegrees(state.ship.position, state.ship.heading, target.position));
+    const verticalDelta = target.position.y - state.ship.position.y;
+    state.tutorial.targetAlignmentComplete =
+      state.tutorial.targetAlignmentComplete || targetBearing <= config.alignmentDegrees;
+    state.tutorial.verticalAdjustmentComplete =
+      state.tutorial.verticalAdjustmentComplete ||
+      Math.abs(verticalDelta) <= config.verticalTolerance ||
+      Math.abs(state.ship.position.y - GAME_DATA.ship.startPosition.y) >= 1;
+    state.tutorial.thrustComplete =
+      state.tutorial.thrustComplete || state.input.thrust || length(state.ship.velocity) >= 1.2;
+    state.tutorial.closingDistanceComplete =
+      state.tutorial.closingDistanceComplete ||
+      targetDistance <= state.mining.range + target.radius ||
+      targetDistance <= Math.max(0, state.tutorial.closingDistanceStart - config.closeDistanceDelta);
+    state.tutorial.miningComplete =
+      state.tutorial.miningComplete || state.cargo.ore >= state.tutorial.requiredOre || state.contract.deliveredOre >= state.tutorial.requiredOre;
+    state.tutorial.stationReturnPrompted = state.tutorial.stationReturnPrompted || state.tutorial.miningComplete;
+    state.tutorial.stationReturnComplete =
+      state.tutorial.stationReturnComplete ||
+      (state.tutorial.miningComplete && (state.station.proximity.distance <= state.station.dockingRadius * 2 || state.station.docked));
+    state.tutorial.dockingComplete = state.tutorial.dockingComplete || state.station.docked;
+    state.tutorial.cargoSaleComplete =
+      state.tutorial.cargoSaleComplete ||
+      (state.contract.deliveredOre >= state.tutorial.requiredOre && state.station.lastSale > 0);
+    state.tutorial.upgradePreviewShown = state.tutorial.upgradePreviewShown || state.tutorial.cargoSaleComplete;
+
+    completeTutorialPhase(state.tutorial, "target-alignment", state.tutorial.targetAlignmentComplete);
+    completeTutorialPhase(state.tutorial, "vertical-adjustment", state.tutorial.verticalAdjustmentComplete);
+    completeTutorialPhase(state.tutorial, "thrust", state.tutorial.thrustComplete);
+    completeTutorialPhase(state.tutorial, "closing-distance", state.tutorial.closingDistanceComplete);
+    completeTutorialPhase(state.tutorial, "mining", state.tutorial.miningComplete);
+    completeTutorialPhase(state.tutorial, "station-return", state.tutorial.stationReturnComplete);
+    completeTutorialPhase(state.tutorial, "docking", state.tutorial.dockingComplete);
+    completeTutorialPhase(state.tutorial, "cargo-sale", state.tutorial.cargoSaleComplete);
+    completeTutorialPhase(state.tutorial, "upgrade-preview", state.tutorial.upgradePreviewShown);
+
+    const nextPhase =
+      state.tutorial.phases.find((phase) => !phase.complete) ||
+      state.tutorial.phases[state.tutorial.phases.length - 1];
+    state.tutorial.phase = nextPhase.id;
+    state.tutorial.prompt = tutorialPhasePrompt(state.tutorial.phase);
+
+    if (["station-return", "docking"].includes(state.tutorial.phase) && state.target.kind !== "station") {
+      state.target = {
+        kind: "station",
+        id: state.station.id,
+        index: 0,
+        distance: 0,
+        bearing: 0,
+      };
+    }
+
+    if (state.tutorial.upgradePreviewShown) {
+      state.tutorial.status = "complete";
+      state.tutorial.phase = "upgrade-preview";
+      state.tutorial.prompt = tutorialPhasePrompt("upgrade-preview");
+      state.tutorial.phases.forEach((phase) => {
+        phase.complete = true;
+      });
+      state.tutorial.pirateUnlocked = true;
+      state.tutorial.pirateUnlockedAt = state.tutorial.pirateUnlockedAt === null ? state.elapsed : state.tutorial.pirateUnlockedAt;
+      state.tutorial.completedAt = state.tutorial.completedAt === null ? state.tick : state.tutorial.completedAt;
+      if (state.pirate.unlockState !== "unlocked") {
+        state.pirate.unlockState = "unlocked";
+        state.pirate.unlockedAt = state.elapsed;
+        state.pirate.spawnTick = round(state.elapsed + config.pirateUnlockDelay, 3);
+      }
+    }
+
+    return state;
+  }
+
+  function reticleStateForTarget(state, target) {
+    if (!target) {
+      return "no-target";
+    }
+    if (state.cargo.ore >= state.cargo.capacity && state.target.kind !== "station") {
+      return "cargo-full-return";
+    }
+    if (Math.abs(state.target.bearing || 0) > 75) {
+      return "offscreen-direction";
+    }
+    if (state.target.kind === "station") {
+      return state.station.proximity.dockable ? "dockable-station" : "station-out-of-range";
+    }
+    if (state.target.kind === "asteroid") {
+      return state.target.distance <= state.mining.range + (target.radius || 0) ? "mine-in-range" : "target-out-of-range";
+    }
+    return "target-locked";
+  }
+
+  function promptActionForTarget(state, target) {
+    if (!target) {
+      return "retarget";
+    }
+    if (state.target.kind === "station") {
+      return state.station.proximity.dockable ? "dock" : "approach";
+    }
+    if (state.target.kind === "asteroid") {
+      return state.target.distance <= state.mining.range + (target.radius || 0) ? "mine" : "close-distance";
+    }
+    if (state.target.kind === "pirate") {
+      return "evade";
+    }
+    return "inspect";
+  }
+
+  function syncSelectedTargetPromptState(state) {
+    const target = findTarget(state);
+    const tutorialTarget = target && state.tutorial && target.id === state.tutorial.targetId;
+    state.selectedTargetPrompt = {
+      targetId: target ? target.id : null,
+      name: target ? target.name : "No target",
+      kind: target ? state.target.kind : "none",
+      phase: state.tutorial ? state.tutorial.phase : "free-flight",
+      prompt: state.tutorial && state.tutorial.status === "active" ? state.tutorial.prompt : target ? `${target.name}: ${promptActionForTarget(state, target)}` : "Cycle target",
+      action: promptActionForTarget(state, target),
+      distance: state.target.distance || 0,
+      bearing: state.target.bearing || 0,
+      reticleState: reticleStateForTarget(state, target),
+      inRange: target ? ["mine-in-range", "dockable-station", "target-locked"].includes(reticleStateForTarget(state, target)) : false,
+      verticalDelta: target ? round(target.position.y - state.ship.position.y, 1) : 0,
+      verticalAdjustmentRequired: Boolean(tutorialTarget && state.tutorial.verticalAdjustmentRequired),
+      verticalAdjustmentComplete: Boolean(!tutorialTarget || state.tutorial.verticalAdjustmentComplete),
+    };
+    return state;
+  }
+
+  function syncStationMenuState(state) {
+    const upgrade = upgradeSummary(state);
+    state.stationMenu = {
+      open: Boolean(state.station.docked),
+      state: state.station.docked ? (state.tutorial && state.tutorial.status === "complete" ? "tutorial-summary" : "services") : "closed",
+      lastSale: state.station.lastSale,
+      lastService: state.station.lastService,
+      contractStatus: state.contract.status,
+      contractOre: `${state.contract.deliveredOre}/${state.contract.requiredOre}`,
+      launchPrompt: state.station.docked ? "Launch" : "Approach Frontier Spoke",
+      upgradePreview: {
+        ...upgrade,
+        visible: Boolean(state.station.docked && (state.disclosure.upgradePreview || state.disclosure.upgradeCatalog)),
+      },
+    };
+    return state;
+  }
+
   function createCameraState(ship) {
     const forward = forwardVector(ship.heading);
     const settings = GAME_DATA.camera;
@@ -3096,11 +3475,15 @@ const VoidProspector = (() => {
     const stormCharts = createStormCharts(seed, sector, stationServices, options);
     const interdictionCells = createInterdictionCells(seed, sector, stationServices, options);
     const signalGates = createSignalGates(seed, sector, stationServices, options);
+    const tutorialActive = shouldStartTutorial(options, ladder);
+    const advancedUnlocked = !tutorialActive;
     const ship = {
       name: GAME_DATA.ship.name,
       position: clone(GAME_DATA.ship.startPosition),
       velocity: clone(GAME_DATA.ship.startVelocity),
       heading: GAME_DATA.ship.startHeading,
+      orientation: createShipOrientation(GAME_DATA.ship.startHeading),
+      engineState: createEngineState(),
       hull: GAME_DATA.ship.hullMax,
       fuel: GAME_DATA.ship.fuelMax,
       maxHull: GAME_DATA.ship.hullMax,
@@ -3137,6 +3520,24 @@ const VoidProspector = (() => {
       interdiction: createInterdictionState(options, stationServices, interdictionCells),
       signalGates,
       signalGate: createSignalGateState(options, stationServices, signalGates),
+      tutorial: createTutorialState(tutorialActive, options, asteroids),
+      disclosure: createDisclosureState(advancedUnlocked),
+      systemAccess: {
+        asteroids: true,
+        station: true,
+        mining: true,
+        docking: true,
+        upgrades: advancedUnlocked,
+        surveyLadder: advancedUnlocked,
+        salvage: advancedUnlocked,
+        convoy: advancedUnlocked,
+        storm: advancedUnlocked,
+        interdiction: advancedUnlocked,
+        signalGate: advancedUnlocked,
+        stationServices: advancedUnlocked,
+        pirate: advancedUnlocked,
+        rawTelemetry: advancedUnlocked,
+      },
       station: {
         ...clone(GAME_DATA.station),
         docked: false,
@@ -3162,6 +3563,8 @@ const VoidProspector = (() => {
         state: "dormant",
         encounterState: "distant",
         pressure: 0,
+        unlockState: advancedUnlocked ? "unlocked" : "locked",
+        unlockedAt: advancedUnlocked ? 0 : null,
         attackCooldown: 0,
         velocity: vector(),
       },
@@ -3242,9 +3645,13 @@ const VoidProspector = (() => {
         brake: false,
         turnLeft: false,
         turnRight: false,
+        ascend: false,
+        descend: false,
         mine: false,
         scan: false,
       },
+      selectedTargetPrompt: null,
+      stationMenu: null,
       log: [{ tick: 0, message: `${GAME_DATA.surveyLadder.releaseLabel} tier ${sector.tier}: ${sector.name}.` }],
     };
     applyPurchasedUpgrades(state);
@@ -3252,39 +3659,62 @@ const VoidProspector = (() => {
   }
 
   function targetables(state) {
+    const access = state.systemAccess || {};
     const asteroidTargets = state.asteroids
       .filter((asteroid) => !asteroid.mineState.depleted)
       .map((asteroid) => ({ kind: "asteroid", id: asteroid.id, position: asteroid.position, name: asteroid.name }));
-    const anomalyTargets = (state.anomalies || [])
-      .filter((anomaly) => !anomaly.scanState.scanned)
-      .map((anomaly) => ({ kind: "anomaly", id: anomaly.id, position: anomaly.position, name: anomaly.name }));
-    const salvageTargets = (state.salvageSites || [])
-      .filter((site) => !["depleted", "failed", "abandoned"].includes(site.salvageState.status))
-      .map((site) => ({ kind: "salvage", id: site.id, position: site.position, name: site.name }));
-    const convoyTargets = (state.convoyRoutes || []).map((route) => ({
-      kind: "convoy",
-      id: route.id,
-      position: route.beacon.position,
-      name: route.beacon.name,
-    }));
-    const stormTargets = (state.stormCharts || []).map((chart) => ({
-      kind: "storm",
-      id: chart.id,
-      position: chart.position,
-      name: chart.name,
-    }));
-    const interdictionTargets = (state.interdictionCells || []).map((cell) => ({
-      kind: "interdiction",
-      id: cell.id,
-      position: cell.position,
-      name: cell.name,
-    }));
-    const signalGateTargets = (state.signalGates || []).map((gate) => ({
-      kind: "signal-gate",
-      id: gate.id,
-      position: gate.position,
-      name: gate.name,
-    }));
+    const anomalyTargets =
+      access.surveyLadder === false
+        ? []
+        : (state.anomalies || [])
+            .filter((anomaly) => !anomaly.scanState.scanned)
+            .map((anomaly) => ({ kind: "anomaly", id: anomaly.id, position: anomaly.position, name: anomaly.name }));
+    const salvageTargets =
+      access.salvage === false
+        ? []
+        : (state.salvageSites || [])
+            .filter((site) => !["depleted", "failed", "abandoned"].includes(site.salvageState.status))
+            .map((site) => ({ kind: "salvage", id: site.id, position: site.position, name: site.name }));
+    const convoyTargets =
+      access.convoy === false
+        ? []
+        : (state.convoyRoutes || []).map((route) => ({
+            kind: "convoy",
+            id: route.id,
+            position: route.beacon.position,
+            name: route.beacon.name,
+          }));
+    const stormTargets =
+      access.storm === false
+        ? []
+        : (state.stormCharts || []).map((chart) => ({
+            kind: "storm",
+            id: chart.id,
+            position: chart.position,
+            name: chart.name,
+          }));
+    const interdictionTargets =
+      access.interdiction === false
+        ? []
+        : (state.interdictionCells || []).map((cell) => ({
+            kind: "interdiction",
+            id: cell.id,
+            position: cell.position,
+            name: cell.name,
+          }));
+    const signalGateTargets =
+      access.signalGate === false
+        ? []
+        : (state.signalGates || []).map((gate) => ({
+            kind: "signal-gate",
+            id: gate.id,
+            position: gate.position,
+            name: gate.name,
+          }));
+    const pirateTargets =
+      access.pirate === false && state.pirate.state === "dormant"
+        ? []
+        : [{ kind: "pirate", id: state.pirate.id, position: state.pirate.position, name: state.pirate.name }];
     return [
       ...asteroidTargets,
       ...salvageTargets,
@@ -3294,7 +3724,7 @@ const VoidProspector = (() => {
       ...signalGateTargets,
       ...anomalyTargets,
       { kind: "station", id: state.station.id, position: state.station.position, name: state.station.name },
-      { kind: "pirate", id: state.pirate.id, position: state.pirate.position, name: state.pirate.name },
+      ...pirateTargets,
     ];
   }
 
@@ -3335,6 +3765,12 @@ const VoidProspector = (() => {
   function objectiveText(state) {
     if (state.run.failureReason) {
       return `${state.run.failureReason} Press R to restart.`;
+    }
+    if (state.tutorial && state.tutorial.status === "active") {
+      return state.tutorial.prompt || tutorialPhasePrompt(state.tutorial.phase);
+    }
+    if (state.tutorial && state.tutorial.status === "complete" && state.station.docked && state.station.lastSale > 0) {
+      return "First contract complete. Preview Refined Beam, then launch the next sortie.";
     }
     if (state.contract.status === "complete") {
       return `${state.contract.title} complete. Restart into ${state.ladder.recommendedSectorId}.`;
@@ -3447,6 +3883,11 @@ const VoidProspector = (() => {
     if (!state.station.proximity.dockable) {
       state.station.docked = false;
     }
+
+    state.input = state.input || {};
+    state.ship = syncShipFlightState(state.ship, state.input);
+    syncTutorialState(state);
+    syncDisclosureState(state);
 
     syncStormDerivedState(state);
     syncConvoyDerivedState(state);
@@ -3568,6 +4009,9 @@ const VoidProspector = (() => {
     }
     state.run.objective = objectiveText(state);
     state.camera = updateCameraState(state);
+    syncDisclosureState(state);
+    syncSelectedTargetPromptState(state);
+    syncStationMenuState(state);
     return state;
   }
 
@@ -3604,7 +4048,9 @@ const VoidProspector = (() => {
   function applyFlightInput(state, input = {}, deltaSeconds = 1) {
     const dt = Math.max(0, Math.min(deltaSeconds, 2));
     const next = clone(state);
+    next.input = next.input || {};
     const turnAxis = (input.turnRight ? 1 : 0) - (input.turnLeft ? 1 : 0);
+    const verticalAxis = (input.ascend ? 1 : 0) - (input.descend ? 1 : 0);
     next.ship.heading = normalizeAngle(next.ship.heading + turnAxis * GAME_DATA.ship.turnRate * dt);
 
     let velocity = clone(next.ship.velocity);
@@ -3614,6 +4060,11 @@ const VoidProspector = (() => {
       next.input.thrust = true;
     } else {
       next.input.thrust = false;
+    }
+
+    if (verticalAxis !== 0 && next.ship.fuel > 0) {
+      velocity = add(velocity, vector(0, verticalAxis * GAME_DATA.ship.verticalAcceleration * dt, 0));
+      next.ship.fuel = Math.max(0, next.ship.fuel - GAME_DATA.ship.verticalFuelBurnPerSecond * dt);
     }
 
     if (input.brake) {
@@ -3626,11 +4077,17 @@ const VoidProspector = (() => {
 
     next.input.turnLeft = Boolean(input.turnLeft);
     next.input.turnRight = Boolean(input.turnRight);
+    next.input.ascend = Boolean(input.ascend);
+    next.input.descend = Boolean(input.descend);
     next.input.mine = Boolean(input.mine);
     next.input.scan = Boolean(input.scan);
     next.ship.velocity = limitVelocity(velocity, GAME_DATA.ship.maxSpeed);
     next.ship.position = add(next.ship.position, scale(next.ship.velocity, dt));
-    next.ship.position.y = Math.max(-6, Math.min(6, next.ship.position.y));
+    next.ship.position.y = Math.max(-8, Math.min(8, next.ship.position.y));
+    if (next.ship.position.y === -8 || next.ship.position.y === 8) {
+      next.ship.velocity.y = 0;
+    }
+    next.ship = syncShipFlightState(next.ship, next.input);
     const sectorDistance = length(vector(next.ship.position.x, 0, next.ship.position.z));
     if (sectorDistance > GAME_DATA.sector.radius) {
       const clamped = scale(normalize(vector(next.ship.position.x, 0, next.ship.position.z)), GAME_DATA.sector.radius);
@@ -5976,6 +6433,22 @@ const VoidProspector = (() => {
     return syncDerivedState(next);
   }
 
+  function restartTutorial(state, options = {}) {
+    const seed = options.seed === undefined ? state.seed : options.seed;
+    const next = createInitialState({
+      seed,
+      credits: options.keepCredits ? state.credits : 0,
+      upgrades: options.keepUpgrades ? state.upgrades.purchased : [],
+      tutorialMode: true,
+      restartTutorial: true,
+      tutorial: {
+        restartCount: ((state.tutorial && state.tutorial.restartCount) || 0) + 1,
+      },
+    });
+    next.log.unshift({ tick: 0, message: "First Spoke Contract tutorial restarted." });
+    return syncDerivedState(next);
+  }
+
   function updateHazardState(state, deltaSeconds) {
     const next = state;
     if (!next.hazard || next.hazard.intensity <= 0 || next.station.proximity.dockable) {
@@ -6092,6 +6565,21 @@ const VoidProspector = (() => {
 
   function updatePirateState(state, deltaSeconds) {
     const next = state;
+    const pirateUnlocked =
+      (next.systemAccess && next.systemAccess.pirate) ||
+      next.pirate.unlockState === "unlocked" ||
+      next.pirate.state !== "dormant" ||
+      !next.tutorial ||
+      next.tutorial.status === "complete";
+    if (!pirateUnlocked && next.pirate.state === "dormant") {
+      next.pirate.encounterState = "distant";
+      next.pirate.pressure = 0;
+      return next;
+    }
+    if (pirateUnlocked && next.pirate.unlockState !== "unlocked") {
+      next.pirate.unlockState = "unlocked";
+      next.pirate.unlockedAt = next.elapsed;
+    }
     if (next.elapsed >= next.pirate.spawnTick && next.pirate.state === "dormant") {
       next.pirate.state = "shadowing";
       next.pirate.encounterState = "contact";
@@ -6130,7 +6618,9 @@ const VoidProspector = (() => {
   function stepSpaceflight(state, input = {}, deltaSeconds = 1) {
     const dt = Math.max(0, Math.min(deltaSeconds, 2));
     if (input.reset) {
-      return resetRun(state);
+      return state.tutorial && state.ladder.currentSectorId === GAME_DATA.surveyLadder.defaultSectorId
+        ? restartTutorial(state)
+        : resetRun(state);
     }
     let next = applyFlightInput(state, input, dt);
     next.tick = round(next.tick + dt, 3);
@@ -7343,6 +7833,11 @@ const VoidProspector = (() => {
           : `${state.stationServices.lastService} / ${state.stationServices.countermeasureCharges} burst`,
       statusText: `${summary.sectorName}: ${state.run.objective}`,
       routeText: `${completedCount} charted / next ${sectorById(summary.recommendedSectorId).name}`,
+      tutorial: state.tutorial,
+      disclosure: state.disclosure,
+      systemAccess: state.systemAccess,
+      selectedTargetPrompt: state.selectedTargetPrompt,
+      stationMenu: state.stationMenu,
       sectors,
       services,
       convoyRoutes: convoy.routes,
@@ -7591,6 +8086,9 @@ const VoidProspector = (() => {
       status,
       distance: state.target.distance,
       bearing: state.target.bearing,
+      prompt: state.selectedTargetPrompt ? state.selectedTargetPrompt.prompt : null,
+      action: state.selectedTargetPrompt ? state.selectedTargetPrompt.action : null,
+      reticleState: state.selectedTargetPrompt ? state.selectedTargetPrompt.reticleState : null,
     };
     if (state.target.kind === "salvage") {
       summary.type = target.type;
@@ -8425,7 +8923,10 @@ const VoidProspector = (() => {
       const sectorId = dom.sectorSelect ? dom.sectorSelect.value : currentState.ladder.currentSectorId;
       currentState = chooseSector(currentState, sectorId);
     } else if (action === "reset") {
-      currentState = resetRun(currentState);
+      currentState =
+        currentState.tutorial && currentState.ladder.currentSectorId === GAME_DATA.surveyLadder.defaultSectorId
+          ? restartTutorial(currentState)
+          : resetRun(currentState);
     }
     renderHud(currentState);
     if (sceneHandle) {
@@ -9496,11 +9997,12 @@ const VoidProspector = (() => {
     const { THREE } = handle;
     resizeScene(handle);
     handle.objects.ship.position.set(state.ship.position.x, state.ship.position.y, state.ship.position.z);
-    handle.objects.ship.rotation.y = state.ship.heading;
+    const orientation = state.ship.orientation || createShipOrientation(state.ship.heading);
+    handle.objects.ship.rotation.set(orientation.pitch || 0, orientation.yaw, orientation.roll || 0);
     handle.objects.station.rotation.y = timeSeconds * 0.12;
     handle.objects.pirate.position.set(state.pirate.position.x, state.pirate.position.y, state.pirate.position.z);
     handle.objects.pirate.rotation.y = timeSeconds * 0.85;
-    handle.objects.pirate.visible = state.pirate.state !== "dormant" || state.elapsed > 5;
+    handle.objects.pirate.visible = Boolean(state.systemAccess && state.systemAccess.pirate && state.pirate.state !== "dormant");
 
     state.asteroids.forEach((asteroid) => {
       const mesh = handle.objects.asteroidMeshes.get(asteroid.id);
@@ -9685,6 +10187,7 @@ const VoidProspector = (() => {
     deployCountermeasure,
     chooseSector,
     resetRun,
+    restartTutorial,
     retarget,
     setTarget,
     sectorById,
