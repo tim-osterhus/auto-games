@@ -11,6 +11,16 @@ function evidencePath(filename) {
   return path.join(EVIDENCE_DIR, filename);
 }
 
+function fileEvidence(filename) {
+  const filePath = evidencePath(filename);
+  const stat = fs.statSync(filePath);
+  return {
+    path: filePath,
+    exists: stat.isFile(),
+    bytes: stat.size,
+  };
+}
+
 async function overflowState(page) {
   return page.evaluate(() => {
     const doc = document.documentElement;
@@ -191,6 +201,105 @@ async function firstLoopEvidence(page) {
   });
 }
 
+async function captureVisualState(page, stateName, filename) {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(new URL("games/void-prospector/", BASE_URL).toString(), { waitUntil: "networkidle" });
+  await page.waitForSelector("#void-prospector-scene");
+  await page.waitForFunction(() => Boolean(window.VoidProspector && window.VoidProspector.stageEvidenceState));
+
+  const state = await page.evaluate((name) => {
+    const game = window.VoidProspector;
+
+    function createMiningBeamState() {
+      let next = game.createInitialState({ seed: 33 });
+      const node = next.asteroids.find((asteroid) => asteroid.id === next.tutorial.targetId) || next.asteroids[0];
+      next.ship.position = { x: node.position.x + 2, y: node.position.y, z: node.position.z + 1 };
+      next.ship.velocity = { x: 0, y: 0, z: 0 };
+      next = game.setTarget(next, "asteroid", node.id);
+      return game.stepSpaceflight(next, { mine: true }, 1);
+    }
+
+    function createDockableStationState() {
+      let next = game.createInitialState({ seed: 33 });
+      next.ship.position = {
+        x: next.station.position.x,
+        y: next.station.position.y,
+        z: next.station.position.z + next.station.dockingRadius - 2,
+      };
+      next.ship.velocity = { x: 0, y: 0, z: 0 };
+      return game.setTarget(next, "station", next.station.id);
+    }
+
+    function createPostUnlockPirateWarningState() {
+      let next = createMiningBeamState();
+      for (let pull = 0; pull < 2; pull += 1) {
+        next = game.stepSpaceflight(next, { mine: true }, 1);
+      }
+      next.ship.position = { ...next.station.position };
+      next.ship.velocity = { x: 0, y: 0, z: 0 };
+      next = game.stepSpaceflight(next, { interact: true }, 1);
+      next = game.launchFromStation(next);
+      return game.setTarget(next, "pirate", next.pirate.id);
+    }
+
+    const factories = {
+      activeMiningBeam: createMiningBeamState,
+      dockableStation: createDockableStationState,
+      postUnlockPirateWarning: createPostUnlockPirateWarningState,
+    };
+    const next = factories[name]();
+    const cockpit = game.stageEvidenceState(next, { evidenceState: name, holdMs: 1800 });
+    const root = document.querySelector("#void-prospector");
+    return {
+      stateName: name,
+      surface: root ? root.dataset.surface : null,
+      evidenceState: root ? root.dataset.evidenceState : null,
+      reticleState: cockpit.reticle.state,
+      objective: cockpit.objectiveText,
+      promptText: cockpit.prompts.join(" | "),
+      mining: cockpit.feedback.mining,
+      docking: cockpit.feedback.docking,
+      threat: cockpit.feedback.threat,
+      labels: {
+        target: cockpit.labels.target,
+        station: cockpit.labels.station,
+        threat: cockpit.labels.threat,
+      },
+      radarKinds: cockpit.radar.blips.map((blip) => blip.kind),
+    };
+  }, stateName);
+
+  await page.waitForFunction((name) => {
+    const root = document.querySelector("#void-prospector");
+    const reticle = document.querySelector("#center-reticle");
+    const target = document.querySelector("#target-world-label");
+    const station = document.querySelector("#station-world-label");
+    const threat = document.querySelector("#threat-world-label");
+    if (!root || root.dataset.evidenceState !== name || !reticle || !target || !station || !threat) {
+      return false;
+    }
+    if (name === "activeMiningBeam") {
+      return reticle.dataset.state === "mine-in-range" && target.textContent.includes("Cinder Node");
+    }
+    if (name === "dockableStation") {
+      return reticle.dataset.state === "dockable-station" && station.dataset.state === "dockable";
+    }
+    if (name === "postUnlockPirateWarning") {
+      return threat.dataset.state === "warning" && threat.textContent.includes("Knife Wake");
+    }
+    return false;
+  }, stateName);
+
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: evidencePath(filename), fullPage: true });
+  return {
+    ...fileEvidence(filename),
+    state,
+  };
+}
+
+test.setTimeout(90000);
+
 test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -207,6 +316,15 @@ test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
   const directDesktop = await directSnapshot(page, { width: 1280, height: 800 }, "browser-smoke-direct-v0-7-desktop.png");
   directDesktop.firstMiningDockingLoop = await firstLoopEvidence(page);
   directDesktop.pirateWarning = directDesktop.firstMiningDockingLoop.pirateWarning;
+  const visualStates = {
+    activeMiningBeam: await captureVisualState(page, "activeMiningBeam", "browser-smoke-direct-v0-7-active-mining-beam.png"),
+    dockableStation: await captureVisualState(page, "dockableStation", "browser-smoke-direct-v0-7-dockable-station.png"),
+    postUnlockPirateWarning: await captureVisualState(
+      page,
+      "postUnlockPirateWarning",
+      "browser-smoke-direct-v0-7-post-unlock-pirate-warning.png"
+    ),
+  };
   const directNarrow = await directSnapshot(page, { width: 390, height: 844 }, "browser-smoke-direct-v0-7-narrow.png");
 
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -219,6 +337,8 @@ test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
     faviconHref: await page.locator('link[rel="icon"]').getAttribute("href"),
     backlinkHref: await page.locator(".backlink").getAttribute("href"),
     hasTutorialObjective: (await page.locator("#cockpit-objective-text").count()) > 0,
+    hasReducedMotionControl: (await page.locator("#motion-action").count()) > 0,
+    hasEvidenceHook: await page.evaluate(() => Boolean(window.VoidProspector && window.VoidProspector.stageEvidenceState)),
     hasNestedVersionsText: (await page.textContent("body")).includes("/versions/versions/"),
     overflow: await overflowState(page),
   };
@@ -235,6 +355,9 @@ test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
       arcadeNarrow: evidencePath("browser-smoke-arcade-v0-7-narrow.png"),
       directDesktop: evidencePath("browser-smoke-direct-v0-7-desktop.png"),
       directNarrow: evidencePath("browser-smoke-direct-v0-7-narrow.png"),
+      activeMiningBeam: visualStates.activeMiningBeam.path,
+      dockableStation: visualStates.dockableStation.path,
+      postUnlockPirateWarning: visualStates.postUnlockPirateWarning.path,
     },
     arcade: {
       desktop: arcadeDesktop,
@@ -244,6 +367,7 @@ test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
       desktop: directDesktop,
       narrow: directNarrow,
       snapshot070,
+      visualStates,
     },
     consoleErrors,
     checks: {
@@ -251,13 +375,36 @@ test("Void Prospector v0.7.0 release smoke", async ({ browser }) => {
       arcadeNarrow: arcadeNarrow.hasVoidCard && arcadeNarrow.hasDirectLaunch && arcadeNarrow.hasSnapshot070,
       desktopCanvasNonblank: directDesktop.canvas.nonDark > 0,
       narrowCanvasNonblank: directNarrow.canvas.nonDark > 0,
-      directOverflow: !directDesktop.overflow.overflowing && !directNarrow.overflow.overflowing,
+      directOverflow:
+        !directDesktop.overflow.overflowing &&
+        !directNarrow.overflow.overflowing &&
+        directDesktop.overflow.overflowOffenders.length === 0 &&
+        directNarrow.overflow.overflowOffenders.length === 0,
       firstMiningDockingLoop:
         directDesktop.firstMiningDockingLoop.tutorialStatus === "complete" &&
         directDesktop.firstMiningDockingLoop.contractStatus === "complete" &&
         directDesktop.firstMiningDockingLoop.deliveredOre === 3,
       pirateWarning: ["warning", "imminent", "shadow", "contact"].includes(directDesktop.pirateWarning.stage),
-      snapshot070Playable: snapshot070.eyebrow === "v0.7.0 Flight Readability Repair" && !snapshot070.hasNestedVersionsText,
+      activeMiningBeamScreenshot:
+        visualStates.activeMiningBeam.exists &&
+        visualStates.activeMiningBeam.bytes > 0 &&
+        visualStates.activeMiningBeam.state.reticleState === "mine-in-range" &&
+        visualStates.activeMiningBeam.state.mining.beamActive,
+      dockableStationScreenshot:
+        visualStates.dockableStation.exists &&
+        visualStates.dockableStation.bytes > 0 &&
+        visualStates.dockableStation.state.reticleState === "dockable-station" &&
+        visualStates.dockableStation.state.docking.dockable,
+      postUnlockPirateWarningScreenshot:
+        visualStates.postUnlockPirateWarning.exists &&
+        visualStates.postUnlockPirateWarning.bytes > 0 &&
+        visualStates.postUnlockPirateWarning.state.threat.stage === "warning" &&
+        visualStates.postUnlockPirateWarning.state.threat.visible,
+      snapshot070Playable:
+        snapshot070.eyebrow === "v0.7.0 Flight Readability Repair" &&
+        snapshot070.hasReducedMotionControl &&
+        snapshot070.hasEvidenceHook &&
+        !snapshot070.hasNestedVersionsText,
       consoleClean: consoleErrors.length === 0,
     },
     ok: false,

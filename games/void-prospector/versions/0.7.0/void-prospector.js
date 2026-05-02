@@ -19,6 +19,29 @@ const VoidProspector = (() => {
       path: RENDERER_PATH,
       localOnly: true,
     },
+    accessibility: {
+      reducedMotionStorageKey: "void-prospector-reduced-motion",
+      motion: {
+        full: {
+          mode: "full",
+          nonessentialMotionScale: 1,
+          particleScale: 1,
+          pulseScale: 1,
+          rotationScale: 1,
+          glowScale: 1,
+          radarSweep: "animated",
+        },
+        reduced: {
+          mode: "reduced",
+          nonessentialMotionScale: 0.18,
+          particleScale: 0.35,
+          pulseScale: 0,
+          rotationScale: 0.15,
+          glowScale: 0.58,
+          radarSweep: "static",
+        },
+      },
+    },
     assets: ASSET_PATHS,
     controls: {
       thrust: ["KeyW", "ArrowUp"],
@@ -1260,6 +1283,7 @@ const VoidProspector = (() => {
   let currentState = null;
   let sceneHandle = null;
   let lastFrameTime = 0;
+  let evidenceHoldUntil = 0;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -1272,6 +1296,152 @@ const VoidProspector = (() => {
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function normalizeReducedMotionValue(value) {
+    if (value === true || value === "true" || value === "reduce" || value === "reduced" || value === "on") {
+      return true;
+    }
+    if (
+      value === false ||
+      value === "false" ||
+      value === "full" ||
+      value === "normal" ||
+      value === "off" ||
+      value === "no-preference"
+    ) {
+      return false;
+    }
+    return null;
+  }
+
+  function explicitReducedMotionOption(options = {}) {
+    if (Object.prototype.hasOwnProperty.call(options, "reducedMotion")) {
+      return normalizeReducedMotionValue(options.reducedMotion);
+    }
+    if (Object.prototype.hasOwnProperty.call(options, "motionMode")) {
+      return normalizeReducedMotionValue(options.motionMode);
+    }
+    if (options.accessibility && Object.prototype.hasOwnProperty.call(options.accessibility, "reducedMotion")) {
+      return normalizeReducedMotionValue(options.accessibility.reducedMotion);
+    }
+    if (options.accessibility && Object.prototype.hasOwnProperty.call(options.accessibility, "motionMode")) {
+      return normalizeReducedMotionValue(options.accessibility.motionMode);
+    }
+    return null;
+  }
+
+  function resolveReducedMotionPreference(options = {}, environment = {}) {
+    const explicit = explicitReducedMotionOption(options);
+    if (explicit !== null) {
+      return {
+        reducedMotion: explicit,
+        motionMode: explicit ? "reduced" : "full",
+        motionSource: "override",
+      };
+    }
+
+    const stored = normalizeReducedMotionValue(environment.storedPreference);
+    if (stored !== null) {
+      return {
+        reducedMotion: stored,
+        motionMode: stored ? "reduced" : "full",
+        motionSource: "local",
+      };
+    }
+
+    if (environment.prefersReducedMotion === true) {
+      return {
+        reducedMotion: true,
+        motionMode: "reduced",
+        motionSource: "system",
+      };
+    }
+
+    return {
+      reducedMotion: false,
+      motionMode: "full",
+      motionSource: "default",
+    };
+  }
+
+  function readStoredReducedMotionPreference() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    try {
+      if (!window.localStorage) {
+        return null;
+      }
+      return window.localStorage.getItem(GAME_DATA.accessibility.reducedMotionStorageKey);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeStoredReducedMotionPreference(reducedMotion) {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      if (!window.localStorage) {
+        return;
+      }
+      window.localStorage.setItem(GAME_DATA.accessibility.reducedMotionStorageKey, reducedMotion ? "reduced" : "full");
+    } catch (error) {
+      // Local storage can be disabled; the live state still updates for this session.
+    }
+  }
+
+  function browserMotionEnvironment() {
+    if (typeof window === "undefined") {
+      return {};
+    }
+    return {
+      storedPreference: readStoredReducedMotionPreference(),
+      prefersReducedMotion: Boolean(
+        window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ),
+    };
+  }
+
+  function createAccessibilityState(options = {}) {
+    const preference = resolveReducedMotionPreference(options, options.motionEnvironment || browserMotionEnvironment());
+    return {
+      reducedMotion: preference.reducedMotion,
+      motionMode: preference.motionMode,
+      motionSource: preference.motionSource,
+    };
+  }
+
+  function motionSettingsForState(state) {
+    const reduced = Boolean(state.accessibility && state.accessibility.reducedMotion);
+    return GAME_DATA.accessibility.motion[reduced ? "reduced" : "full"];
+  }
+
+  function motionSurfaceForState(state) {
+    const settings = motionSettingsForState(state);
+    return {
+      reduced: settings.mode === "reduced",
+      mode: settings.mode,
+      source: state.accessibility ? state.accessibility.motionSource : "default",
+      nonessentialMotionScale: settings.nonessentialMotionScale,
+      particleScale: settings.particleScale,
+      radarSweep: settings.radarSweep,
+      cssHook: `motion-${settings.mode}`,
+    };
+  }
+
+  function setReducedMotion(state, reducedMotion, source = "user") {
+    const next = clone(state);
+    const active = normalizeReducedMotionValue(reducedMotion);
+    next.accessibility = {
+      ...(next.accessibility || {}),
+      reducedMotion: active === null ? false : active,
+      motionMode: active ? "reduced" : "full",
+      motionSource: source,
+    };
+    return syncDerivedState(next);
   }
 
   function vector(x = 0, y = 0, z = 0) {
@@ -3477,6 +3647,7 @@ const VoidProspector = (() => {
     const signalGates = createSignalGates(seed, sector, stationServices, options);
     const tutorialActive = shouldStartTutorial(options, ladder);
     const advancedUnlocked = !tutorialActive;
+    const accessibility = createAccessibilityState(options);
     const ship = {
       name: GAME_DATA.ship.name,
       position: clone(GAME_DATA.ship.startPosition),
@@ -3499,6 +3670,7 @@ const VoidProspector = (() => {
         path: RENDERER_PATH,
         status: "pending",
       },
+      accessibility,
       ship,
       camera: createCameraState(ship),
       cargo: {
@@ -3873,6 +4045,7 @@ const VoidProspector = (() => {
   }
 
   function syncDerivedState(state) {
+    state.accessibility = state.accessibility || createAccessibilityState({ reducedMotion: false });
     const stationDistance = distance(state.ship.position, state.station.position);
     const stationBearing = bearingDegrees(state.ship.position, state.ship.heading, state.station.position);
     state.station.proximity = {
@@ -7850,6 +8023,10 @@ const VoidProspector = (() => {
       statusText: `${summary.sectorName}: ${state.run.objective}`,
       routeText: `${completedCount} charted / next ${sectorById(summary.recommendedSectorId).name}`,
       tutorial: state.tutorial,
+      accessibility: {
+        ...(state.accessibility || {}),
+        ...motionSurfaceForState(state),
+      },
       disclosure: state.disclosure,
       systemAccess: state.systemAccess,
       selectedTargetPrompt: state.selectedTargetPrompt,
@@ -8359,6 +8536,8 @@ const VoidProspector = (() => {
     const engine = state.ship.engineState || createEngineState();
     const miningActive = Boolean(state.mining.active && beamTarget);
     const cargoDelta = state.mining.lastYield || 0;
+    const motion = motionSurfaceForState(state);
+    const baseOreParticles = miningActive ? Math.max(1, cargoDelta * 3 || 2) : 0;
     const depleted = Boolean(beamTarget && beamTarget.mineState && beamTarget.mineState.depleted);
     const heatState = beamHeat >= 80 ? "hot" : beamHeat > 0 ? "cooldown" : "ready";
     const docked = Boolean(state.station.docked);
@@ -8366,6 +8545,7 @@ const VoidProspector = (() => {
     const upgradePreview = stationMenu.upgrades[0] || null;
 
     return {
+      motion,
       ship: {
         thrustGlow: engine.thrusting ? "active" : "idle",
         brakeGlow: engine.braking ? "active" : "idle",
@@ -8377,10 +8557,11 @@ const VoidProspector = (() => {
         beamTargetId: beamTarget ? beamTarget.id : null,
         hitGlow: miningActive ? "active" : beamHeat > 0 ? "cooldown" : depleted ? "depleted" : "idle",
         sparkState: miningActive ? (cargoDelta > 0 ? "ore-yield" : "cutting") : beamHeat > 0 ? "cooldown" : "idle",
-        oreParticles: miningActive ? Math.max(1, cargoDelta * 3 || 2) : 0,
+        oreParticles: miningActive ? Math.max(1, Math.round(baseOreParticles * motion.particleScale)) : 0,
         cargoDelta,
         heat: beamHeat,
         heatState,
+        motionScale: motion.nonessentialMotionScale,
         cooldown: heatState === "cooldown" || heatState === "hot",
         depleted,
         targetName: beamTarget ? beamTarget.name : selectedTarget.name || "No target",
@@ -8449,6 +8630,7 @@ const VoidProspector = (() => {
     return {
       mode: state.station.docked ? "station" : "flight",
       advancedOpen: Boolean(state.disclosure && state.disclosure.rawTelemetry),
+      motion: motionSurfaceForState(state),
       objectiveText: state.run.objective,
       objectiveProgressText: `${state.contract.deliveredOre}/${state.contract.requiredOre} ore / ${state.contract.status}`,
       resources: {
@@ -8528,6 +8710,7 @@ const VoidProspector = (() => {
     dom.root = document.getElementById("void-prospector");
     dom.canvas = document.getElementById("void-prospector-scene");
     dom.runStatus = document.getElementById("run-status");
+    dom.motionAction = document.getElementById("motion-action");
     dom.helpAction = document.getElementById("help-action");
     dom.cockpitObjective = document.getElementById("cockpit-objective-text");
     dom.cockpitObjectiveProgress = document.getElementById("cockpit-objective-progress");
@@ -8738,6 +8921,13 @@ const VoidProspector = (() => {
       dom.root.dataset.mining = cockpit.feedback.mining.hitGlow;
       dom.root.dataset.docking = cockpit.feedback.docking.state;
       dom.root.dataset.threat = cockpit.feedback.threat.markerState;
+      dom.root.dataset.motion = cockpit.motion.mode;
+      dom.root.dataset.motionScale = String(cockpit.motion.nonessentialMotionScale);
+    }
+    if (dom.motionAction) {
+      dom.motionAction.setAttribute("aria-pressed", cockpit.motion.reduced ? "true" : "false");
+      dom.motionAction.textContent = cockpit.motion.reduced ? "Reduced motion" : "Reduce motion";
+      dom.motionAction.title = `Motion ${cockpit.motion.mode} / ${cockpit.motion.source}`;
     }
     if (dom.helpAction) {
       dom.helpAction.setAttribute("aria-expanded", dom.root && dom.root.dataset.help === "open" ? "true" : "false");
@@ -9424,6 +9614,10 @@ const VoidProspector = (() => {
       currentState = purchaseStationService(currentState, "gate-tuners");
     } else if (action === "countermeasure") {
       currentState = deployCountermeasure(currentState);
+    } else if (action === "motion") {
+      const reduced = !(currentState.accessibility && currentState.accessibility.reducedMotion);
+      currentState = setReducedMotion(currentState, reduced, "user");
+      writeStoredReducedMotionPreference(reduced);
     } else if (action === "sector") {
       const sectorId = dom.sectorSelect ? dom.sectorSelect.value : currentState.ladder.currentSectorId;
       currentState = chooseSector(currentState, sectorId);
@@ -9437,6 +9631,29 @@ const VoidProspector = (() => {
     if (sceneHandle) {
       updateScene(sceneHandle, currentState, performance.now() / 1000);
     }
+  }
+
+  function stageEvidenceState(state, options = {}) {
+    currentState = syncDerivedState(clone(state));
+    Object.keys(pressedControls).forEach((control) => {
+      pressedControls[control] = false;
+    });
+    if (sceneHandle && currentState.renderer && currentState.renderer.status === "pending") {
+      currentState.renderer.status = "local renderer";
+    }
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    const holdMs = clamp(options.holdMs === undefined ? 1200 : Number(options.holdMs) || 0, 0, 5000);
+    evidenceHoldUntil = Math.max(evidenceHoldUntil, now + holdMs);
+    if (dom.root) {
+      if (options.evidenceState) {
+        dom.root.dataset.evidenceState = options.evidenceState;
+      }
+      renderHud(currentState);
+    }
+    if (sceneHandle) {
+      updateScene(sceneHandle, currentState, now / 1000);
+    }
+    return surveyCockpitSurface(currentState).cockpit;
   }
 
   function bindControls() {
@@ -9495,6 +9712,9 @@ const VoidProspector = (() => {
     }
     if (dom.helpAction) {
       dom.helpAction.addEventListener("click", () => setHelpOpen(!(dom.root && dom.root.dataset.help === "open")));
+    }
+    if (dom.motionAction) {
+      dom.motionAction.addEventListener("click", () => performAction("motion"));
     }
     if (dom.helpRestartAction) {
       dom.helpRestartAction.addEventListener("click", () => {
@@ -9919,6 +10139,7 @@ const VoidProspector = (() => {
 
   function syncConvoyMeshes(handle, state, timeSeconds = 0) {
     const { THREE } = handle;
+    const motion = motionSettingsForState(state);
     const activeIds = new Set((state.convoyRoutes || []).map((route) => route.id));
     handle.objects.convoyMeshes.forEach((mesh, routeId) => {
       if (!activeIds.has(routeId)) {
@@ -9948,13 +10169,13 @@ const VoidProspector = (() => {
       mesh.userData.laneMaterial.opacity = locked ? 0.14 : active ? 0.74 : route.beaconState.deployed ? 0.46 : 0.28;
       mesh.userData.pod.visible = route.beaconState.deployed || active || terminal;
       mesh.userData.pod.position.set(relativePosition.x, relativePosition.y + 0.42, relativePosition.z);
-      mesh.userData.pod.rotation.y = timeSeconds * (active ? 0.9 : 0.25);
+      mesh.userData.pod.rotation.y = timeSeconds * (active ? 0.9 : 0.25) * motion.rotationScale;
       mesh.userData.pod.scale.setScalar(terminal ? 0.74 : 0.72 + escortRatio * 0.28);
       mesh.userData.podMaterial.opacity = terminal ? 0.42 : 0.72 + escortRatio * 0.24;
       mesh.userData.escortMaterial.opacity = terminal ? 0.24 : 0.42 + escortRatio * 0.38;
       mesh.userData.dangerMaterial.opacity = Math.min(0.78, 0.2 + route.convoyState.ambushPressure / 100);
       mesh.userData.ambush.visible = route.convoyState.ambushPressure > 0 && !terminal;
-      mesh.userData.ambush.rotation.y = -timeSeconds * 0.45;
+      mesh.userData.ambush.rotation.y = -timeSeconds * 0.45 * motion.rotationScale;
     });
   }
 
@@ -10028,6 +10249,7 @@ const VoidProspector = (() => {
 
   function syncStormMeshes(handle, state, timeSeconds = 0) {
     const { THREE } = handle;
+    const motion = motionSettingsForState(state);
     const activeIds = new Set((state.stormCharts || []).map((chart) => chart.id));
     handle.objects.stormMeshes.forEach((mesh, chartId) => {
       if (!activeIds.has(chartId)) {
@@ -10050,7 +10272,7 @@ const VoidProspector = (() => {
       const anchorOffset = subtract(chart.anchor.position, chart.position);
 
       mesh.position.set(chart.position.x, chart.position.y, chart.position.z);
-      mesh.rotation.y = timeSeconds * (timing.locked ? 0.22 : 0.1);
+      mesh.rotation.y = timeSeconds * (timing.locked ? 0.22 : 0.1) * motion.rotationScale;
       mesh.userData.frontMaterial.color.setHex(stormColor);
       mesh.userData.frontMaterial.opacity = ready ? (timing.locked ? 0.42 : 0.24) : 0.12;
       mesh.userData.wakeMaterial.color.setHex(timing.locked ? 0x4bd6c0 : 0x8ea1ff);
@@ -10062,8 +10284,8 @@ const VoidProspector = (() => {
       mesh.userData.anchorMaterial.opacity = chart.stormState.anchorDeployed ? 0.48 + anchorRatio * 0.42 : ready ? 0.5 : 0.22;
       mesh.userData.routeMaterial.color.setHex(timing.locked ? 0x4bd6c0 : 0x8ea1ff);
       mesh.userData.routeMaterial.opacity = ready ? (timing.locked ? 0.68 : 0.32) : 0.12;
-      mesh.userData.wake.rotation.y = -timeSeconds * (0.16 + (chart.intensity || 0) * 0.04);
-      mesh.userData.front.scale.setScalar(terminal ? 0.86 : 1 + Math.sin(timeSeconds * 0.9 + chart.intensity) * 0.025);
+      mesh.userData.wake.rotation.y = -timeSeconds * (0.16 + (chart.intensity || 0) * 0.04) * motion.rotationScale;
+      mesh.userData.front.scale.setScalar(terminal ? 0.86 : 1 + Math.sin(timeSeconds * 0.9 + chart.intensity) * 0.025 * motion.pulseScale);
     });
   }
 
@@ -10152,6 +10374,7 @@ const VoidProspector = (() => {
 
   function syncInterdictionMeshes(handle, state, timeSeconds = 0) {
     const { THREE } = handle;
+    const motion = motionSettingsForState(state);
     const activeIds = new Set((state.interdictionCells || []).map((cell) => cell.id));
     handle.objects.interdictionMeshes.forEach((mesh, cellId) => {
       if (!activeIds.has(cellId)) {
@@ -10189,7 +10412,7 @@ const VoidProspector = (() => {
                   : 0xd46857;
 
       mesh.position.set(cell.position.x, cell.position.y, cell.position.z);
-      mesh.rotation.y = timeSeconds * (lured ? 0.46 : marked ? 0.3 : 0.16);
+      mesh.rotation.y = timeSeconds * (lured ? 0.46 : marked ? 0.3 : 0.16) * motion.rotationScale;
       mesh.visible = true;
       mesh.scale.setScalar(ready ? 1 : 0.82);
       mesh.userData.ringMaterial.color.setHex(tone);
@@ -10203,9 +10426,9 @@ const VoidProspector = (() => {
       mesh.userData.lureMaterial.opacity = lured ? 0.74 : 0.18;
       mesh.userData.buoy.visible = scanned || marked || ready;
       mesh.userData.lure.visible = lured || (ready && scanned);
-      mesh.userData.lure.rotation.y = -timeSeconds * 0.7;
+      mesh.userData.lure.rotation.y = -timeSeconds * 0.7 * motion.rotationScale;
       mesh.userData.patrol.visible = ready || scanned || marked;
-      mesh.userData.ring.scale.setScalar(timing.open || timing.locked ? 1 + Math.sin(timeSeconds * 1.8) * 0.035 : 1);
+      mesh.userData.ring.scale.setScalar(timing.open || timing.locked ? 1 + Math.sin(timeSeconds * 1.8) * 0.035 * motion.pulseScale : 1);
     });
   }
 
@@ -10320,6 +10543,7 @@ const VoidProspector = (() => {
 
   function syncSignalGateMeshes(handle, state, timeSeconds = 0) {
     const { THREE } = handle;
+    const motion = motionSettingsForState(state);
     const activeIds = new Set((state.signalGates || []).map((gate) => gate.id));
     handle.objects.signalGateMeshes.forEach((mesh, gateId) => {
       if (!activeIds.has(gateId)) {
@@ -10356,7 +10580,7 @@ const VoidProspector = (() => {
                     : 0x59655f;
 
       mesh.position.set(gate.position.x, gate.position.y, gate.position.z);
-      mesh.rotation.y = timeSeconds * (timing.open || timing.forced ? 0.34 : 0.16);
+      mesh.rotation.y = timeSeconds * (timing.open || timing.forced ? 0.34 : 0.16) * motion.rotationScale;
       mesh.visible = true;
       mesh.scale.setScalar(terminal ? 0.82 : ready ? 1 : 0.78);
       mesh.userData.ringMaterial.color.setHex(tone);
@@ -10371,9 +10595,9 @@ const VoidProspector = (() => {
       mesh.userData.transitMaterial.opacity = ready ? (timing.open || timing.forced ? 0.76 : 0.24 + chargeRatio * 0.24) : 0.1;
       mesh.userData.jamMaterial.opacity = terminal ? 0.08 : ready ? 0.12 + jamRatio * 0.5 : 0.06;
       mesh.userData.jamMarkers.visible = ready && (gate.gateState.harmonicsScanned || jamRatio > 0.25);
-      mesh.userData.capacitors.rotation.y = -timeSeconds * (0.3 + chargeRatio * 0.5);
-      mesh.userData.lattice.rotation.y = timeSeconds * (0.18 + chargeRatio * 0.2);
-      mesh.userData.aperture.scale.setScalar(timing.open || timing.forced ? 1 + Math.sin(timeSeconds * 1.8) * 0.04 : 1);
+      mesh.userData.capacitors.rotation.y = -timeSeconds * (0.3 + chargeRatio * 0.5) * motion.rotationScale;
+      mesh.userData.lattice.rotation.y = timeSeconds * (0.18 + chargeRatio * 0.2) * motion.rotationScale;
+      mesh.userData.aperture.scale.setScalar(timing.open || timing.forced ? 1 + Math.sin(timeSeconds * 1.8) * 0.04 * motion.pulseScale : 1);
       mesh.userData.convoySeal.visible = (gate.convoyRouteIds || []).length > 0;
       mesh.userData.convoySeal.scale.setScalar(0.82 + chargeRatio * 0.28);
     });
@@ -10602,41 +10826,44 @@ const VoidProspector = (() => {
   function updateScene(handle, state, timeSeconds) {
     const { THREE } = handle;
     resizeScene(handle);
+    const motion = motionSettingsForState(state);
     handle.objects.ship.position.set(state.ship.position.x, state.ship.position.y, state.ship.position.z);
     const orientation = state.ship.orientation || createShipOrientation(state.ship.heading);
     handle.objects.ship.rotation.set(orientation.pitch || 0, orientation.yaw, orientation.roll || 0);
     const engine = state.ship.engineState || createEngineState();
     (handle.objects.ship.userData.thrusterGlows || []).forEach((glow, index) => {
       glow.visible = Boolean(engine.thrusting || engine.verticalAxis !== 0);
-      glow.material.opacity = engine.thrusting ? 0.72 : engine.verticalAxis !== 0 ? 0.38 : 0;
-      glow.scale.set(1, 1 + Math.sin(timeSeconds * 18 + index) * 0.16, engine.thrusting ? 1.3 : 0.85);
+      glow.material.opacity = (engine.thrusting ? 0.72 : engine.verticalAxis !== 0 ? 0.38 : 0) * motion.glowScale;
+      glow.scale.set(1, 1 + Math.sin(timeSeconds * 18 + index) * 0.16 * motion.pulseScale, engine.thrusting ? 1.3 : 0.85);
     });
     (handle.objects.ship.userData.brakeGlows || []).forEach((glow, index) => {
       glow.visible = Boolean(engine.braking);
-      glow.material.opacity = engine.braking ? 0.68 : 0;
-      glow.scale.setScalar(engine.braking ? 1.2 + Math.sin(timeSeconds * 16 + index) * 0.18 : 1);
+      glow.material.opacity = (engine.braking ? 0.68 : 0) * motion.glowScale;
+      glow.scale.setScalar(engine.braking ? 1.2 + Math.sin(timeSeconds * 16 + index) * 0.18 * motion.pulseScale : 1);
     });
-    handle.objects.station.rotation.y = timeSeconds * 0.12;
+    handle.objects.station.rotation.y = timeSeconds * 0.12 * motion.rotationScale;
     const stationVisual = handle.objects.station.userData || {};
     if (stationVisual.dockRing) {
       const dockable = state.station.proximity.dockable || state.station.docked;
       stationVisual.dockRing.material.color.setHex(dockable ? 0x4bd6c0 : 0xd0b36a);
-      stationVisual.dockRing.material.opacity = dockable ? 0.72 : 0.32;
-      stationVisual.dockRing.scale.setScalar(dockable ? 1 + Math.sin(timeSeconds * 5) * 0.025 : 1);
+      stationVisual.dockRing.material.opacity = (dockable ? 0.72 : 0.32) * motion.glowScale;
+      stationVisual.dockRing.scale.setScalar(dockable ? 1 + Math.sin(timeSeconds * 5) * 0.025 * motion.pulseScale : 1);
     }
     if (stationVisual.dockingCorridor) {
       stationVisual.dockingCorridor.visible = !state.station.docked;
       stationVisual.dockingCorridor.children.forEach((lane, index) => {
-        lane.material.opacity = state.station.proximity.dockable ? 0.26 + index * 0.04 : 0.1;
-        lane.scale.setScalar(1 + Math.sin(timeSeconds * 2.5 + index) * 0.018);
+        lane.material.opacity = (state.station.proximity.dockable ? 0.26 + index * 0.04 : 0.1) * motion.glowScale;
+        lane.scale.setScalar(1 + Math.sin(timeSeconds * 2.5 + index) * 0.018 * motion.pulseScale);
       });
     }
     if (stationVisual.stationBeacon) {
-      stationVisual.stationBeacon.material.opacity = state.station.proximity.dockable ? 0.95 : 0.62 + Math.sin(timeSeconds * 3.2) * 0.12;
+      stationVisual.stationBeacon.material.opacity =
+        (state.station.proximity.dockable ? 0.95 : 0.62 + Math.sin(timeSeconds * 3.2) * 0.12 * motion.pulseScale) *
+        motion.glowScale;
       stationVisual.stationBeacon.scale.setScalar(state.station.proximity.dockable ? 1.28 : 1);
     }
     handle.objects.pirate.position.set(state.pirate.position.x, state.pirate.position.y, state.pirate.position.z);
-    handle.objects.pirate.rotation.y = timeSeconds * 0.85;
+    handle.objects.pirate.rotation.y = timeSeconds * 0.85 * motion.rotationScale;
     handle.objects.pirate.visible = Boolean(state.systemAccess && state.systemAccess.pirate && state.pirate.state !== "dormant");
 
     state.asteroids.forEach((asteroid) => {
@@ -10644,12 +10871,14 @@ const VoidProspector = (() => {
       if (mesh) {
         const activeMining = state.mining.active && state.mining.targetId === asteroid.id;
         const heatRatio = clamp((asteroid.mineState.beamHeat || 0) / 100, 0, 1);
-        mesh.rotation.set(timeSeconds * 0.05 + asteroid.spin, timeSeconds * 0.07 + asteroid.spin, 0);
+        mesh.rotation.set(timeSeconds * 0.05 * motion.rotationScale + asteroid.spin, timeSeconds * 0.07 * motion.rotationScale + asteroid.spin, 0);
         mesh.scale.setScalar(asteroid.mineState.depleted ? 0.56 : 1);
         if (mesh.userData.oreHalo) {
           mesh.userData.oreHalo.visible = !asteroid.mineState.depleted;
-          mesh.userData.oreHalo.material.opacity = activeMining ? 0.42 : 0.08 + heatRatio * 0.18;
-          mesh.userData.oreHalo.scale.setScalar(1 + (activeMining ? 0.08 + Math.sin(timeSeconds * 12) * 0.025 : 0));
+          mesh.userData.oreHalo.material.opacity = (activeMining ? 0.42 : 0.08 + heatRatio * 0.18) * motion.glowScale;
+          mesh.userData.oreHalo.scale.setScalar(
+            1 + (activeMining ? 0.08 * motion.nonessentialMotionScale + Math.sin(timeSeconds * 12) * 0.025 * motion.pulseScale : 0)
+          );
         }
         mesh.traverse((child) => {
           if (child === mesh.userData.oreHalo) {
@@ -10675,8 +10904,8 @@ const VoidProspector = (() => {
       }
       const salvageState = site.salvageState;
       mesh.position.set(site.position.x, site.position.y, site.position.z);
-      mesh.rotation.y = site.riskPhase * TWO_PI + timeSeconds * (site.type === "relay-cache" ? 0.18 : 0.08);
-      mesh.rotation.x = Math.sin(timeSeconds * 0.7 + site.riskPhase * TWO_PI) * 0.04;
+      mesh.rotation.y = site.riskPhase * TWO_PI + timeSeconds * (site.type === "relay-cache" ? 0.18 : 0.08) * motion.rotationScale;
+      mesh.rotation.x = Math.sin(timeSeconds * 0.7 + site.riskPhase * TWO_PI) * 0.04 * motion.pulseScale;
       mesh.scale.setScalar(salvageState.status === "depleted" ? 0.54 : salvageState.status === "failed" ? 0.72 : 1);
       mesh.visible = salvageState.status !== "abandoned";
       mesh.traverse((child) => {
@@ -10725,12 +10954,14 @@ const VoidProspector = (() => {
       handle.objects.miningBeam.visible = true;
       handle.objects.oreSparks.visible = state.mining.active || state.salvage.active;
       handle.objects.oreSparks.position.set(beamTarget.position.x, beamTarget.position.y, beamTarget.position.z);
+      const visibleSparkCount = Math.max(1, Math.round(handle.objects.oreSparks.children.length * motion.particleScale));
       handle.objects.oreSparks.children.forEach((spark, index) => {
-        const phase = spark.userData.phase + timeSeconds * 4.2;
-        const radius = 0.45 + (index % 4) * 0.18 + (state.mining.lastYield || 0) * 0.08;
+        const phase = spark.userData.phase + timeSeconds * 4.2 * motion.nonessentialMotionScale;
+        const radius = (0.45 + (index % 4) * 0.18 + (state.mining.lastYield || 0) * 0.08) * motion.particleScale;
+        spark.visible = index < visibleSparkCount;
         spark.position.set(Math.cos(phase) * radius, Math.sin(phase * 1.7) * 0.32, Math.sin(phase) * radius);
-        spark.rotation.set(phase, phase * 0.5, 0);
-        spark.material.opacity = state.mining.active || state.salvage.active ? 0.72 : 0;
+        spark.rotation.set(phase * motion.rotationScale, phase * 0.5 * motion.rotationScale, 0);
+        spark.material.opacity = state.mining.active || state.salvage.active ? 0.72 * motion.glowScale : 0;
       });
     } else {
       handle.objects.miningBeam.visible = false;
@@ -10746,9 +10977,12 @@ const VoidProspector = (() => {
     if (!sceneHandle || !currentState) {
       return;
     }
-    const deltaSeconds = Math.min(0.05, (now - lastFrameTime) / 1000 || 0.016);
+    const evidenceHeld = evidenceHoldUntil > now;
+    const deltaSeconds = evidenceHeld ? 0 : Math.min(0.05, (now - lastFrameTime) / 1000 || 0.016);
     lastFrameTime = now;
-    currentState = stepSpaceflight(currentState, pressedControls, deltaSeconds);
+    if (!evidenceHeld) {
+      currentState = stepSpaceflight(currentState, pressedControls, deltaSeconds);
+    }
     updateScene(sceneHandle, currentState, now / 1000);
     renderHud(currentState);
     window.requestAnimationFrame(animationFrame);
@@ -10786,6 +11020,9 @@ const VoidProspector = (() => {
     RENDERER_PATH,
     ASSET_PATHS,
     createInitialState,
+    resolveReducedMotionPreference,
+    setReducedMotion,
+    motionSurfaceForState,
     createAsteroidNodes,
     createAnomalyNodes,
     createSalvageSites,
@@ -10838,6 +11075,7 @@ const VoidProspector = (() => {
     commitSignalGateTransit,
     dockAtStation,
     launchFromStation,
+    stageEvidenceState,
     purchaseUpgrade,
     purchaseStationService,
     deployCountermeasure,

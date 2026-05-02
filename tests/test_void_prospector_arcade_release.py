@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GAME_DIR = ROOT / "games" / "void-prospector"
 ASSET_REPORT_PATH = ROOT / "_visual-check" / "void-prospector-assets" / "asset-check-report.json"
 SMOKE_REPORT_PATH = ROOT / "_visual-check" / "void-prospector-assets" / "release-smoke-report.json"
+STATE_SCREENSHOT_KEYS = ("activeMiningBeam", "dockableStation", "postUnlockPirateWarning")
 
 
 def load_manifest() -> dict:
@@ -160,10 +161,15 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
             "survey-panel",
             "signal-list",
             "countermeasure-action",
+            "motion-action",
+            "data-motion=\"system\"",
         ):
             self.assertIn(token, html)
         for token in (
             "createTutorialState",
+            "resolveReducedMotionPreference",
+            "motionSurfaceForState",
+            "stageEvidenceState",
             "surveyCockpitSurface",
             "pirateWarningFeedback",
             "createOreSparks",
@@ -244,9 +250,23 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
         self.assertTrue(smoke_report["checks"]["directOverflow"])
         self.assertTrue(smoke_report["checks"]["firstMiningDockingLoop"])
         self.assertTrue(smoke_report["checks"]["pirateWarning"])
+        self.assertTrue(smoke_report["checks"]["activeMiningBeamScreenshot"])
+        self.assertTrue(smoke_report["checks"]["dockableStationScreenshot"])
+        self.assertTrue(smoke_report["checks"]["postUnlockPirateWarningScreenshot"])
         self.assertTrue(smoke_report["checks"]["snapshot070Playable"])
         self.assertEqual("0.7.0", smoke_report["version"])
         self.assertEqual("v0.7.0 Flight Readability Repair", smoke_report["release"])
+        self.assertEqual(3, len({smoke_report["screenshots"][key] for key in STATE_SCREENSHOT_KEYS}))
+        for key in STATE_SCREENSHOT_KEYS:
+            screenshot_path = Path(smoke_report["screenshots"][key])
+            self.assertTrue(screenshot_path.is_file(), key)
+            self.assertGreater(screenshot_path.stat().st_size, 0, key)
+            self.assertEqual(".png", screenshot_path.suffix)
+            self.assertTrue(
+                str(screenshot_path).startswith(str(ROOT / "_visual-check" / "void-prospector-assets")),
+                str(screenshot_path),
+            )
+            self.assertEqual(str(screenshot_path), smoke_report["direct"]["visualStates"][key]["path"])
         self.assertIn("0.7.0", smoke_report["arcade"]["desktop"]["versionText"])
         self.assertIn("v0.7.0 Flight Readability Repair", smoke_report["arcade"]["desktop"]["releaseLabel"])
         self.assertTrue(smoke_report["arcade"]["desktop"]["hasSnapshot070"])
@@ -261,6 +281,15 @@ class VoidProspectorArcadeReleaseTests(unittest.TestCase):
         self.assertIn(smoke_report["direct"]["desktop"]["pirateWarning"]["stage"], ("warning", "imminent", "shadow", "contact"))
         self.assertGreater(smoke_report["direct"]["desktop"]["canvas"]["nonDark"], 0)
         self.assertGreater(smoke_report["direct"]["narrow"]["canvas"]["nonDark"], 0)
+
+        visual_states = smoke_report["direct"]["visualStates"]
+        self.assertEqual("mine-in-range", visual_states["activeMiningBeam"]["state"]["reticleState"])
+        self.assertTrue(visual_states["activeMiningBeam"]["state"]["mining"]["beamActive"])
+        self.assertGreater(visual_states["activeMiningBeam"]["state"]["mining"]["oreParticles"], 0)
+        self.assertEqual("dockable-station", visual_states["dockableStation"]["state"]["reticleState"])
+        self.assertTrue(visual_states["dockableStation"]["state"]["docking"]["dockable"])
+        self.assertEqual("warning", visual_states["postUnlockPirateWarning"]["state"]["threat"]["stage"])
+        self.assertTrue(visual_states["postUnlockPirateWarning"]["state"]["threat"]["visible"])
 
 
 if __name__ == "__main__":

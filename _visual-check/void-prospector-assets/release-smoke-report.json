@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generatedAt": "2026-05-02T17:43:15.923Z",
+  "generatedAt": "2026-05-02T18:49:54.543Z",
   "baseUrl": "http://127.0.0.1:8773/",
   "game": "void-prospector",
   "version": "0.7.0",
@@ -9,7 +9,10 @@
     "arcadeDesktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-arcade-v0-7.png",
     "arcadeNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-arcade-v0-7-narrow.png",
     "directDesktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-desktop.png",
-    "directNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-narrow.png"
+    "directNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-narrow.png",
+    "activeMiningBeam": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-active-mining-beam.png",
+    "dockableStation": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-dockable-station.png",
+    "postUnlockPirateWarning": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-post-unlock-pirate-warning.png"
   },
   "arcade": {
     "desktop": {
@@ -79,10 +82,10 @@
         "width": 1280,
         "height": 800,
         "sampled": 307200,
-        "nonDark": 19235,
-        "bright": 5325,
-        "nonDarkRatio": 0.06261393229166666,
-        "brightRatio": 0.017333984375
+        "nonDark": 19255,
+        "bright": 5336,
+        "nonDarkRatio": 0.06267903645833334,
+        "brightRatio": 0.017369791666666665
       },
       "overflow": {
         "width": 1280,
@@ -108,6 +111,7 @@
           "cargoDelta": 1,
           "heat": 62,
           "heatState": "cooldown",
+          "motionScale": 1,
           "cooldown": true,
           "depleted": false,
           "targetName": "Cinder Node",
@@ -198,10 +202,10 @@
         "width": 390,
         "height": 844,
         "sampled": 187200,
-        "nonDark": 21168,
-        "bright": 9742,
-        "nonDarkRatio": 0.11307692307692307,
-        "brightRatio": 0.05204059829059829
+        "nonDark": 21169,
+        "bright": 9747,
+        "nonDarkRatio": 0.11308226495726496,
+        "brightRatio": 0.05206730769230769
       },
       "overflow": {
         "width": 390,
@@ -216,12 +220,278 @@
       "faviconHref": "../../../../favicon.png",
       "backlinkHref": "../../../../",
       "hasTutorialObjective": true,
+      "hasReducedMotionControl": true,
+      "hasEvidenceHook": true,
       "hasNestedVersionsText": false,
       "overflow": {
         "width": 1280,
         "scrollWidth": 1280,
         "overflowing": false,
         "overflowOffenders": []
+      }
+    },
+    "visualStates": {
+      "activeMiningBeam": {
+        "path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-active-mining-beam.png",
+        "exists": true,
+        "bytes": 290189,
+        "state": {
+          "stateName": "activeMiningBeam",
+          "surface": "flight",
+          "evidenceState": "activeMiningBeam",
+          "reticleState": "mine-in-range",
+          "objective": "Align the reticle with Cinder Node.",
+          "promptText": "Align the reticle with Cinder Node. | Hold Space or M to mine.",
+          "mining": {
+            "beamActive": true,
+            "beamTargetId": "node-cinder-01",
+            "hitGlow": "active",
+            "sparkState": "ore-yield",
+            "oreParticles": 3,
+            "cargoDelta": 1,
+            "heat": 42,
+            "heatState": "cooldown",
+            "motionScale": 1,
+            "cooldown": true,
+            "depleted": false,
+            "targetName": "Cinder Node",
+            "reticleState": "mine-in-range"
+          },
+          "docking": {
+            "state": "approach",
+            "corridor": "approach",
+            "dockable": false,
+            "successfulDock": false,
+            "cargoSaleCredits": 0,
+            "refuelSummary": "Fuel full",
+            "repairSummary": "Hull repaired",
+            "serviceSummary": "undocked",
+            "upgradePreview": {
+              "id": "refined-beam",
+              "name": "Refined Beam",
+              "status": "90cr short",
+              "preview": "cargo +0 / beam +0.55"
+            }
+          },
+          "threat": {
+            "stage": "locked",
+            "markerState": "hidden",
+            "visible": false,
+            "countdown": null,
+            "guidance": "Complete the first contract before pirate pressure unlocks."
+          },
+          "labels": {
+            "target": {
+              "bearing": -63,
+              "x": 22.3,
+              "y": 44,
+              "offscreen": false,
+              "state": "mine-in-range",
+              "role": "Ore target",
+              "name": "Cinder Node",
+              "detail": "2.2m / 4 ore / mine"
+            },
+            "station": {
+              "bearing": 111,
+              "x": 92,
+              "y": 51.8,
+              "offscreen": true,
+              "state": "station-out-of-range",
+              "role": "Station",
+              "name": "Frontier Spoke",
+              "detail": "47.4m / approach"
+            },
+            "threat": {
+              "bearing": -42,
+              "x": 31.5,
+              "y": 45.6,
+              "offscreen": false,
+              "state": "hidden",
+              "role": "Threat",
+              "name": "Knife Wake",
+              "detail": "39m / distant"
+            }
+          },
+          "radarKinds": [
+            "station",
+            "asteroid"
+          ]
+        }
+      },
+      "dockableStation": {
+        "path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-dockable-station.png",
+        "exists": true,
+        "bytes": 219794,
+        "state": {
+          "stateName": "dockableStation",
+          "surface": "flight",
+          "evidenceState": "dockableStation",
+          "reticleState": "dockable-station",
+          "objective": "Align the reticle with Cinder Node.",
+          "promptText": "Align the reticle with Cinder Node. | Press F or Enter to dock.",
+          "mining": {
+            "beamActive": false,
+            "beamTargetId": null,
+            "hitGlow": "idle",
+            "sparkState": "idle",
+            "oreParticles": 0,
+            "cargoDelta": 0,
+            "heat": 0,
+            "heatState": "ready",
+            "motionScale": 1,
+            "cooldown": false,
+            "depleted": false,
+            "targetName": "Frontier Spoke",
+            "reticleState": "dockable-station"
+          },
+          "docking": {
+            "state": "dockable",
+            "corridor": "lit",
+            "dockable": true,
+            "successfulDock": false,
+            "cargoSaleCredits": 0,
+            "refuelSummary": "Fuel full",
+            "repairSummary": "Hull repaired",
+            "serviceSummary": "undocked",
+            "upgradePreview": {
+              "id": "refined-beam",
+              "name": "Refined Beam",
+              "status": "90cr short",
+              "preview": "cargo +0 / beam +0.55"
+            }
+          },
+          "threat": {
+            "stage": "locked",
+            "markerState": "hidden",
+            "visible": false,
+            "countdown": null,
+            "guidance": "Complete the first contract before pirate pressure unlocks."
+          },
+          "labels": {
+            "target": {
+              "bearing": 0,
+              "x": 50,
+              "y": 44,
+              "offscreen": false,
+              "state": "dockable-station",
+              "role": "Station",
+              "name": "Frontier Spoke",
+              "detail": "6m / dockable"
+            },
+            "station": {
+              "bearing": 0,
+              "x": 50,
+              "y": 44,
+              "offscreen": false,
+              "state": "dockable",
+              "role": "Station",
+              "name": "Frontier Spoke",
+              "detail": "6m / dockable"
+            },
+            "threat": {
+              "bearing": -53,
+              "x": 26.7,
+              "y": 37.8,
+              "offscreen": false,
+              "state": "hidden",
+              "role": "Threat",
+              "name": "Knife Wake",
+              "detail": "87m / distant"
+            }
+          },
+          "radarKinds": [
+            "station",
+            "station"
+          ]
+        }
+      },
+      "postUnlockPirateWarning": {
+        "path": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/void-prospector-assets/browser-smoke-direct-v0-7-post-unlock-pirate-warning.png",
+        "exists": true,
+        "bytes": 308292,
+        "state": {
+          "stateName": "postUnlockPirateWarning",
+          "surface": "flight",
+          "evidenceState": "postUnlockPirateWarning",
+          "reticleState": "target-locked",
+          "objective": "Spoke Charter complete. Restart into rift-shelf.",
+          "promptText": "Knife Wake: evade | Pirate signal unlocked: dock for decoy bursts or keep the station between you and Knife Wake.",
+          "mining": {
+            "beamActive": false,
+            "beamTargetId": null,
+            "hitGlow": "idle",
+            "sparkState": "idle",
+            "oreParticles": 0,
+            "cargoDelta": 0,
+            "heat": 0,
+            "heatState": "ready",
+            "motionScale": 1,
+            "cooldown": false,
+            "depleted": false,
+            "targetName": "Knife Wake",
+            "reticleState": "target-locked"
+          },
+          "docking": {
+            "state": "approach",
+            "corridor": "approach",
+            "dockable": false,
+            "successfulDock": false,
+            "cargoSaleCredits": 54,
+            "refuelSummary": "Fuel full",
+            "repairSummary": "Hull repaired",
+            "serviceSummary": "launched",
+            "upgradePreview": {
+              "id": "refined-beam",
+              "name": "Refined Beam",
+              "status": "ready",
+              "preview": "cargo +0 / beam +0.55"
+            }
+          },
+          "threat": {
+            "stage": "warning",
+            "markerState": "warning",
+            "visible": true,
+            "countdown": 6,
+            "guidance": "Pirate signal unlocked: dock for decoy bursts or keep the station between you and Knife Wake."
+          },
+          "labels": {
+            "target": {
+              "bearing": -64,
+              "x": 21.8,
+              "y": 37.8,
+              "offscreen": false,
+              "state": "target-locked",
+              "role": "Threat",
+              "name": "Knife Wake",
+              "detail": "77.9m / distant"
+            },
+            "station": {
+              "bearing": 180,
+              "x": 92,
+              "y": 44,
+              "offscreen": true,
+              "state": "station-out-of-range",
+              "role": "Station",
+              "name": "Frontier Spoke",
+              "detail": "12m / approach"
+            },
+            "threat": {
+              "bearing": -64,
+              "x": 21.8,
+              "y": 37.8,
+              "offscreen": false,
+              "state": "warning",
+              "role": "Threat",
+              "name": "Knife Wake",
+              "detail": "78m / warning / 6s"
+            }
+          },
+          "radarKinds": [
+            "station",
+            "pirate",
+            "threat"
+          ]
+        }
       }
     }
   },
@@ -234,6 +504,9 @@
     "directOverflow": true,
     "firstMiningDockingLoop": true,
     "pirateWarning": true,
+    "activeMiningBeamScreenshot": true,
+    "dockableStationScreenshot": true,
+    "postUnlockPirateWarningScreenshot": true,
     "snapshot070Playable": true,
     "consoleClean": true
   },

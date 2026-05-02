@@ -1444,6 +1444,10 @@ input {
     height: 96px;
   }
 
+  .radar-sweep {
+    height: 42px;
+  }
+
   .flight-widget-strip {
     display: none;
   }

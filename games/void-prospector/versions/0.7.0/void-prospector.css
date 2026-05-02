@@ -187,6 +187,12 @@ input {
   padding: 8px 10px;
 }
 
+.motion-action[aria-pressed="true"] {
+  border-color: rgba(75, 214, 192, 0.78);
+  color: var(--signal);
+  background: rgba(75, 214, 192, 0.12);
+}
+
 .utility-action:hover,
 .utility-action:focus-visible,
 .station-actions button:hover,
@@ -528,8 +534,10 @@ input {
   width: 1px;
   height: 58px;
   transform-origin: bottom;
+  transform: translate(-50%, -100%);
   background: linear-gradient(transparent, var(--signal));
   opacity: 0.6;
+  animation: radar-sweep-rotate 4s linear infinite;
 }
 
 .radar-origin {
@@ -580,6 +588,52 @@ input {
   font-size: 0.72rem;
   font-weight: 600;
   text-align: right;
+}
+
+@keyframes radar-sweep-rotate {
+  from {
+    transform: translate(-50%, -100%) rotate(0deg);
+  }
+
+  to {
+    transform: translate(-50%, -100%) rotate(360deg);
+  }
+}
+
+.prospector-shell[data-motion="reduced"] .radar-sweep {
+  animation: none;
+  opacity: 0.34;
+  transform: translate(-50%, -100%) rotate(42deg);
+}
+
+.prospector-shell[data-motion="reduced"] .reticle-core,
+.prospector-shell[data-motion="reduced"] .reticle-crosshair,
+.prospector-shell[data-motion="reduced"] .world-label {
+  transition: none;
+}
+
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="mine-in-range"] .reticle-core,
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="dockable-station"] .reticle-core,
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="target-locked"] .reticle-core {
+  box-shadow: 0 0 12px rgba(75, 214, 192, 0.34);
+}
+
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="cargo-full-return"] .reticle-core,
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="station-out-of-range"] .reticle-core,
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="target-out-of-range"] .reticle-core {
+  box-shadow: 0 0 10px rgba(208, 179, 106, 0.28);
+}
+
+.prospector-shell[data-motion="reduced"] .center-reticle[data-state="offscreen-direction"] .reticle-core {
+  box-shadow: 0 0 10px rgba(212, 104, 87, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prospector-shell[data-motion="system"] .radar-sweep {
+    animation: none;
+    opacity: 0.34;
+    transform: translate(-50%, -100%) rotate(42deg);
+  }
 }
 
 .prompt-stack {
@@ -1388,6 +1442,10 @@ input {
   .radar-face {
     width: 96px;
     height: 96px;
+  }
+
+  .radar-sweep {
+    height: 42px;
   }
 
   .flight-widget-strip {

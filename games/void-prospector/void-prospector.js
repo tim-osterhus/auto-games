@@ -1283,6 +1283,7 @@ const VoidProspector = (() => {
   let currentState = null;
   let sceneHandle = null;
   let lastFrameTime = 0;
+  let evidenceHoldUntil = 0;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -9632,6 +9633,29 @@ const VoidProspector = (() => {
     }
   }
 
+  function stageEvidenceState(state, options = {}) {
+    currentState = syncDerivedState(clone(state));
+    Object.keys(pressedControls).forEach((control) => {
+      pressedControls[control] = false;
+    });
+    if (sceneHandle && currentState.renderer && currentState.renderer.status === "pending") {
+      currentState.renderer.status = "local renderer";
+    }
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    const holdMs = clamp(options.holdMs === undefined ? 1200 : Number(options.holdMs) || 0, 0, 5000);
+    evidenceHoldUntil = Math.max(evidenceHoldUntil, now + holdMs);
+    if (dom.root) {
+      if (options.evidenceState) {
+        dom.root.dataset.evidenceState = options.evidenceState;
+      }
+      renderHud(currentState);
+    }
+    if (sceneHandle) {
+      updateScene(sceneHandle, currentState, now / 1000);
+    }
+    return surveyCockpitSurface(currentState).cockpit;
+  }
+
   function bindControls() {
     window.addEventListener("keydown", (event) => {
       if (event.code === "Escape") {
@@ -10953,9 +10977,12 @@ const VoidProspector = (() => {
     if (!sceneHandle || !currentState) {
       return;
     }
-    const deltaSeconds = Math.min(0.05, (now - lastFrameTime) / 1000 || 0.016);
+    const evidenceHeld = evidenceHoldUntil > now;
+    const deltaSeconds = evidenceHeld ? 0 : Math.min(0.05, (now - lastFrameTime) / 1000 || 0.016);
     lastFrameTime = now;
-    currentState = stepSpaceflight(currentState, pressedControls, deltaSeconds);
+    if (!evidenceHeld) {
+      currentState = stepSpaceflight(currentState, pressedControls, deltaSeconds);
+    }
     updateScene(sceneHandle, currentState, now / 1000);
     renderHud(currentState);
     window.requestAnimationFrame(animationFrame);
@@ -11048,6 +11075,7 @@ const VoidProspector = (() => {
     commitSignalGateTransit,
     dockAtStation,
     launchFromStation,
+    stageEvidenceState,
     purchaseUpgrade,
     purchaseStationService,
     deployCountermeasure,

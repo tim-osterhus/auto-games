@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="void-prospector.css" />
 </head>
 <body>
-  <main class="prospector-shell" id="void-prospector" tabindex="-1" data-surface="flight" data-advanced="locked" data-help="closed">
+  <main class="prospector-shell" id="void-prospector" tabindex="-1" data-surface="flight" data-advanced="locked" data-help="closed" data-motion="system">
     <canvas id="void-prospector-scene" class="scene-canvas" aria-label="Void Prospector 3D flight scene"></canvas>
     <div class="scene-vignette" aria-hidden="true"></div>
 
@@ -20,6 +20,7 @@
         <h1>Void Prospector</h1>
       </div>
       <div class="run-tools" aria-label="Run tools">
+        <button type="button" id="motion-action" class="utility-action motion-action" aria-label="Toggle reduced motion" aria-pressed="false">Reduce motion</button>
         <button type="button" id="help-action" class="utility-action" aria-controls="help-panel" aria-expanded="false">Help</button>
         <div class="run-chip" id="run-status">launch / stable</div>
       </div>
