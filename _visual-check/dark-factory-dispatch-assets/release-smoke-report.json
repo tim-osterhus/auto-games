@@ -1,13 +1,16 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "ok": true,
+  "generatedAt": "2026-05-02T14:14:49.271Z",
   "version": "0.7.0",
   "release": "v0.7.0 Factory Floor Repair",
+  "smokeBaseUrl": "http://127.0.0.1:8768",
   "screenshots": {
     "arcadeDesktop": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-arcade-root-v0-7-smoke.png",
     "arcadeNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-arcade-root-v0-7-narrow-smoke.png",
     "directFresh": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-fresh-v0-7-smoke.png",
     "runningLane": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-running-lane-v0-7-smoke.png",
+    "postWaitTraining": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-post-wait-v0-7-smoke.png",
     "jamRecovery": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-jam-recovery-v0-7-smoke.png",
     "shiftSummary": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-shift-summary-v0-7-smoke.png",
     "directNarrow": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/dark-factory-dispatch-assets/dark-factory-dispatch-direct-mobile-v0-7-smoke.png"
@@ -30,21 +33,62 @@
       "version": "0.7.0",
       "release": "v0.7.0 Factory Floor Repair",
       "objectiveText": "active objective make 3 circuits before the first dispatch bell Circuits 0/3 / 12 ticks",
+      "runChip": "shift 01 / d1 / active / t0",
       "laneCount": 3,
-      "visibleResources": ["scrap", "power", "stability", "circuits"],
-      "contextualActions": ["Select Job"],
-      "logEntries": 1,
+      "visibleResources": [
+        "scrap",
+        "power",
+        "stability",
+        "circuits"
+      ],
+      "contextualActions": [
+        "Select Job"
+      ],
+      "contextualActionStates": [
+        {
+          "action": "select-incoming",
+          "label": "Select Job",
+          "disabled": false
+        }
+      ],
+      "logEntries": [
+        "t0v0.7.0 Factory Floor Repair Dispatch Floor online."
+      ],
+      "advancedLogEntries": [],
       "advancedOpen": false,
       "floorViewportRatio": 0.606,
+      "floorAreaViewportRatio": 0.314,
       "imagesComplete": true,
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "text": "Millrace Arcade Operator floor Dark Factory Dispatch active objective make 3 circuits before the first dispatch bell Circuits 0/3 / 12 ticks Day01 / t0 Factory rating99% Power12 Alerts0 shift 01 / d1 / active / t0 help Queue Incoming jobs Smelt Circuits p1 in scrap 4 / power 1 out circuits 3 / stability -1 Print Modules p2 in scrap 3 / circuits 2 / power 2 out modules 2 Assemble Drones p3 in circuits 2 / modules 1 / power 2 out drones 2 Resources Shift stock Scrap 28 output 0 Power 12 output 0 Stability 100 output 0 Circuits 3 output 0 Factory floor Forge Line / Assembler Bay / Clean Room Forge Line ready current jobempty belt ready high heat rate 1.2 jam 8% recover 0 normal breach clean fault clear Forge Bus / balancedcontext readyclear lane Assembler Bay ready current jobempty belt ready balanced rate 1 jam 5% recover 0 normal breach clean fault clear Assembly Bus / balancedcontext readyclear lane Clean Room ready current jobempty belt ready low fault rate 0.8 jam 3% recover 0 normal breach clean fault clear Clean Bus / balancedcontext readyclear lane Contract Current objective Training Shift active 12 ticks left make 3 circuits before the first dispatch bell circuits 0/3 requires circuits 3 reward reputation 1 Selection Lane detail Smelt Circuits incoming Training Shift circuits 0/3 input scrap 4 / power 1 output circuits 3 / stability -1 Actions Context Select Job Log Last signals t0v0.7.0 Factory Floor Repair Dispatch Floor online. Advanced systems Campaign Progression Campaign Training Shift shift 01 / Dispatch Floor / t0 Next action Select Smelt Circuits circuits 0/3 / 12 ticks Disclosure first-shift-guided advanced systems unlock after the training shift Grid Grid Siege Grid Siegeunlocks: complete Training Shift Freight Freight Lockdown Freight Lockdownunlocks: shift 02 Security Rail Sabotage Rail Sabotageunlocks: shift 02 Arbitration Crisis Arbitration Crisis Arbitrationunlocks: shift 02 Upgrade Improvement rack Improvement rackunlocks: complete Training Shift Jobs Fabrication catalog Job catalogunlocks: finish the incoming Smelt Circuits card Controls Dispatch console Job type Smelt CircuitsPrint ModulesAssemble DronesWeave DefensesStabilize GridPatch Audit RelayCompile CountermeasuresInspect Cargo SealsSweep Sabotage Cells Queue policy Standard ReleaseEmergency First enqueue assign start raise cancel restart Pause Training Shift Click an incoming job, click a factory lane, then use the surfaced action. Lane state is shown by labels, motion, meter position, and machine treatment. replay training resume"
     },
     "runningLane": {
       "status": "running",
       "feedback": "production",
       "motion": "belt",
       "output": "circuits",
-      "contextualActions": ["overdrive", "pause"]
+      "gridLocked": false,
+      "text": "Forge Line running current jobSmelt Circuits running high heat rate 1.2 jam 8% recover 0 normal breach clean fault clear Forge Bus / balancedcontext readyclear lane",
+      "contextualActions": [
+        "Overdrive",
+        "Pause"
+      ]
+    },
+    "postWaitTraining": {
+      "waitMs": 12200,
+      "runChip": "shift 01 / d1 / active / t14",
+      "objectiveText": "active objective make 3 circuits before the first dispatch bell Circuits 0/3 / 12 ticks",
+      "tutorialStillActive": true,
+      "trainingTimeRemainingHeld": true,
+      "laneStatus": "blocked",
+      "laneFeedback": "jam",
+      "laneMotion": "still",
+      "laneGridLocked": false,
+      "recoverAvailable": true,
+      "contextualActions": [
+        "Recover"
+      ],
+      "advancedLogEntries": []
     },
     "jamState": {
       "status": "blocked",
@@ -55,14 +99,20 @@
     "recoveryState": {
       "status": "recovering",
       "feedback": "recovery",
-      "motion": "diagnostic"
+      "motion": "diagnostic",
+      "output": "circuits",
+      "gridLocked": false,
+      "text": "Forge Line recovering current jobSmelt Circuits Material Jam high heat rate 1.2 jam 8% recover 2 normal breach clean fault Material Jam / recovering / purge the feed chute / scrap 1 / power 1 Forge Bus / balancedcontext readyclear lane",
+      "contextualActions": [
+        "Recover"
+      ]
     },
     "shiftSummary": {
       "summaryVisible": true,
       "drawerOpen": true,
       "summaryText": "Shift summary Training Shift status complete / produced circuits 3 upgrade choice available / next upgrade-choice / shift-02-advanced-systems",
       "upgradeChoiceVisible": true,
-      "latestLog": "t5Training Shift complete; shift summary opened."
+      "latestLog": "t18Training Shift complete; shift summary opened."
     },
     "narrow": {
       "horizontalOverflow": false,
@@ -70,7 +120,62 @@
       "floorActionsOverlap": false,
       "objectiveActionsOverlap": false,
       "laneCount": 3,
-      "contextualActions": ["Select Job"]
+      "contextualActions": [
+        "Select Job"
+      ],
+      "firstViewport": {
+        "viewport": {
+          "width": 390,
+          "height": 740
+        },
+        "objective": {
+          "x": 8,
+          "y": 122,
+          "width": 374,
+          "height": 97,
+          "top": 122,
+          "bottom": 219,
+          "left": 8,
+          "right": 382,
+          "visible": true,
+          "intersectsViewport": true,
+          "fullyInViewport": true
+        },
+        "factoryFloor": {
+          "x": 8,
+          "y": 415,
+          "width": 374,
+          "height": 280,
+          "top": 415,
+          "bottom": 695,
+          "left": 8,
+          "right": 382,
+          "visible": true,
+          "intersectsViewport": true,
+          "fullyInViewport": true
+        },
+        "contextualActions": {
+          "x": 9,
+          "y": 350,
+          "width": 372,
+          "height": 55,
+          "top": 350,
+          "bottom": 406,
+          "left": 9,
+          "right": 381,
+          "visible": true,
+          "intersectsViewport": true,
+          "fullyInViewport": true
+        },
+        "objectiveVisible": true,
+        "factoryFloorVisible": true,
+        "contextualActionsVisible": true,
+        "objectiveFullyInViewport": true,
+        "factoryFloorFullyInViewport": true,
+        "contextualActionsFullyInViewport": true,
+        "allRequiredSurfacesVisible": true,
+        "allRequiredSurfacesFullyInViewport": true
+      }
     }
   },
   "consoleErrors": [],
@@ -81,11 +186,15 @@
     "conceptHierarchy": true,
     "nonblankFactoryFloor": true,
     "runningLane": true,
+    "postWaitTraining": true,
+    "advancedSystemsIdleDuringTraining": true,
     "jamOrRecovery": true,
     "shiftSummary": true,
     "directOverflow": true,
     "mobileNoOverlap": true,
+    "mobileFirstViewport": true,
+    "mobileFirstViewportFullyVisible": true,
     "consoleClean": true
   },
-  "notes": "Browser smoke used a local static server. Direct play exercised fresh load, click-first Smelt Circuits assignment to Forge Line, running production, forced tutorial jam, recovery, and Training Shift summary; arcade checks covered desktop and narrow entry surfaces."
+  "notes": "Browser smoke used a local static server. Direct play exercised fresh load, click-first Smelt Circuits assignment to Forge Line, immediate running feedback, a 12.2s post-start Training Shift wait with advanced systems idle, tutorial jam Recover flow, Training Shift summary completion, and 390x740 first-viewport objective/floor/action visibility."
 }

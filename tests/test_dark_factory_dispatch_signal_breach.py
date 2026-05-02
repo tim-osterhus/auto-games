@@ -13,7 +13,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 77, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 77, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 3);
             const breach = game.breachSurfaceState(state);
             const campaign = game.campaignSurfaceState(state);
@@ -62,7 +62,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 78, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 78, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 3);
             const compromisedId = state.queue.find((entry) => entry.compromised).id;
             const before = {
@@ -162,7 +162,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let compromised = game.createInitialState({ seed: 79, faultsEnabled: false });
+            let compromised = game.createInitialState({ seed: 79, faultsEnabled: false, tutorialCompleted: true });
             compromised = game.stepFactory(compromised, 3);
             const compromisedBefore = {
               intensity: compromised.breach.intensity,
@@ -175,7 +175,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
             compromised = game.startLane(compromised, "forge-line");
             compromised = game.stepFactory(compromised, 3);
 
-            let counter = game.createInitialState({ seed: 80, faultsEnabled: false });
+            let counter = game.createInitialState({ seed: 80, faultsEnabled: false, tutorialCompleted: true });
             counter = game.stepFactory(counter, 3);
             const counterBefore = {
               intensity: counter.breach.intensity,
@@ -226,7 +226,7 @@ class DarkFactoryDispatchSignalBreachTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 81, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 81, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 10);
             const failedSurface = game.breachSurfaceState(state);
             const reset = game.resetFactoryState(state);

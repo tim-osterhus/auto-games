@@ -382,10 +382,14 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
             "conceptHierarchy",
             "nonblankFactoryFloor",
             "runningLane",
+            "postWaitTraining",
+            "advancedSystemsIdleDuringTraining",
             "jamOrRecovery",
             "shiftSummary",
             "directOverflow",
             "mobileNoOverlap",
+            "mobileFirstViewport",
+            "mobileFirstViewportFullyVisible",
             "consoleClean",
         ):
             self.assertTrue(smoke_report["checks"][check], check)
@@ -399,6 +403,13 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertEqual(["scrap", "power", "stability", "circuits"], smoke_report["direct"]["freshLoad"]["visibleResources"])
         self.assertEqual("running", smoke_report["direct"]["runningLane"]["status"])
         self.assertEqual("production", smoke_report["direct"]["runningLane"]["feedback"])
+        self.assertGreaterEqual(smoke_report["direct"]["postWaitTraining"]["waitMs"], 12000)
+        self.assertTrue(smoke_report["direct"]["postWaitTraining"]["tutorialStillActive"])
+        self.assertTrue(smoke_report["direct"]["postWaitTraining"]["trainingTimeRemainingHeld"])
+        self.assertEqual("blocked", smoke_report["direct"]["postWaitTraining"]["laneStatus"])
+        self.assertFalse(smoke_report["direct"]["postWaitTraining"]["laneGridLocked"])
+        self.assertTrue(smoke_report["direct"]["postWaitTraining"]["recoverAvailable"])
+        self.assertEqual([], smoke_report["direct"]["postWaitTraining"]["advancedLogEntries"])
         self.assertEqual("blocked", smoke_report["direct"]["jamState"]["status"])
         self.assertTrue(smoke_report["direct"]["jamState"]["recoverAvailable"])
         self.assertEqual("recovering", smoke_report["direct"]["recoveryState"]["status"])
@@ -408,6 +419,11 @@ class DarkFactoryDispatchArcadeReleaseTests(unittest.TestCase):
         self.assertFalse(smoke_report["direct"]["narrow"]["objectiveFloorOverlap"])
         self.assertFalse(smoke_report["direct"]["narrow"]["floorActionsOverlap"])
         self.assertFalse(smoke_report["direct"]["narrow"]["objectiveActionsOverlap"])
+        self.assertTrue(smoke_report["direct"]["narrow"]["firstViewport"]["allRequiredSurfacesVisible"])
+        self.assertTrue(smoke_report["direct"]["narrow"]["firstViewport"]["allRequiredSurfacesFullyInViewport"])
+        self.assertTrue(smoke_report["direct"]["narrow"]["firstViewport"]["objectiveVisible"])
+        self.assertTrue(smoke_report["direct"]["narrow"]["firstViewport"]["factoryFloorVisible"])
+        self.assertTrue(smoke_report["direct"]["narrow"]["firstViewport"]["contextualActionsVisible"])
 
         for screenshot in smoke_report["screenshots"].values():
             self.assertTrue(Path(screenshot).is_file(), screenshot)

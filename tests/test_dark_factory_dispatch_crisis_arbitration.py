@@ -13,7 +13,7 @@ class DarkFactoryDispatchCrisisArbitrationTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let first = game.createInitialState({ seed: 601, faultsEnabled: false });
+            let first = game.createInitialState({ seed: 601, faultsEnabled: false, tutorialCompleted: true });
             first = game.stepFactory(first, 4);
             const firstSurface = game.crisisArbitrationSurfaceState(first);
 
@@ -60,7 +60,7 @@ class DarkFactoryDispatchCrisisArbitrationTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 611, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 611, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 4);
             state.resources.circuits = 10;
             state.resources.power = 12;

@@ -13,7 +13,7 @@ class DarkFactoryDispatchFreightLockdownTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let first = game.createInitialState({ seed: 201, faultsEnabled: false });
+            let first = game.createInitialState({ seed: 201, faultsEnabled: false, tutorialCompleted: true });
             first = game.stepFactory(first, 2);
             const firstFreight = game.freightSurfaceState(first);
             const campaign = game.campaignSurfaceState(first);
@@ -77,7 +77,7 @@ class DarkFactoryDispatchFreightLockdownTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 211, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 211, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 2);
             state.resources.circuits = 5;
             state.resources.modules = 2;

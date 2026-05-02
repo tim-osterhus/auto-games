@@ -1282,6 +1282,10 @@ const DarkFactoryDispatch = (() => {
     );
   }
 
+  function guidedTrainingShiftActive(state) {
+    return Boolean(tutorialActive(state) && state.restart && state.restart.run === 1);
+  }
+
   function setTutorialStepInPlace(state, stepId) {
     if (!state.tutorial || state.tutorial.stepId === stepId) {
       return;
@@ -5242,12 +5246,15 @@ const DarkFactoryDispatch = (() => {
     if (!state.tutorial || state.tutorial.completed) {
       return false;
     }
+    const pressureFrozen = guidedTrainingShiftActive(state);
     state.tutorial.completed = true;
     state.tutorial.status = "summary";
     state.tutorial.completedAtTick = state.tick;
     state.tutorial.contract.status = "complete";
     state.tutorial.contract.completedAtTick = state.tick;
-    state.tutorial.contract.timeRemaining = Math.max(0, state.tutorial.contract.deadline - state.tick);
+    state.tutorial.contract.timeRemaining = pressureFrozen
+      ? state.tutorial.contract.deadline
+      : Math.max(0, state.tutorial.contract.deadline - state.tick);
     state.tutorial.completionPersisted = persist
       ? writeTutorialCompletion(null, true) || state.tutorial.completionPersisted
       : state.tutorial.completionPersisted;
@@ -5261,7 +5268,9 @@ const DarkFactoryDispatch = (() => {
     if (!tutorialActive(state) || state.tutorial.contract.status !== "active") {
       return false;
     }
-    state.tutorial.contract.timeRemaining = Math.max(0, state.tutorial.contract.deadline - state.tick);
+    state.tutorial.contract.timeRemaining = guidedTrainingShiftActive(state)
+      ? state.tutorial.contract.deadline
+      : Math.max(0, state.tutorial.contract.deadline - state.tick);
     if (!tutorialContractSatisfied(state)) {
       return false;
     }
@@ -5554,7 +5563,9 @@ const DarkFactoryDispatch = (() => {
     if (completedJob.compromised) {
       applyCompromisedJobCompletion(state, lane, completedJob);
     }
-    evaluateContracts(state);
+    if (!guidedTrainingShiftActive(state)) {
+      evaluateContracts(state);
+    }
     evaluateTutorialContractInPlace(state);
   }
 
@@ -5646,12 +5657,15 @@ const DarkFactoryDispatch = (() => {
         break;
       }
       next.tick += 1;
-      maybeActivateEmergencyContracts(next);
-      advanceBreachState(next);
-      advanceGridState(next);
-      advanceRailSabotageState(next);
-      advanceFreightState(next);
-      advanceCrisisArbitrationState(next);
+      const trainingGateActive = guidedTrainingShiftActive(next);
+      if (!trainingGateActive) {
+        maybeActivateEmergencyContracts(next);
+        advanceBreachState(next);
+        advanceGridState(next);
+        advanceRailSabotageState(next);
+        advanceFreightState(next);
+        advanceCrisisArbitrationState(next);
+      }
       next.lanes.forEach((lane) => {
         advanceLaneRecovery(next, lane);
         if (lane.status !== "running" || !lane.currentJob) {
@@ -5670,7 +5684,9 @@ const DarkFactoryDispatch = (() => {
           completeLaneJob(next, lane);
         }
       });
-      evaluateContracts(next);
+      if (!trainingGateActive) {
+        evaluateContracts(next);
+      }
       evaluateTutorialContractInPlace(next);
     }
     next.log = next.log.slice(0, 8);
