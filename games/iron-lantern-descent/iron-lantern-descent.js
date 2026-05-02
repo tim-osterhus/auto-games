@@ -12,6 +12,7 @@ const IronLanternDescent = (() => {
   };
   const DEFAULT_SEED = 37193;
   const TWO_PI = Math.PI * 2;
+  const FIRST_EXPEDITION_SAMPLE_ID = "sample-copper-iris";
 
   const GAME_DATA = {
     assets: ASSET_PATHS,
@@ -116,6 +117,20 @@ const IronLanternDescent = (() => {
     scanner: {
       range: 31,
       cooldownSeconds: 2.4,
+    },
+    firstExpedition: {
+      targetSampleId: FIRST_EXPEDITION_SAMPLE_ID,
+      requiredSamples: 1,
+      routeLanternPromptConfidence: 72,
+      phases: [
+        { id: "lift-briefing", label: "Lift briefing" },
+        { id: "first-sample-discovery", label: "Copper Iris discovery" },
+        { id: "place-first-lantern", label: "Lantern route safety" },
+        { id: "mine-first-sample", label: "Hold-to-mine sample" },
+        { id: "return-to-lift", label: "Return route" },
+        { id: "bank-at-lift", label: "Lift banking" },
+        { id: "summary-upgrade-preview", label: "Expedition summary" },
+      ],
     },
     survey: {
       release: {
@@ -1748,6 +1763,36 @@ const IronLanternDescent = (() => {
         available: clone(GAME_DATA.upgrades),
         lastPurchase: null,
       },
+      firstExpedition: {
+        active: true,
+        targetSampleId: GAME_DATA.firstExpedition.targetSampleId,
+        phase: "lift-briefing",
+        phases: clone(GAME_DATA.firstExpedition.phases),
+        visibleTarget: null,
+        objective: null,
+        summary: null,
+      },
+      disclosure: {
+        systems: {},
+        defaultHudSystems: [],
+      },
+      banking: {
+        available: false,
+        pending: {},
+        lastTransfer: null,
+        summary: null,
+      },
+      contextAction: {
+        id: "move-to-target",
+        action: "move",
+        label: "Move",
+        enabled: false,
+      },
+      hud: {
+        defaultCards: [],
+        controlHints: [],
+        advancedSuppressed: [],
+      },
       run: {
         status: "active",
         objective: "Descend, mark the route, drain pumpworks, restore cinder vents, triangulate echo relays, bank samples at the lift.",
@@ -2022,6 +2067,740 @@ const IronLanternDescent = (() => {
       }
     });
     return closest;
+  }
+
+  function bankableTransfer(state) {
+    const surveyValue = state.survey ? state.survey.value : 0;
+    const surveyMapProgress = state.survey ? state.survey.mapProgress : 0;
+    const pumpworksValue = state.pumpworks ? state.pumpworks.value : 0;
+    const pumpworksMapProgress = state.pumpworks ? state.pumpworks.mapProgress : 0;
+    const ventValue = state.ventNetwork ? state.ventNetwork.value : 0;
+    const ventMapProgress = state.ventNetwork ? state.ventNetwork.mapProgress : 0;
+    const echoRelayValue = state.echoRelayNetwork ? state.echoRelayNetwork.value : 0;
+    const echoRelayMapProgress = state.echoRelayNetwork ? state.echoRelayNetwork.mapProgress : 0;
+    const transfer = {
+      samples: state.cargo.samples,
+      cargoValue: state.cargo.value,
+      surveyValue,
+      surveyMapProgress,
+      pumpworksValue,
+      pumpworksMapProgress,
+      ventValue,
+      ventMapProgress,
+      echoRelayValue,
+      echoRelayMapProgress,
+    };
+    transfer.totalCredits =
+      transfer.cargoValue +
+      transfer.surveyValue +
+      transfer.pumpworksValue +
+      transfer.ventValue +
+      transfer.echoRelayValue;
+    transfer.totalMapProgress = Number((
+      transfer.surveyMapProgress +
+      transfer.pumpworksMapProgress +
+      transfer.ventMapProgress +
+      transfer.echoRelayMapProgress
+    ).toFixed(2));
+    transfer.hasAny =
+      transfer.samples > 0 ||
+      transfer.totalCredits > 0 ||
+      transfer.totalMapProgress > 0;
+    return transfer;
+  }
+
+  function systemProgressFlags(state) {
+    return {
+      survey:
+        Boolean(state.survey && (state.survey.value > 0 || state.survey.mapProgress > 0 || state.survey.ledger > 0)) ||
+        (state.surveySites || []).some((site) => site.stakePlanted || site.braceInstalled || surveyOutcomeComplete(site)),
+      pumpworks:
+        Boolean(state.pumpworks && (state.pumpworks.value > 0 || state.pumpworks.mapProgress > 0 || state.pumpworks.ledger > 0)) ||
+        (state.pumpworksSites || []).some((site) => site.pumpPrimed || site.leakSealed || site.siphonDeployed || pumpworksOutcomeComplete(site)),
+      cinderVents:
+        Boolean(state.ventNetwork && (state.ventNetwork.value > 0 || state.ventNetwork.mapProgress > 0 || state.ventNetwork.ledger > 0)) ||
+        (state.ventSites || []).some((site) => site.gateState !== "sealed" || site.filterDeployed || site.fanState !== "idle" || ventOutcomeComplete(site)),
+      echoRelays:
+        Boolean(state.echoRelayNetwork && (state.echoRelayNetwork.value > 0 || state.echoRelayNetwork.mapProgress > 0 || state.echoRelayNetwork.ledger > 0)) ||
+        (state.relaySites || []).some((site) => site.pylonState !== "damaged" || site.cableState !== site.cableSpan.baseState || relayOutcomeComplete(site)),
+      rescue:
+        (state.relaySites || []).some((site) => site.cacheState.status === "claimed" || site.beaconState !== "armed"),
+    };
+  }
+
+  function disclosureSystem(available, visible, defaultHud, reason) {
+    return {
+      available: Boolean(available),
+      visible: Boolean(visible),
+      objectiveVisible: Boolean(visible),
+      defaultHud: Boolean(defaultHud),
+      reason,
+    };
+  }
+
+  function buildDisclosureState(state) {
+    const runCount = state.run ? state.run.count : 1;
+    const progress = systemProgressFlags(state);
+    const systems = {
+      survey: disclosureSystem(Boolean(state.survey && state.surveySites), runCount >= 2 || progress.survey, runCount >= 2 || progress.survey, "run 2 survey introduction"),
+      fullSurvey: disclosureSystem(Boolean(state.survey && state.surveySites), runCount >= 2 || progress.survey, false, "advanced ledger only"),
+      pumpworks: disclosureSystem(Boolean(state.pumpworks && state.pumpworksSites), runCount >= 3 || progress.pumpworks, runCount >= 3 || progress.pumpworks, "run 3 pumpworks introduction"),
+      cinderVents: disclosureSystem(Boolean(state.ventNetwork && state.ventSites), runCount >= 4 || progress.cinderVents, runCount >= 4 || progress.cinderVents, "run 4 cinder vent introduction"),
+      echoRelays: disclosureSystem(Boolean(state.echoRelayNetwork && state.relaySites), runCount >= 5 || progress.echoRelays, runCount >= 5 || progress.echoRelays, "run 5 echo relay introduction"),
+      rescue: disclosureSystem(Boolean(state.echoRelayNetwork && state.relaySites), runCount >= 5 || progress.rescue, false, "rescue appears beside echo relays"),
+      logs: disclosureSystem(true, runCount >= 2 || state.log.length > 1, false, "advanced ledger only"),
+    };
+    return {
+      runCount,
+      systems,
+      advancedAvailable: Object.fromEntries(Object.entries(systems).map(([id, system]) => [id, system.available])),
+      advancedVisible: Object.fromEntries(Object.entries(systems).map(([id, system]) => [id, system.visible])),
+      defaultHudSystems: Object.entries(systems)
+        .filter(([, system]) => system.defaultHud)
+        .map(([id]) => id),
+      advancedSuppressed: Object.entries(systems)
+        .filter(([, system]) => system.available && !system.defaultHud)
+        .map(([id]) => id),
+    };
+  }
+
+  function firstExpeditionTarget(state) {
+    return (state.sampleNodes || []).find((node) => node.id === GAME_DATA.firstExpedition.targetSampleId) || nearestSample(state)?.node || null;
+  }
+
+  function firstExpeditionPhaseId(state, target) {
+    const requiredSamples = GAME_DATA.firstExpedition.requiredSamples;
+    if (state.run.status === "extracted" && (state.lift.bankedSamples >= requiredSamples || state.run.completeReason)) {
+      return "summary-upgrade-preview";
+    }
+    if (state.run.status !== "active") {
+      return state.firstExpedition && state.firstExpedition.phase ? state.firstExpedition.phase : "lift-briefing";
+    }
+    if (state.cargo.samples >= requiredSamples && state.lift.docked) {
+      return "bank-at-lift";
+    }
+    if (state.cargo.samples >= requiredSamples || (target && target.mineState && target.mineState.depleted)) {
+      return "return-to-lift";
+    }
+    const targetDistance = target ? distance(state.player.position, target.position) : Infinity;
+    if (target && targetDistance <= state.mining.range) {
+      return "mine-first-sample";
+    }
+    if (
+      !state.lift.docked &&
+      state.lanterns.charges > 0 &&
+      state.lanterns.anchors.length === 0 &&
+      state.route.returnConfidence <= GAME_DATA.firstExpedition.routeLanternPromptConfidence
+    ) {
+      return "place-first-lantern";
+    }
+    if (state.elapsed <= 0 && state.lift.docked && state.lanterns.anchors.length === 0 && state.cargo.samples === 0) {
+      return "lift-briefing";
+    }
+    if (
+      state.elapsed > 0 ||
+      !state.lift.docked ||
+      (target && targetDistance <= state.scanner.range) ||
+      state.scanner.targetId === GAME_DATA.firstExpedition.targetSampleId
+    ) {
+      return "first-sample-discovery";
+    }
+    return "lift-briefing";
+  }
+
+  function firstExpeditionObjectiveText(state, phaseId, target) {
+    const targetName = target ? target.name : "Copper Iris";
+    const upgrade = nextAffordableUpgrade(state);
+    if (phaseId === "summary-upgrade-preview") {
+      return upgrade
+        ? `Sample banked. Preview ${upgrade.name} or begin another descent.`
+        : "Sample banked. Begin another descent.";
+    }
+    if (phaseId === "bank-at-lift") {
+      return `Bank the ${targetName} sample at the Iron Lift.`;
+    }
+    if (phaseId === "return-to-lift") {
+      return "Return to the Iron Lift and bank the sample.";
+    }
+    if (phaseId === "mine-first-sample") {
+      return `Hold context to mine ${targetName}.`;
+    }
+    if (phaseId === "place-first-lantern") {
+      return "Place a lantern to secure the return route.";
+    }
+    if (phaseId === "first-sample-discovery") {
+      return `Move toward ${targetName}.`;
+    }
+    return `Collect ${targetName} and return to the Iron Lift.`;
+  }
+
+  function buildFirstExpeditionState(state) {
+    const target = firstExpeditionTarget(state);
+    const phaseId = firstExpeditionPhaseId(state, target);
+    const phaseIndex = GAME_DATA.firstExpedition.phases.findIndex((phase) => phase.id === phaseId);
+    const safePhaseIndex = phaseIndex >= 0 ? phaseIndex : 0;
+    const objective = firstExpeditionObjectiveText(state, phaseId, target);
+    const targetDistance = target ? distance(state.player.position, target.position) : null;
+    const upgrade = nextAffordableUpgrade(state);
+    return {
+      active: state.run.count === 1 && state.run.status === "active",
+      completed: phaseId === "summary-upgrade-preview",
+      targetSampleId: GAME_DATA.firstExpedition.targetSampleId,
+      requiredSamples: GAME_DATA.firstExpedition.requiredSamples,
+      phase: phaseId,
+      phases: GAME_DATA.firstExpedition.phases.map((phase, index) => ({
+        ...phase,
+        status: index < safePhaseIndex ? "complete" : index === safePhaseIndex ? "active" : "upcoming",
+      })),
+      visibleTarget: target
+        ? {
+            id: target.id,
+            kind: "sample",
+            name: target.name,
+            distance: Number(targetDistance.toFixed(1)),
+            bearing: bearingTo(state.player.position, target.position, state.player.facing),
+            inRange: targetDistance <= state.mining.range,
+            mineState: clone(target.mineState),
+          }
+        : null,
+      objective,
+      upgradePreview: upgrade ? { id: upgrade.id, name: upgrade.name, cost: upgrade.cost, summary: upgrade.summary } : null,
+      summary: phaseId === "summary-upgrade-preview"
+        ? {
+            bankedSamples: state.lift.bankedSamples,
+            bankedCredits: state.lift.lastBanked,
+            credits: state.credits,
+            upgradePreview: upgrade ? { id: upgrade.id, name: upgrade.name, cost: upgrade.cost } : null,
+          }
+        : null,
+    };
+  }
+
+  function buildBankingState(state) {
+    const pending = bankableTransfer(state);
+    const lastTransfer = state.lift.lastBanked > 0 || state.lift.bankedSamples > 0
+      ? {
+          samples: state.lift.bankedSamples,
+          credits: state.lift.lastBanked,
+          surveyMapProgress: state.lift.bankedMapProgress,
+          pumpworksMapProgress: state.lift.bankedPumpworksMapProgress,
+          ventMapProgress: state.lift.bankedVentMapProgress,
+          echoRelayMapProgress: state.lift.bankedEchoRelayMapProgress || 0,
+        }
+      : null;
+    return {
+      available: state.lift.docked && pending.hasAny && state.run.status === "active",
+      status: state.lift.docked ? (pending.hasAny ? "ready to bank" : "lift ready") : "return to lift",
+      pending,
+      lastTransfer,
+      summary: state.run.status === "extracted"
+        ? {
+            reason: state.run.completeReason,
+            credits: state.credits,
+            lastTransfer,
+            upgradePreview: nextAffordableUpgrade(state),
+          }
+        : null,
+    };
+  }
+
+  function contextAction(overrides) {
+    return {
+      id: overrides.id || overrides.action || "no-context",
+      action: overrides.action || "none",
+      kind: overrides.kind || "fallback",
+      label: overrides.label || "No Action",
+      prompt: overrides.prompt || overrides.label || "No Action",
+      targetId: overrides.targetId || null,
+      targetName: overrides.targetName || null,
+      distance: overrides.distance === undefined || overrides.distance === null ? null : Number(overrides.distance.toFixed(1)),
+      enabled: overrides.enabled !== false,
+      hold: Boolean(overrides.hold),
+      progress: overrides.progress === undefined ? null : overrides.progress,
+      system: overrides.system || "core",
+      reason: overrides.reason || null,
+      priority: overrides.priority || 0,
+    };
+  }
+
+  function nearestLanternAnchor(state) {
+    return (state.lanterns.anchors || []).reduce((closest, anchor) => {
+      const anchorDistance = distance(state.player.position, anchor.position);
+      if (!closest || anchorDistance < closest.distance) {
+        return { anchor, distance: anchorDistance };
+      }
+      return closest;
+    }, null);
+  }
+
+  function surveyContextAction(state, target) {
+    const site = target.site;
+    if (!site.stakePlanted) {
+      return contextAction({
+        action: "plant-stake",
+        kind: "survey",
+        label: "Plant Stake",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "survey",
+      });
+    }
+    if (site.requirements.brace && !site.braceInstalled) {
+      return contextAction({
+        action: "brace-seam",
+        kind: "survey",
+        label: "Brace Seam",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "survey",
+      });
+    }
+    if (!surveyOutcomeComplete(site)) {
+      return contextAction({
+        action: "chart-survey",
+        kind: "survey",
+        label: "Chart Fault",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "survey",
+      });
+    }
+    if (site.airCacheState && site.airCacheState.status === "sealed") {
+      return contextAction({
+        action: "activate-air-cache",
+        kind: "rescue-cache",
+        label: "Open Air Cache",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "survey",
+      });
+    }
+    return contextAction({
+      action: "inspect-survey",
+      kind: "survey",
+      label: "Survey Complete",
+      targetId: site.id,
+      targetName: site.name,
+      distance: target.distance,
+      enabled: false,
+      system: "survey",
+    });
+  }
+
+  function pumpworksContextAction(state, target) {
+    const site = target.site;
+    if (site.requirements.siphon && !site.leakSealed) {
+      return contextAction({
+        action: "seal-leak",
+        kind: "pumpworks",
+        label: "Seal Leak",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "pumpworks",
+      });
+    }
+    if (site.requirements.siphon && !site.siphonDeployed) {
+      return contextAction({
+        action: "deploy-siphon",
+        kind: "pumpworks",
+        label: "Deploy Siphon",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "pumpworks",
+      });
+    }
+    if (!site.pumpPrimed) {
+      return contextAction({
+        action: "prime-pump",
+        kind: "pumpworks",
+        label: "Prime Pump",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "pumpworks",
+      });
+    }
+    if (!pumpworksOutcomeComplete(site)) {
+      return contextAction({
+        action: "turn-valve",
+        kind: "pumpworks",
+        label: "Turn Valve",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "pumpworks",
+      });
+    }
+    return contextAction({
+      action: "inspect-pumpworks",
+      kind: "pumpworks",
+      label: "Pumpworks Drained",
+      targetId: site.id,
+      targetName: site.name,
+      distance: target.distance,
+      enabled: false,
+      system: "pumpworks",
+    });
+  }
+
+  function ventContextAction(state, target) {
+    const site = target.site;
+    if (site.gateState !== "open" && site.gateState !== "cracked") {
+      return contextAction({
+        action: "open-draft-gate",
+        kind: "cinder-vent",
+        label: "Open Gate",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "cinderVents",
+      });
+    }
+    if (site.filter.required && !site.filterDeployed) {
+      return contextAction({
+        action: "deploy-filter",
+        kind: "cinder-vent",
+        label: "Deploy Filter",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "cinderVents",
+      });
+    }
+    if (site.fanState !== "running" && site.fanState !== "surging") {
+      return contextAction({
+        action: "start-fan",
+        kind: "cinder-vent",
+        label: "Start Fan",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "cinderVents",
+      });
+    }
+    if (!ventOutcomeComplete(site)) {
+      return contextAction({
+        action: "vent-gas",
+        kind: "cinder-vent",
+        label: "Vent Gas",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "cinderVents",
+      });
+    }
+    return contextAction({
+      action: "inspect-vent",
+      kind: "cinder-vent",
+      label: "Vent Fresh",
+      targetId: site.id,
+      targetName: site.name,
+      distance: target.distance,
+      enabled: false,
+      system: "cinderVents",
+    });
+  }
+
+  function relayContextAction(state, target) {
+    const site = target.site;
+    if (site.pylonState === "damaged" || site.pylonState === "shorted") {
+      return contextAction({
+        action: "repair-relay",
+        kind: "echo-relay",
+        label: "Repair Relay",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "echoRelays",
+      });
+    }
+    if (site.cableState !== "spooled" && site.cableState !== "toned") {
+      return contextAction({
+        action: "spool-cable",
+        kind: "echo-relay",
+        label: "Spool Cable",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "echoRelays",
+      });
+    }
+    if (!relayOutcomeComplete(site)) {
+      return contextAction({
+        action: "triangulate-echo",
+        kind: "echo-relay",
+        label: "Triangulate Echo",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "echoRelays",
+      });
+    }
+    if (site.cacheState.status === "sealed") {
+      return contextAction({
+        action: "claim-rescue-cache",
+        kind: "rescue-cache",
+        label: "Claim Cache",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "rescue",
+      });
+    }
+    if (site.beaconState === "armed") {
+      return contextAction({
+        action: "fire-lift-beacon",
+        kind: "lift-beacon",
+        label: "Fire Beacon",
+        targetId: site.id,
+        targetName: site.name,
+        distance: target.distance,
+        system: "rescue",
+      });
+    }
+    return contextAction({
+      action: "inspect-relay",
+      kind: "echo-relay",
+      label: "Relay Complete",
+      targetId: site.id,
+      targetName: site.name,
+      distance: target.distance,
+      enabled: false,
+      system: "echoRelays",
+    });
+  }
+
+  function resolveContextAction(state) {
+    if (state.run.status === "failed") {
+      return contextAction({
+        action: "reset-run",
+        kind: "restart",
+        label: "Restart Descent",
+        system: "run",
+      });
+    }
+    if (state.run.status === "extracted") {
+      return contextAction({
+        action: "reset-run",
+        kind: "lift",
+        label: "Start Next Descent",
+        system: "run",
+      });
+    }
+
+    const pendingBank = bankableTransfer(state);
+    if (state.lift.docked && pendingBank.hasAny) {
+      return contextAction({
+        action: "bank-samples",
+        kind: "lift",
+        label: "Bank Samples",
+        targetId: state.lift.id,
+        targetName: state.lift.name,
+        distance: state.lift.distance,
+        system: "banking",
+        priority: 100,
+      });
+    }
+
+    const relay = nearestRelaySite(state, { includeCompleted: true });
+    if (relay && relay.distance <= GAME_DATA.echoRelayNetwork.actionRange) {
+      return relayContextAction(state, relay);
+    }
+    const vent = nearestVentSite(state, { includeCompleted: true });
+    if (vent && vent.distance <= GAME_DATA.cinderVentNetwork.actionRange) {
+      return ventContextAction(state, vent);
+    }
+    const pumpworks = nearestPumpworksSite(state, { includeCompleted: true });
+    if (pumpworks && pumpworks.distance <= GAME_DATA.pumpworks.actionRange) {
+      return pumpworksContextAction(state, pumpworks);
+    }
+    const survey = nearestSurveySite(state, { includeCompleted: true });
+    if (survey && survey.distance <= GAME_DATA.survey.actionRange) {
+      return surveyContextAction(state, survey);
+    }
+
+    const sample = nearestSample(state);
+    if (sample && sample.distance <= state.mining.range) {
+      return contextAction({
+        action: "mine-sample",
+        kind: "sample",
+        label: "Hold Mine",
+        targetId: sample.node.id,
+        targetName: sample.node.name,
+        distance: sample.distance,
+        hold: true,
+        progress: Number(clamp(sample.node.mineState.progress / sample.node.difficulty, 0, 1).toFixed(2)),
+        system: "mining",
+        priority: 80,
+      });
+    }
+
+    if (
+      state.lanterns.charges > 0 &&
+      !state.lift.docked &&
+      !coveredByLantern(state) &&
+      state.route.returnConfidence <= GAME_DATA.firstExpedition.routeLanternPromptConfidence
+    ) {
+      return contextAction({
+        action: "place-lantern",
+        kind: "lantern-anchor",
+        label: "Place Lantern",
+        targetName: "Return route",
+        distance: state.route.nearestPointDistance,
+        system: "route",
+        reason: "route confidence low",
+        priority: 70,
+      });
+    }
+
+    const anchor = nearestLanternAnchor(state);
+    if (anchor && anchor.distance <= anchor.anchor.safetyRadius) {
+      return contextAction({
+        action: "follow-lantern",
+        kind: "lantern-anchor",
+        label: "Lantern Route",
+        targetId: anchor.anchor.id,
+        targetName: anchor.anchor.id,
+        distance: anchor.distance,
+        enabled: false,
+        system: "route",
+      });
+    }
+
+    const firstTarget = firstExpeditionTarget(state);
+    if (state.cargo.samples > 0 || (firstTarget && firstTarget.mineState.depleted)) {
+      return contextAction({
+        action: "move",
+        kind: "movement",
+        label: "Return To Lift",
+        targetId: state.lift.id,
+        targetName: state.lift.name,
+        distance: state.lift.distance,
+        enabled: false,
+        system: "route",
+      });
+    }
+    if (firstTarget) {
+      return contextAction({
+        action: "move",
+        kind: "movement",
+        label: `Move Toward ${firstTarget.name}`,
+        targetId: firstTarget.id,
+        targetName: firstTarget.name,
+        distance: distance(state.player.position, firstTarget.position),
+        enabled: false,
+        system: "movement",
+      });
+    }
+    return contextAction({
+      action: "move",
+      kind: "movement",
+      label: "Keep Moving",
+      enabled: false,
+      system: "movement",
+    });
+  }
+
+  function performContextAction(state, options = {}) {
+    const next = syncDerivedState(clone(state));
+    const action = resolveContextAction(next);
+    if (!action.enabled) {
+      next.contextAction = action;
+      return syncDerivedState(next);
+    }
+    const deltaSeconds = options.deltaSeconds || options.delta || 1;
+    switch (action.action) {
+      case "bank-samples":
+        return returnToLift(next);
+      case "mine-sample":
+        return mineNearestSample(next, deltaSeconds);
+      case "place-lantern":
+        return placeLantern(next);
+      case "plant-stake":
+        return plantSurveyStake(next, action.targetId);
+      case "brace-seam":
+        return braceSurveySite(next, action.targetId);
+      case "chart-survey":
+        return chartFaultSurvey(next, action.targetId);
+      case "activate-air-cache":
+        return activateAirCache(next, action.targetId);
+      case "prime-pump":
+        return primePumpStation(next, action.targetId);
+      case "turn-valve":
+        return turnPressureValve(next, action.targetId);
+      case "deploy-siphon":
+        return deploySiphonCharge(next, action.targetId);
+      case "seal-leak":
+        return sealLeakSeam(next, action.targetId);
+      case "open-draft-gate":
+        return openDraftGate(next, action.targetId);
+      case "deploy-filter":
+        return deployFilterCartridge(next, action.targetId);
+      case "start-fan":
+        return startPressureFan(next, action.targetId);
+      case "vent-gas":
+        return ventGasPocket(next, action.targetId);
+      case "repair-relay":
+        return repairRelayPylon(next, action.targetId);
+      case "spool-cable":
+        return spoolRelayCable(next, action.targetId);
+      case "triangulate-echo":
+        return triangulateEchoRoute(next, action.targetId);
+      case "claim-rescue-cache":
+        return claimRescueCache(next, action.targetId);
+      case "fire-lift-beacon":
+        return fireLiftBeacon(next, action.targetId);
+      case "reset-run":
+        return resetRun(next);
+      default:
+        next.contextAction = action;
+        return syncDerivedState(next);
+    }
+  }
+
+  function buildHudState(state) {
+    const defaultCards = ["oxygen", "light", "samples", "route", "objective", "contextAction", "returnMarker"];
+    const disclosure = state.disclosure || buildDisclosureState(state);
+    defaultCards.push(...disclosure.defaultHudSystems);
+    const controlHints = state.run.count === 1
+      ? ["Move", state.contextAction.label, "Lantern", state.contextAction.hold ? "Hold Context" : "Context"].slice(0, 4)
+      : ["Move", state.contextAction.label, "Scanner", "Ledger"].slice(0, 4);
+    return {
+      defaultCards,
+      controlHints,
+      advancedSuppressed: disclosure.advancedSuppressed,
+      currentObjective: state.run.objective,
+      contextAction: clone(state.contextAction),
+      targetLabel: state.firstExpedition && state.firstExpedition.visibleTarget
+        ? state.firstExpedition.visibleTarget.name
+        : state.scanner.targetName,
+    };
+  }
+
+  function syncRunContractState(state) {
+    state.firstExpedition = buildFirstExpeditionState(state);
+    state.disclosure = buildDisclosureState(state);
+    state.banking = buildBankingState(state);
+    if (state.run.status === "active" && state.run.count === 1) {
+      state.run.objective = state.firstExpedition.objective;
+    } else if (state.run.status === "extracted" && state.run.count === 1 && state.firstExpedition.completed) {
+      state.run.objective = state.firstExpedition.objective;
+    }
+    state.objective = {
+      id: state.firstExpedition.phase,
+      text: state.run.objective,
+      targetId: state.firstExpedition.visibleTarget ? state.firstExpedition.visibleTarget.id : state.scanner.targetId,
+      system: state.run.count === 1 ? "first-expedition" : "campaign",
+    };
+    state.contextAction = resolveContextAction(state);
+    state.hud = buildHudState(state);
+    return state;
   }
 
   function computeRouteStability(state, routeState = null, hazardState = null) {
@@ -2934,6 +3713,7 @@ const IronLanternDescent = (() => {
         ? "lantern safe"
         : "lamp stable";
     state.oxygen.lastDrainPerSecond = oxygenDrainRate(state);
+    syncRunContractState(state);
 
     updateCameraState(state);
     return state;
@@ -4403,8 +5183,8 @@ const IronLanternDescent = (() => {
     if (controls.liftBeacon) {
       next = fireLiftBeacon(next);
     }
-    if (controls.interact) {
-      next = returnToLift(next);
+    if (controls.interact || controls.contextAction) {
+      next = performContextAction(next, { deltaSeconds: delta });
     }
     if (controls.upgrade) {
       next = purchaseUpgrade(next);
@@ -5058,7 +5838,7 @@ const IronLanternDescent = (() => {
         return;
       }
       if (control === "interact") {
-        currentState = returnToLift(currentState);
+        currentState = performContextAction(currentState);
         renderHud(currentState);
         return;
       }
@@ -6314,6 +7094,8 @@ const IronLanternDescent = (() => {
     triangulateEchoRoute,
     claimRescueCache,
     fireLiftBeacon,
+    resolveContextAction,
+    performContextAction,
     mineNearestSample,
     pulseScanner,
     returnToLift,

@@ -219,6 +219,74 @@ class IronLanternDescentFoundationTests(unittest.TestCase):
         self.assertEqual("close-third", result["cameraMode"])
         self.assertTrue(result["hasCameraVectors"])
 
+    def test_fresh_state_exposes_first_expedition_contract_and_disclosure_flags(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/iron-lantern-descent/iron-lantern-descent.js");
+            let state = game.createInitialState({ seed: 211 });
+            const fresh = JSON.parse(JSON.stringify(state));
+            state = game.stepRun(state, {}, 0.1);
+            const discovered = JSON.parse(JSON.stringify(state));
+            const late = game.createInitialState({ seed: 211, runCount: 5 });
+
+            console.log(JSON.stringify({
+              freshPhase: fresh.firstExpedition.phase,
+              freshObjective: fresh.run.objective,
+              phaseIds: fresh.firstExpedition.phases.map((phase) => phase.id),
+              visibleTarget: fresh.firstExpedition.visibleTarget.name,
+              visibleTargetKind: fresh.firstExpedition.visibleTarget.kind,
+              contextAction: fresh.contextAction.action,
+              contextLabel: fresh.contextAction.label,
+              defaultCards: fresh.hud.defaultCards,
+              controlHintCount: fresh.hud.controlHints.length,
+              advancedAvailable: fresh.disclosure.advancedAvailable,
+              advancedVisible: fresh.disclosure.advancedVisible,
+              advancedDefaultHud: fresh.disclosure.defaultHudSystems,
+              advancedSuppressed: fresh.hud.advancedSuppressed,
+              discoveredPhase: discovered.firstExpedition.phase,
+              discoveredObjective: discovered.run.objective,
+              lateDefaultHud: late.disclosure.defaultHudSystems,
+              lateVisible: late.disclosure.advancedVisible,
+            }));
+            """
+        )
+
+        self.assertEqual("lift-briefing", result["freshPhase"])
+        self.assertIn("Copper Iris", result["freshObjective"])
+        self.assertNotIn("pumpworks", result["freshObjective"].lower())
+        self.assertEqual(
+            [
+                "lift-briefing",
+                "first-sample-discovery",
+                "place-first-lantern",
+                "mine-first-sample",
+                "return-to-lift",
+                "bank-at-lift",
+                "summary-upgrade-preview",
+            ],
+            result["phaseIds"],
+        )
+        self.assertEqual("Copper Iris", result["visibleTarget"])
+        self.assertEqual("sample", result["visibleTargetKind"])
+        self.assertEqual("move", result["contextAction"])
+        self.assertEqual("Move Toward Copper Iris", result["contextLabel"])
+        self.assertLessEqual(result["controlHintCount"], 4)
+        self.assertIn("oxygen", result["defaultCards"])
+        self.assertIn("contextAction", result["defaultCards"])
+        self.assertNotIn("pumpworks", result["defaultCards"])
+        self.assertTrue(result["advancedAvailable"]["pumpworks"])
+        self.assertTrue(result["advancedAvailable"]["cinderVents"])
+        self.assertTrue(result["advancedAvailable"]["echoRelays"])
+        self.assertFalse(result["advancedVisible"]["pumpworks"])
+        self.assertEqual([], result["advancedDefaultHud"])
+        self.assertIn("pumpworks", result["advancedSuppressed"])
+        self.assertEqual("first-sample-discovery", result["discoveredPhase"])
+        self.assertEqual("Move toward Copper Iris.", result["discoveredObjective"])
+        self.assertIn("pumpworks", result["lateDefaultHud"])
+        self.assertIn("cinderVents", result["lateDefaultHud"])
+        self.assertIn("echoRelays", result["lateDefaultHud"])
+        self.assertTrue(result["lateVisible"]["rescue"])
+
     def test_core_controls_move_player_update_camera_collision_and_lift_bearing(self) -> None:
         result = self.run_node(
             """

@@ -9,6 +9,161 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IronLanternDescentSurvivalLoopTests(unittest.TestCase):
+    def test_first_expedition_context_loop_mines_banks_and_summarizes(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/iron-lantern-descent/iron-lantern-descent.js");
+            let state = game.createInitialState({ seed: 301 });
+            const start = JSON.parse(JSON.stringify(state));
+            for (let pass = 0; pass < 12; pass += 1) {
+              state = game.stepRun(state, { forward: true }, 0.25);
+            }
+            const beforeLantern = JSON.parse(JSON.stringify(state));
+            state = game.performContextAction(state);
+            const afterLantern = JSON.parse(JSON.stringify(state));
+            const target = state.sampleNodes.find((node) => node.id === "sample-copper-iris");
+            state.player.position = { x: target.position.x, y: 1.6, z: target.position.z };
+            state = game.syncDerivedState(state);
+            const minePrompt = JSON.parse(JSON.stringify(state.contextAction));
+            state = game.performContextAction(state, { deltaSeconds: 1 });
+            const afterFirstHold = JSON.parse(JSON.stringify(state));
+            state = game.performContextAction(state, { deltaSeconds: 1 });
+            const afterMine = JSON.parse(JSON.stringify(state));
+            state.player.position = { x: state.lift.position.x, y: 1.6, z: state.lift.position.z };
+            state = game.syncDerivedState(state);
+            const bankPrompt = JSON.parse(JSON.stringify(state.contextAction));
+            state = game.performContextAction(state);
+            const afterBank = JSON.parse(JSON.stringify(state));
+
+            console.log(JSON.stringify({
+              startPhase: start.firstExpedition.phase,
+              movedPhase: beforeLantern.firstExpedition.phase,
+              oxygenBefore: start.oxygen.current,
+              oxygenAfterMove: beforeLantern.oxygen.current,
+              routeBefore: start.route.returnConfidence,
+              routeAfterMove: beforeLantern.route.returnConfidence,
+              routeAction: beforeLantern.contextAction.action,
+              routeAfterLantern: afterLantern.route.returnConfidence,
+              lanternsAfter: afterLantern.lanterns.anchors.length,
+              minePhase: minePrompt.action,
+              mineHold: minePrompt.hold,
+              progressAfterFirstHold: afterFirstHold.sampleNodes.find((node) => node.id === "sample-copper-iris").mineState.progress,
+              cargoAfterMine: afterMine.cargo.samples,
+              minedPhase: afterMine.firstExpedition.phase,
+              bankAction: bankPrompt.action,
+              bankAvailable: afterMine.banking.available,
+              creditsAfterBank: afterBank.credits,
+              cargoAfterBank: afterBank.cargo.samples,
+              runAfterBank: afterBank.run.status,
+              bankedSamples: afterBank.lift.bankedSamples,
+              summaryPhase: afterBank.firstExpedition.phase,
+              summary: afterBank.firstExpedition.summary,
+              bankingSummary: afterBank.banking.summary,
+              objectiveAfterBank: afterBank.run.objective,
+            }));
+            """
+        )
+
+        self.assertEqual("lift-briefing", result["startPhase"])
+        self.assertEqual("place-first-lantern", result["movedPhase"])
+        self.assertLess(result["oxygenAfterMove"], result["oxygenBefore"])
+        self.assertLess(result["routeAfterMove"], result["routeBefore"])
+        self.assertEqual("place-lantern", result["routeAction"])
+        self.assertGreater(result["routeAfterLantern"], result["routeAfterMove"])
+        self.assertEqual(1, result["lanternsAfter"])
+        self.assertEqual("mine-sample", result["minePhase"])
+        self.assertTrue(result["mineHold"])
+        self.assertGreater(result["progressAfterFirstHold"], 0)
+        self.assertEqual(1, result["cargoAfterMine"])
+        self.assertEqual("return-to-lift", result["minedPhase"])
+        self.assertEqual("bank-samples", result["bankAction"])
+        self.assertFalse(result["bankAvailable"])
+        self.assertEqual(32, result["creditsAfterBank"])
+        self.assertEqual(0, result["cargoAfterBank"])
+        self.assertEqual("extracted", result["runAfterBank"])
+        self.assertEqual(1, result["bankedSamples"])
+        self.assertEqual("summary-upgrade-preview", result["summaryPhase"])
+        self.assertEqual(1, result["summary"]["bankedSamples"])
+        self.assertEqual(32, result["bankingSummary"]["lastTransfer"]["credits"])
+        self.assertIn("Preview", result["objectiveAfterBank"])
+
+    def test_context_action_routes_core_fallback_and_advanced_system_steps(self) -> None:
+        result = self.run_node(
+            """
+            const game = require("./games/iron-lantern-descent/iron-lantern-descent.js");
+            const fresh = game.createInitialState({ seed: 307 });
+
+            let empty = game.createInitialState({ seed: 307, runCount: 6 });
+            empty.sampleNodes = [];
+            empty.lanterns.charges = 0;
+            empty.player.position = { x: 0, y: 1.6, z: -42 };
+            empty = game.syncDerivedState(empty);
+
+            let pump = game.createInitialState({ seed: 307, runCount: 3 });
+            const pumpSite = pump.pumpworksSites.find((site) => site.id === "pump-cinder-sump");
+            pump.player.position = { x: pumpSite.position.x, y: 1.6, z: pumpSite.position.z };
+            pump.elapsed = 50;
+            pump = game.syncDerivedState(pump);
+            const pumpAction = game.resolveContextAction(pump);
+            pump.pumpworksSites.find((site) => site.id === "pump-cinder-sump").pumpPrimed = true;
+            pump = game.syncDerivedState(pump);
+            const valveAction = game.resolveContextAction(pump);
+
+            let vent = game.createInitialState({ seed: 307, runCount: 4 });
+            const ventSite = vent.ventSites.find((site) => site.id === "vent-cinder-rib-draft");
+            vent.player.position = { x: ventSite.position.x, y: 1.6, z: ventSite.position.z };
+            vent.elapsed = 72;
+            vent = game.syncDerivedState(vent);
+            const ventAction = game.resolveContextAction(vent);
+
+            let relay = game.createInitialState({ seed: 307, runCount: 5 });
+            const relaySite = relay.relaySites.find((site) => site.id === "relay-cinder-echo-pylon");
+            relay.player.position = { x: relaySite.position.x, y: 1.6, z: relaySite.position.z };
+            relay.elapsed = 118;
+            relay = game.syncDerivedState(relay);
+            const relayAction = game.resolveContextAction(relay);
+            const relayMut = relay.relaySites.find((site) => site.id === "relay-cinder-echo-pylon");
+            relayMut.pylonState = "repaired";
+            relayMut.cableState = "spooled";
+            relayMut.triangulationState = "success";
+            relay = game.syncDerivedState(relay);
+            const cacheAction = game.resolveContextAction(relay);
+            relay.relaySites.find((site) => site.id === "relay-cinder-echo-pylon").cacheState.status = "claimed";
+            relay = game.syncDerivedState(relay);
+            const beaconAction = game.resolveContextAction(relay);
+
+            console.log(JSON.stringify({
+              freshAction: fresh.contextAction.action,
+              freshKind: fresh.contextAction.kind,
+              emptyAction: empty.contextAction.action,
+              emptyLabel: empty.contextAction.label,
+              pumpAction: pumpAction.action,
+              pumpTarget: pumpAction.targetId,
+              valveAction: valveAction.action,
+              ventAction: ventAction.action,
+              relayAction: relayAction.action,
+              cacheAction: cacheAction.action,
+              cacheKind: cacheAction.kind,
+              beaconAction: beaconAction.action,
+              beaconKind: beaconAction.kind,
+            }));
+            """
+        )
+
+        self.assertEqual("move", result["freshAction"])
+        self.assertEqual("movement", result["freshKind"])
+        self.assertEqual("move", result["emptyAction"])
+        self.assertEqual("Keep Moving", result["emptyLabel"])
+        self.assertEqual("prime-pump", result["pumpAction"])
+        self.assertEqual("pump-cinder-sump", result["pumpTarget"])
+        self.assertEqual("turn-valve", result["valveAction"])
+        self.assertEqual("open-draft-gate", result["ventAction"])
+        self.assertEqual("repair-relay", result["relayAction"])
+        self.assertEqual("claim-rescue-cache", result["cacheAction"])
+        self.assertEqual("rescue-cache", result["cacheKind"])
+        self.assertEqual("fire-lift-beacon", result["beaconAction"])
+        self.assertEqual("lift-beacon", result["beaconKind"])
+
     def test_lantern_chain_improves_return_confidence_and_pressure(self) -> None:
         result = self.run_node(
             """
