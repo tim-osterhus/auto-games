@@ -428,7 +428,7 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 93, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 93, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 3);
             const compromisedId = state.queue.find((entry) => entry.compromised).id;
             const activeSurface = game.breachSurfaceState(state);
@@ -517,7 +517,7 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 331, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 331, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 2);
             state.resources.circuits = 5;
             state.resources.power = 12;
@@ -617,7 +617,7 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
         result = self.run_node(
             """
             const game = require("./games/dark-factory-dispatch/dark-factory-dispatch.js");
-            let state = game.createInitialState({ seed: 661, faultsEnabled: false });
+            let state = game.createInitialState({ seed: 661, faultsEnabled: false, tutorialCompleted: true });
             state = game.stepFactory(state, 4);
             state.resources.circuits = 12;
             state.resources.power = 12;
@@ -717,6 +717,39 @@ class DarkFactoryDispatchOperatorSurfaceTests(unittest.TestCase):
             self.assertIn(token, css)
 
         self.assertNotIn("overflow-x: scroll", css)
+
+    def test_mobile_first_viewport_contract_places_context_action_with_floor_preview(self) -> None:
+        css = source_text("dark-factory-dispatch.css")
+        narrow_start = css.index("@media (max-width: 720px)")
+        short_start = css.index("@media (max-width: 720px) and (max-height: 760px)")
+        narrow_css = css[narrow_start:short_start]
+        short_css = css[short_start:]
+
+        self.assertIn('"back header-actions"', narrow_css)
+        self.assertIn('"identity identity"', narrow_css)
+        self.assertIn('"objective objective"', narrow_css)
+        self.assertIn('"stats stats"', narrow_css)
+        self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", narrow_css)
+
+        action_index = narrow_css.index('"actions"')
+        floor_index = narrow_css.index('"floor"')
+        left_index = narrow_css.index('"left"')
+        self.assertLess(action_index, floor_index)
+        self.assertLess(floor_index, left_index)
+
+        factory_cap = int(re.search(r"\.factory-floor-panel \{\s+max-height: (\d+)px;", short_css).group(1))
+        lane_board_cap = int(re.search(r"\.lane-board \{\s+max-height: (\d+)px;", short_css).group(1))
+        action_min = int(re.search(r"\.actions-panel \.context-actions \{\s+min-height: (\d+)px;", short_css).group(1))
+        panel_head_min = int(re.search(r"\.panel-head \{\s+min-height: (\d+)px;", short_css).group(1))
+        mobile_gap = 8
+        mobile_header_budget = 320
+
+        self.assertEqual(280, factory_cap)
+        self.assertGreaterEqual(lane_board_cap, 220)
+        self.assertLessEqual(
+            mobile_header_budget + panel_head_min + action_min + mobile_gap + factory_cap,
+            740,
+        )
 
     def test_escalation_surface_does_not_add_stale_raster_asset_references(self) -> None:
         manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
