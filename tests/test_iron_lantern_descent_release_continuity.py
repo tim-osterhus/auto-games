@@ -214,6 +214,7 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
         self.assertTrue(report["checks"]["arcadeDesktop"])
         self.assertTrue(report["checks"]["arcadeNarrow"])
         self.assertTrue(report["checks"]["startLayout"])
+        self.assertTrue(report["checks"]["narrowStartLayout"])
         self.assertTrue(report["checks"]["selectionSurface"])
         self.assertTrue(report["checks"]["freshLiftScene"])
         self.assertTrue(report["checks"]["pauseHelpOverlay"])
@@ -221,6 +222,7 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
         self.assertTrue(report["checks"]["restartConfirmation"])
         self.assertTrue(report["checks"]["desktopActiveNoScroll"])
         self.assertTrue(report["checks"]["narrowActiveNoScroll"])
+        self.assertTrue(report["checks"]["narrowStartToActive"])
         self.assertTrue(report["checks"]["lanternPlacement"])
         self.assertTrue(report["checks"]["mining"])
         self.assertTrue(report["checks"]["returnBanking"])
@@ -249,6 +251,37 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
         self.assertGreaterEqual(report["direct"]["startLayout"]["loadoutCards"], 2)
         self.assertGreaterEqual(report["direct"]["startLayout"]["consumableCards"], 2)
         self.assertTrue(report["direct"]["startLayout"]["beginVisible"])
+        narrow_start = report["direct"]["narrowStartLayout"]
+        self.assertEqual("expedition-start", narrow_start["surface"])
+        self.assertEqual({"width": 390, "height": 844}, narrow_start["viewport"])
+        self.assertEqual(report["direct"]["startLayout"]["regions"], narrow_start["regions"])
+        self.assertEqual("Upper Cut", narrow_start["selectedDepth"])
+        self.assertTrue(narrow_start["beginVisible"])
+        self.assertTrue(narrow_start["beginReachableByTouch"])
+        self.assertTrue(narrow_start["detailUsable"])
+        self.assertTrue(narrow_start["summaryUsable"])
+        self.assertGreaterEqual(narrow_start["measurements"]["detail"]["height"], 180)
+        self.assertGreaterEqual(narrow_start["measurements"]["summary"]["height"], 112)
+        self.assertLessEqual(narrow_start["measurements"]["begin"]["bottom"], narrow_start["viewport"]["height"])
+        self.assertGreaterEqual(narrow_start["measurements"]["begin"]["visibleHeight"], 44)
+        self.assertEqual("auto", narrow_start["intentionalOverflow"]["detailPanel"]["overflowY"])
+        self.assertTrue(narrow_start["intentionalOverflow"]["detailPanel"]["scrollableY"])
+        self.assertEqual("hidden", narrow_start["intentionalOverflow"]["startSurface"]["overflowY"])
+        self.assertFalse(narrow_start["intentionalOverflow"]["pageOverflow"]["overflowingX"])
+        self.assertFalse(narrow_start["intentionalOverflow"]["pageOverflow"]["overflowingY"])
+        self.assertEqual(2, narrow_start["detailContent"]["rewardCards"])
+        self.assertEqual(2, narrow_start["detailContent"]["loadoutCards"])
+        self.assertEqual(2, narrow_start["detailContent"]["consumableCards"])
+        self.assertIn("Copper Iris", narrow_start["detailContent"]["route"])
+        self.assertEqual(
+            [
+                "Mara Venn",
+                "Lantern Initiate",
+                "3 lanterns / drill / oxygen 96",
+                "32cr and tank weave preview",
+            ],
+            narrow_start["summaryContent"],
+        )
         self.assertIn("Copper Iris", report["direct"]["selectionSurface"]["route"])
         self.assertIn("Move Toward Copper Iris", report["direct"]["freshLiftScene"]["contextAction"])
         self.assertLessEqual(report["direct"]["freshLiftScene"]["hudCardCount"], 6)
@@ -273,6 +306,19 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
         self.assertFalse(report["direct"]["desktopActiveNoScroll"]["overflow"]["overflowingY"])
         self.assertFalse(report["direct"]["narrowActiveNoScroll"]["overflow"]["overflowingX"])
         self.assertFalse(report["direct"]["narrowActiveNoScroll"]["overflow"]["overflowingY"])
+        narrow_start_to_active = report["direct"]["narrowStartToActive"]
+        self.assertEqual("visible Begin Descent click at 390x844", narrow_start_to_active["trigger"])
+        self.assertEqual("descent", narrow_start_to_active["surface"])
+        self.assertTrue(narrow_start_to_active["startHidden"])
+        self.assertIn("Copper Iris", narrow_start_to_active["objective"])
+        self.assertIn("Move Toward Copper Iris", narrow_start_to_active["contextAction"])
+        self.assertTrue(narrow_start_to_active["advancedLedgerHidden"])
+        self.assertFalse(narrow_start_to_active["advancedLedgerVisible"])
+        self.assertLessEqual(narrow_start_to_active["hudCardCount"], 6)
+        self.assertLessEqual(narrow_start_to_active["controlHintCount"], 4)
+        self.assertGreater(narrow_start_to_active["canvas"]["nonDark"], 0)
+        self.assertFalse(narrow_start_to_active["overflow"]["overflowingX"])
+        self.assertFalse(narrow_start_to_active["overflow"]["overflowingY"])
         self.assertEqual(1, report["direct"]["visualStates"]["lanternPlacement"]["state"]["lanterns"]["anchors"])
         self.assertGreater(report["direct"]["visualStates"]["mining"]["state"]["cargo"]["samples"], 0)
         self.assertIn("Copper Iris", report["direct"]["visualStates"]["mining"]["feedbackAction"])
@@ -293,11 +339,13 @@ class IronLanternDescentReleaseContinuityTests(unittest.TestCase):
             "reducedMotion",
             "restartConfirmation",
             "desktopActiveNoScroll",
+            "narrowStartLayout",
             "lanternPlacement",
             "mining",
             "returnBanking",
             "advancedLedger",
             "narrowActiveNoScroll",
+            "narrowStartToActive",
             "narrowSmoke",
             "snapshot050",
         ):

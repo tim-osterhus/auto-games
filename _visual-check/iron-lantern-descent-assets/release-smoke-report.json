@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generatedAt": "2026-05-02T22:45:31.594Z",
+  "generatedAt": "2026-05-02T23:58:41.668Z",
   "baseUrl": "http://127.0.0.1:8784/",
   "game": "iron-lantern-descent",
   "version": "0.5.0",
@@ -20,6 +20,8 @@
     "returnBanking": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-return-banking.png",
     "advancedLedger": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-advanced-ledger.png",
     "narrowActiveNoScroll": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-narrow-active-no-scroll.png",
+    "narrowStartLayout": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-narrow-start-layout.png",
+    "narrowStartToActive": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-narrow-start-to-active.png",
     "narrowSmoke": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-narrow.png",
     "snapshot050": "/mnt/f/_evolve/millrace-games/auto-games/_visual-check/iron-lantern-descent-assets/browser-smoke-v0-5-snapshot.png"
   },
@@ -112,6 +114,105 @@
         "scrollHeight": 800,
         "overflowingX": false,
         "overflowingY": false
+      }
+    },
+    "narrowStartLayout": {
+      "surface": "expedition-start",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "regions": [
+        "left-depth-cards",
+        "center-cavern-lantern",
+        "right-selected-depth",
+        "bottom-character-loadout"
+      ],
+      "depthCardCount": 3,
+      "selectedDepth": "Upper Cut",
+      "detailContent": {
+        "description": "A controlled first descent from the Iron Lift to the Copper Iris seam.",
+        "readiness": "3 lanterns / 96 oxygen / drill ready",
+        "reward": "32cr Copper Iris sample / first upgrade preview",
+        "route": "Iron Lift to Copper Iris, lantern return marker advised",
+        "rewardCards": 2,
+        "loadoutCards": 2,
+        "consumableCards": 2
+      },
+      "summaryContent": [
+        "Mara Venn",
+        "Lantern Initiate",
+        "3 lanterns / drill / oxygen 96",
+        "32cr and tank weave preview"
+      ],
+      "beginVisible": true,
+      "beginReachableByTouch": true,
+      "detailUsable": true,
+      "summaryUsable": true,
+      "measurements": {
+        "start": {
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844,
+          "overflowY": "hidden",
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "scrollableY": false
+        },
+        "detail": {
+          "top": 317.53,
+          "bottom": 621.05,
+          "width": 370,
+          "height": 303.52,
+          "visibleHeight": 303.52,
+          "overflowY": "auto",
+          "scrollHeight": 430,
+          "clientHeight": 302,
+          "scrollableY": true
+        },
+        "summary": {
+          "top": 629.05,
+          "bottom": 834,
+          "width": 370,
+          "height": 204.95,
+          "visibleHeight": 204.95,
+          "scrollableY": false
+        },
+        "begin": {
+          "top": 771,
+          "bottom": 823,
+          "left": 21,
+          "right": 369,
+          "width": 348,
+          "height": 52,
+          "visibleHeight": 52,
+          "scrollableY": false
+        }
+      },
+      "intentionalOverflow": {
+        "pageOverflow": {
+          "width": 390,
+          "height": 844,
+          "docScrollWidth": 390,
+          "docScrollHeight": 844,
+          "bodyScrollWidth": 390,
+          "bodyScrollHeight": 844,
+          "overflowingX": false,
+          "overflowingY": false
+        },
+        "startSurface": {
+          "overflowY": "hidden",
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "scrollableY": false
+        },
+        "detailPanel": {
+          "overflowY": "auto",
+          "scrollHeight": 430,
+          "clientHeight": 302,
+          "scrollableY": true
+        }
       }
     },
     "selectionSurface": {
@@ -339,6 +440,35 @@
         "overflowingY": false
       }
     },
+    "narrowStartToActive": {
+      "trigger": "visible Begin Descent click at 390x844",
+      "surface": "descent",
+      "startHidden": true,
+      "objective": "Move toward Copper Iris.",
+      "contextAction": "Move Toward Copper Iris",
+      "contextDetail": "Copper Iris / 26m",
+      "runStatus": "active / local renderer + assets",
+      "advancedLedgerHidden": true,
+      "advancedLedgerVisible": false,
+      "hudCardCount": 6,
+      "controlHintCount": 4,
+      "canvas": {
+        "width": 390,
+        "height": 844,
+        "nonDark": 114738,
+        "bright": 53220
+      },
+      "overflow": {
+        "width": 390,
+        "height": 844,
+        "docScrollWidth": 390,
+        "docScrollHeight": 844,
+        "bodyScrollWidth": 390,
+        "bodyScrollHeight": 844,
+        "overflowingX": false,
+        "overflowingY": false
+      }
+    },
     "snapshot050": {
       "title": "Iron Lantern Descent",
       "eyebrow": "v0.5.0 cave readability repair",
@@ -370,6 +500,7 @@
     "arcadeDesktop": true,
     "arcadeNarrow": true,
     "startLayout": true,
+    "narrowStartLayout": true,
     "selectionSurface": true,
     "freshLiftScene": true,
     "pauseHelpOverlay": true,
@@ -377,6 +508,7 @@
     "restartConfirmation": true,
     "desktopActiveNoScroll": true,
     "narrowActiveNoScroll": true,
+    "narrowStartToActive": true,
     "lanternPlacement": true,
     "mining": true,
     "returnBanking": true,
@@ -388,5 +520,5 @@
     "consoleClean": true
   },
   "ok": true,
-  "notes": "Browser smoke used a local static server, Playwright screenshots, and the page-local IronLanternDescent API to capture the remediated start layout, pause/help overlay, reduced-motion state, restart confirmation, desktop and narrow active-play no-scroll states, accepted v0.5.0 gameplay states, console cleanliness, and v0.5.0 snapshot continuity."
+  "notes": "Browser smoke used a local static server, Playwright screenshots, and the page-local IronLanternDescent API to capture the remediated desktop start layout, 390x844 narrow start geometry and visible Begin Descent reachability, normal Begin Descent click-through into narrow active play, pause/help overlay, reduced-motion state, restart confirmation, desktop and narrow active-play no-scroll states, accepted v0.5.0 gameplay states, console cleanliness, and v0.5.0 snapshot continuity."
 }
